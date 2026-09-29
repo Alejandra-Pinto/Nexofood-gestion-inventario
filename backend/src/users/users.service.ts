@@ -37,4 +37,8 @@ export class UsersService {
       throw new InternalServerErrorException('Error al crear el usuario');
     }
   }
+
+  async findByCredencial(credencial: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { credencial } });
+  }
 }
