@@ -32,7 +32,7 @@ import { QueriesReportsModule } from './queries-reports/queries-reports.module';
 
         autoLoadEntities: true,
 
-        synchronize: false,
+        synchronize: true,
       }),
     }),
 
