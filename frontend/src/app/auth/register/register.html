@@ -1,0 +1,147 @@
+<main class="register-container">
+  <!-- Panel Izquierdo: Marca -->
+  <aside class="brand-sidebar">
+    <div class="brand-bg-glow"></div>
+    <div class="relative z-10">
+      <div class="company-logo">
+        <div class="logo-icon">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C10.5 4.5 9 6.5 9 9.5C9 10.88 9.56 12.13 10.46 13.04C8.42 12.16 7 10.21 7 8C4.5 10.5 3 13.5 3 16C3 20.42 7.03 24 12 24C16.97 24 21 20.42 21 16C21 12 18.5 7.5 12 2Z" fill="#E8C55A"></path>
+            <path d="M12 12C10.9 12 10 12.9 10 14C10 15.66 11.34 17 13 17C14.66 17 16 15.66 16 14C16 12.5 14.5 11 12 8C12 9.5 13.1 12 12 12Z" fill="#C9A227"></path>
+          </svg>
+        </div>
+        <div>
+          <span class="brand-name">CHORI</span>
+          <span class="brand-sub">COMPANY</span>
+        </div>
+      </div>
+      
+      <h2 class="hero-title">Gestión de colaboradores</h2>
+      <p class="hero-desc">Registra y gestiona los accesos del equipo. Asigna roles, sucursales y permisos para el control de ventas, turnos e inventario.</p>
+    </div>
+    
+    <footer class="sidebar-footer">
+      CORVSOFT · v1.0 ·
+    </footer>
+  </aside>
+
+  <!-- Panel Derecho: Formulario -->
+  <section class="form-section">
+    <header class="form-header">
+      <h2>Registrar nuevo colaborador</h2>
+      <p>Ingresa los datos personales y asigna credenciales y rol para el colaborador.</p>
+    </header>
+
+    <!-- Alertas de estado -->
+    <div class="alert success" *ngIf="successMessage">{{ successMessage }}</div>
+    <div class="alert error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="register-form">
+      
+      <!-- Fila 1: Nombre y Cédula -->
+      <div class="form-row">
+        <div>
+          <label class="custom-label">Nombre completo</label>
+          <input type="text" formControlName="nombre_completo" class="custom-input" [class.input-err]="registerForm.get('nombre_completo')?.invalid && registerForm.get('nombre_completo')?.touched" placeholder="Ej. Juan Pérez">
+        </div>
+        <div>
+          <label class="custom-label">Documento de identidad / Cédula</label>
+          <input type="text" formControlName="idNumber" class="custom-input" [class.input-err]="registerForm.get('idNumber')?.invalid && registerForm.get('idNumber')?.touched" placeholder="Ej. 1020304050">
+        </div>
+      </div>
+
+      <!-- Fila 2: Correo y Teléfono -->
+      <div class="form-row">
+        <div>
+          <label class="custom-label">Correo corporativo / Usuario</label>
+          <input type="email" formControlName="credencial" class="custom-input" [class.input-err]="registerForm.get('credencial')?.invalid && registerForm.get('credencial')?.touched" placeholder="colaborador@chori.com">
+        </div>
+        <div>
+          <label class="custom-label">Teléfono de contacto</label>
+          <input type="tel" formControlName="phone" class="custom-input" placeholder="+57 300 123 4567">
+        </div>
+      </div>
+
+      <!-- Fila 3: Rol y Estado -->
+      <div class="form-row">
+        <div>
+          <label class="custom-label">Rol asignado</label>
+          <div class="select-wrapper">
+            <select formControlName="rol" class="custom-select" [class.input-err]="registerForm.get('rol')?.invalid && registerForm.get('rol')?.touched">
+              <option value="" disabled selected>Seleccione un rol</option>
+              <option value="Administrador">Administrador de turno</option>
+              <option value="Cajero">Cajero</option>
+              <option value="Mesero">Mesero / Salón</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="custom-label">Estado inicial</label>
+          <div class="select-wrapper">
+            <select formControlName="status" class="custom-select">
+              <option value="activo">Activo — Habilitado de inmediato</option>
+              <option value="inactivo">Inactivo (Pendiente de inducción)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fila 4: Contraseñas -->
+      <div class="form-row">
+        <div>
+          <label class="custom-label">Contraseña provisional / temporal</label>
+          <div class="input-icon-wrapper">
+            <input [type]="showPassword ? 'text' : 'password'" formControlName="password" class="custom-input" [class.input-err]="registerForm.get('password')?.invalid && registerForm.get('password')?.touched" placeholder="••••••••">
+            <button type="button" class="icon-btn" (click)="togglePassword()" [class.active-icon]="showPassword">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke-width="2"/></svg>
+            </button>
+          </div>
+          <p class="hint-text">Mínimo 8 caracteres, al menos una mayúscula y un número</p>
+        </div>
+        <div>
+          <label class="custom-label">Confirmar contraseña provisional</label>
+          <div class="input-icon-wrapper">
+            <input [type]="showPassword ? 'text' : 'password'" formControlName="confirmPassword" class="custom-input" 
+                   [class.input-err]="registerForm.hasError('passwordMismatch') && registerForm.get('confirmPassword')?.touched"
+                   [class.input-success]="registerForm.get('confirmPassword')?.valid && registerForm.get('password')?.value === registerForm.get('confirmPassword')?.value && registerForm.get('password')?.value !== ''" 
+                   placeholder="••••••••">
+            
+            <div class="icon-success" *ngIf="registerForm.get('confirmPassword')?.valid && registerForm.get('password')?.value === registerForm.get('confirmPassword')?.value && registerForm.get('password')?.value !== ''">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-width="2.5"/></svg>
+            </div>
+          </div>
+          <p class="success-text" *ngIf="registerForm.get('confirmPassword')?.valid && registerForm.get('password')?.value === registerForm.get('confirmPassword')?.value && registerForm.get('password')?.value !== ''">
+            Las contraseñas coinciden
+          </p>
+          <p class="err-text" *ngIf="registerForm.hasError('passwordMismatch') && registerForm.get('confirmPassword')?.touched">
+            Las contraseñas no coinciden
+          </p>
+        </div>
+      </div>
+
+      <!-- Casillas de verificación -->
+      <div class="checkbox-group">
+        <label class="custom-checkbox">
+          <input type="checkbox" formControlName="sendCredentials">
+          <span>Enviar credenciales de acceso iniciales y bienvenida al correo corporativo.</span>
+        </label>
+        <label class="custom-checkbox">
+          <input type="checkbox" formControlName="forceReset">
+          <span>Solicitar cambio obligatorio de contraseña en el primer inicio de sesión.</span>
+        </label>
+      </div>
+
+      <!-- Acciones -->
+      <div class="form-actions">
+        <button type="submit" class="btn-submit" [disabled]="isLoading">
+          {{ isLoading ? 'Creando colaborador...' : 'Crear colaborador' }}
+        </button>
+      </div>
+
+      <div class="form-footer">
+        <a (click)="goBack()" class="back-link"><span>←</span> Volver a Gestión de colaboradores</a>
+        <p class="disclaimer">Nota: El usuario creado tendrá acceso inmediato según los permisos configurados para su rol en el sistema.</p>
+      </div>
+    </form>
+  </section>
+</main>
