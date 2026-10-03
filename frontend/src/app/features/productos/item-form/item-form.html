@@ -1,0 +1,123 @@
+<!-- Formulario "Nuevo producto" (estilo del prototipo 18) -->
+<form class="card formulario" [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+  <h2>Nuevo producto o insumo</h2>
+  <p class="descripcion">Registra los productos que se venden y los insumos con su stock inicial.</p>
+
+  <!-- Tipo de ítem: dos botones (como "Ingreso / Egreso" del prototipo) -->
+  <span class="etiqueta">Tipo de ítem <span class="obligatorio">*</span></span>
+  <div class="tipos" role="radiogroup">
+    <button type="button" class="tipo" [class.seleccionado]="esProducto()" (click)="seleccionarTipo('PRODUCTO')">
+      Producto
+    </button>
+    <button type="button" class="tipo" [class.seleccionado]="!esProducto()" (click)="seleccionarTipo('INSUMO')">
+      Insumo
+    </button>
+  </div>
+  <p class="ayuda tipo-ayuda">
+    {{ esProducto() ? 'Se vende al cliente (choripán, bebida, adicional…).' : 'Materia prima para preparar productos (chorizo, pan, salsas…).' }}
+  </p>
+
+  <!-- Nombre -->
+  <div class="campo">
+    <label for="nombre">Nombre <span class="obligatorio">*</span></label>
+    <input id="nombre" formControlName="nombre" maxlength="80"
+      [placeholder]="esProducto() ? 'Ej: Choripán Pampero' : 'Ej: Chorizo artesanal'"
+      [class.invalido]="invalido('nombre')" />
+    @if (invalido('nombre', 'required')) {
+      <small class="error-txt">⚠ El nombre es obligatorio.</small>
+    } @else if (invalido('nombre', 'duplicado')) {
+      <small class="error-txt">⚠ {{ form.controls.nombre.getError('duplicado') }}</small>
+    }
+  </div>
+
+  <!-- Categoría -->
+  <div class="campo">
+    <label for="categoria">Categoría <span class="obligatorio">*</span></label>
+    <select id="categoria" formControlName="id_categoria" [class.invalido]="invalido('id_categoria')">
+      <option [ngValue]="0" disabled>Seleccione…</option>
+      @for (c of categorias(); track c.id_categoria) {
+        <option [ngValue]="c.id_categoria">{{ c.nombre }}</option>
+      }
+    </select>
+    @if (invalido('id_categoria')) {
+      <small class="error-txt">⚠ Seleccione una categoría.</small>
+    }
+  </div>
+
+  <!-- Stock inicial y stock mínimo -->
+  <div class="fila">
+    <div class="campo">
+      <label for="stock">Stock inicial <span class="obligatorio">*</span></label>
+      <input id="stock" type="number" min="0" step="1" formControlName="cantidad_stock"
+        [class.invalido]="invalido('cantidad_stock')" />
+      @if (invalido('cantidad_stock')) {
+        <small class="error-txt">⚠ Número entero mayor o igual a 0.</small>
+      } @else {
+        <small class="ayuda">Unidades disponibles al registrar.</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="minimo">Stock mínimo <span class="obligatorio">*</span></label>
+      <input id="minimo" type="number" min="0" step="1" formControlName="stock_minimo"
+        [class.invalido]="invalido('stock_minimo')" />
+      @if (invalido('stock_minimo')) {
+        <small class="error-txt">⚠ Número entero mayor o igual a 0.</small>
+      } @else {
+        <small class="ayuda">Se mostrará alerta "Bajo" al llegar a este valor.</small>
+      }
+    </div>
+  </div>
+
+  <!-- Costo y precio (con el símbolo $ como en el prototipo) -->
+  <div class="fila">
+    <div class="campo">
+      <label for="costo">{{ esProducto() ? 'Costo de producción' : 'Costo de compra' }} <span class="obligatorio">*</span></label>
+      <div class="moneda">
+        <span>$</span>
+        <input id="costo" type="number" min="0" step="1" formControlName="costo_fabricacion"
+          [class.invalido]="invalido('costo_fabricacion')" />
+      </div>
+      @if (invalido('costo_fabricacion')) {
+        <small class="error-txt">⚠ Valor entero mayor o igual a 0.</small>
+      }
+    </div>
+
+    <!-- El precio de venta solo aplica para PRODUCTOS -->
+    @if (esProducto()) {
+      <div class="campo">
+        <label for="precio">Precio de venta <span class="obligatorio">*</span></label>
+        <div class="moneda">
+          <span>$</span>
+          <input id="precio" type="number" min="1" step="1" formControlName="precio_venta"
+            [class.invalido]="invalido('precio_venta')" />
+        </div>
+        @if (invalido('precio_venta')) {
+          <small class="error-txt">⚠ Debe ser mayor a cero.</small>
+        } @else {
+          <small class="ayuda">Debe ser mayor a cero.</small>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Mensajes de resultado -->
+  @if (errorGeneral()) {
+    <div class="alerta alerta-error">⚠ {{ errorGeneral() }}</div>
+  }
+
+  <!-- Pie: mensaje de éxito a la izquierda y botones a la derecha (prototipo 18) -->
+  <div class="pie">
+    <div class="pie-mensaje">
+      @if (exito()) {
+        <div class="alerta alerta-ok">✓ {{ exito() }}</div>
+      }
+    </div>
+    <div class="acciones">
+      <button type="button" class="btn btn-secundario" (click)="cancelado.emit()">Cancelar</button>
+      <button type="submit" class="btn btn-primario" [disabled]="guardando()">
+        {{ guardando() ? 'Guardando…' : 'Registrar producto' }}
+      </button>
+    </div>
+  </div>
+</form>

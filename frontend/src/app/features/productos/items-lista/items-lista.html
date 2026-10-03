@@ -1,0 +1,112 @@
+<!-- ===== Encabezado de la pantalla (título + subtítulo + acción) ===== -->
+<header class="encabezado">
+  <div>
+    <h1>Productos</h1>
+    <p class="subtitulo">Registro y consulta de productos e insumos del inventario.</p>
+  </div>
+  @if (!mostrarForm()) {
+    <button class="btn btn-primario" (click)="mostrarForm.set(true)">+ Nuevo producto</button>
+  }
+</header>
+
+<div class="pagina">
+  <!-- Formulario de registro (se abre con "+ Nuevo producto") -->
+  @if (mostrarForm()) {
+    <app-item-form (creado)="agregar($event)" (cancelado)="mostrarForm.set(false)" />
+  }
+
+  <!-- ===== Tarjeta con la tabla de ítems ===== -->
+  <section class="card tabla-card">
+    <div class="tabla-encabezado">
+      <div>
+        <h2>Productos registrados</h2>
+        <p class="subtitulo">
+          {{ items().length }} {{ items().length === 1 ? 'ítem' : 'ítems' }}
+          @if (totalBajo() > 0) { · <span class="alerta-texto">{{ totalBajo() }} con stock bajo</span> }
+        </p>
+      </div>
+
+      <!-- Filtros: botones de tipo (como las pestañas de Reportes) y búsqueda -->
+      @if (items().length > 0) {
+        <div class="filtros">
+          <div class="pestanas">
+            @for (f of filtros; track f.valor) {
+              <button type="button" class="pestana" [class.activa]="filtroTipo() === f.valor" (click)="filtroTipo.set(f.valor)">
+                {{ f.texto }}
+              </button>
+            }
+          </div>
+          <input class="buscar" type="search" placeholder="Buscar por nombre…"
+            [value]="busqueda()" (input)="busqueda.set($any($event.target).value)" />
+        </div>
+      }
+    </div>
+
+    @if (cargando()) {
+      <p class="muted centro">Cargando…</p>
+
+    } @else if (error()) {
+      <div class="alerta alerta-error">⚠ No se pudo cargar la información. Revise que el backend esté corriendo.</div>
+
+    } @else if (items().length === 0) {
+      <!-- Estado vacío (prototipo 21) -->
+      <div class="vacio">
+        <span class="vacio-icono">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8" /></svg>
+        </span>
+        <strong>Aún no hay productos</strong>
+        <p>Registra tu primer producto o insumo<br />para empezar a controlar el stock.</p>
+        @if (!mostrarForm()) {
+          <button class="btn btn-primario" (click)="mostrarForm.set(true)">+ Nuevo producto</button>
+        }
+      </div>
+
+    } @else {
+      <div class="tabla-wrap">
+        <table class="tabla">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Tipo</th>
+              <th>Categoría</th>
+              <th class="num">Cantidad disponible</th>
+              <th class="num">Precio</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (i of filtrados(); track i.id_item) {
+              <tr [class.inactivo]="!i.estado_activo">
+                <td class="nombre">{{ i.nombre }}</td>
+                <td>{{ i.tipo_item === 'PRODUCTO' ? 'Producto' : 'Insumo' }}</td>
+                <td class="muted">{{ nombreCategoria(i.id_categoria) }}</td>
+                <td class="num"><strong>{{ i.cantidad_stock }}</strong></td>
+                <td class="num">
+                  {{ i.tipo_item === 'PRODUCTO' ? (i.precio_venta | currency: 'COP' : 'symbol-narrow' : '1.0-0') : '—' }}
+                </td>
+                <td>
+                  <!-- Estado: Inactivo / Bajo (stock <= mínimo) / OK -->
+                  @if (!i.estado_activo) {
+                    <span class="badge">Inactivo</span>
+                  } @else if (stockBajo(i)) {
+                    <span class="badge badge-bajo">● Bajo</span>
+                  } @else {
+                    <span class="badge badge-ok">● OK</span>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <!-- Hay ítems, pero ninguno coincide con el filtro -->
+              <tr>
+                <td colspan="6" class="centro muted">
+                  Sin resultados para el filtro.
+                  <button class="link" (click)="limpiarFiltros()">Limpiar filtros</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+</div>

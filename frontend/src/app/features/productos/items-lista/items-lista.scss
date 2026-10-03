@@ -1,0 +1,133 @@
+/* Encabezado blanco de la pantalla (título vinotinto + subtítulo gris) */
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 32px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+
+  h1 { font-size: 1.5rem; }
+}
+
+.subtitulo { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
+.alerta-texto { color: var(--error); font-weight: 600; }
+
+/* Contenido: tarjetas una debajo de otra */
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px 32px;
+}
+
+.tabla-card { padding: 20px 24px; min-width: 0; }
+
+.tabla-encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+
+  h2 { font-size: 1.05rem; }
+}
+
+/* Filtros */
+.filtros { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.pestanas { display: flex; gap: 8px; }
+
+.pestana {
+  padding: 8px 16px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &.activa { background: var(--primario); border-color: var(--primario); color: #fff; }
+}
+
+.buscar { width: 220px; padding: 8px 12px; }
+
+/* Tabla (estilo "Control de Inventario Activo") */
+.tabla-wrap { overflow-x: auto; }
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+
+  th {
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 0.72rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--borde);
+  }
+
+  td {
+    padding: 12px;
+    border-bottom: 1px solid var(--borde);
+    white-space: nowrap;
+  }
+
+  .num { text-align: right; }
+  .nombre { font-weight: 500; }
+  tr.inactivo td { opacity: 0.55; }
+}
+
+.centro { text-align: center; }
+
+.link {
+  border: 0;
+  background: none;
+  color: var(--primario);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Estado vacío (prototipo 21) */
+.vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 16px;
+  text-align: center;
+
+  p { margin: 0 0 8px; font-size: 0.85rem; color: var(--muted); }
+}
+
+.vacio-icono {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--fondo);
+  margin-bottom: 6px;
+
+  svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: var(--muted);
+    stroke-width: 1.8;
+    stroke-linejoin: round;
+  }
+}
+
+@media (max-width: 640px) {
+  .encabezado, .pagina { padding: 16px; }
+  .buscar { width: 100%; }
+}
