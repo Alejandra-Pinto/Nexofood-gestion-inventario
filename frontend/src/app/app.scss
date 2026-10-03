@@ -1,0 +1,113 @@
+/* Estructura: menú lateral fijo a la izquierda + contenido a la derecha */
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100dvh;
+}
+
+/* ---------- Menú lateral ---------- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px 14px;
+  background: var(--superficie);
+  border-right: 1px solid var(--borde);
+}
+
+.marca-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px;
+}
+
+/* Logo de la choripanería (se ajusta sin deformarse) */
+.logo {
+  height: 44px;
+  width: auto;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+.marca { font-size: 1.05rem; color: var(--primario); line-height: 1.2; }
+
+.menu { display: flex; flex-direction: column; gap: 4px; }
+
+.menu-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 500;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  &:hover:not(.deshabilitado) { background: var(--fondo); color: var(--texto); }
+
+  /* Opción activa: fondo gris y barrita vinotinto a la derecha (prototipo) */
+  &.activo {
+    background: var(--fondo);
+    color: var(--primario);
+    font-weight: 600;
+
+    &::after {
+      content: '';
+      position: absolute;
+      right: 8px;
+      width: 3px;
+      height: 18px;
+      border-radius: 2px;
+      background: var(--primario);
+    }
+  }
+
+  &.deshabilitado { opacity: 0.55; cursor: not-allowed; }
+}
+
+/* Usuario abajo del menú */
+.usuario {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 6px 0;
+  border-top: 1px solid var(--borde);
+
+  strong { display: block; font-size: 0.88rem; }
+  small { color: var(--muted); font-size: 0.75rem; }
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--dorado), var(--primario));
+  color: #fff;
+  font-weight: 700;
+}
+
+.contenido { min-width: 0; }
+
+/* ---------- Pantallas pequeñas: el menú pasa arriba ---------- */
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { flex-direction: row; align-items: center; overflow-x: auto; padding: 10px 14px; gap: 12px; }
+  .menu { flex-direction: row; }
+  .menu-item { white-space: nowrap; &.activo::after { display: none; } }
+  .usuario { display: none; }
+}

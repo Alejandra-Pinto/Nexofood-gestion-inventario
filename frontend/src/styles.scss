@@ -1,1 +1,102 @@
-/* You can add global styles to this file, and also import other style files */
+/* =====================================================================
+   Estilos globales · Chori Company (NexoFood)
+   Colores y componentes tomados de los prototipos de interfaz (Figma)
+   ===================================================================== */
+
+/* ---------- Paleta de colores (variables reutilizables) ---------- */
+:root {
+  --primario: #6b1f22;          /* vinotinto de la marca */
+  --primario-hover: #561819;
+  --primario-suave: #f6eaea;
+  --dorado: #c9a227;            /* acento dorado ("COMPANY") */
+  --texto: #1f2430;
+  --muted: #6b7280;             /* textos secundarios */
+  --fondo: #eef1f5;             /* fondo gris claro de la app */
+  --superficie: #ffffff;        /* tarjetas */
+  --borde: #e5e7eb;
+  --ok: #15803d;
+  --ok-suave: #dcfce7;
+  --error: #b91c1c;
+  --error-suave: #fef2f2;
+  --error-borde: #f5c2c2;
+  --radio: 14px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--texto);
+  background: var(--fondo);
+}
+
+h1, h2 { margin: 0; color: var(--primario); }
+.muted { color: var(--muted); }
+
+/* ---------- Tarjeta blanca ---------- */
+.card {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+/* ---------- Botones ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primario { background: var(--primario); color: #fff; }
+.btn-primario:hover:not(:disabled) { background: var(--primario-hover); }
+.btn-secundario { background: var(--superficie); color: var(--texto); border-color: var(--borde); }
+.btn-secundario:hover { background: var(--fondo); }
+
+/* ---------- Campos de formulario ---------- */
+.campo { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.campo > label, .etiqueta { font-size: 0.85rem; font-weight: 600; color: var(--texto); }
+.obligatorio { color: var(--error); }                      /* asterisco rojo */
+.ayuda { font-size: 0.78rem; color: var(--muted); }        /* texto de ayuda */
+
+input, select {
+  font: inherit;
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+  color: var(--texto);
+}
+input:focus, select:focus { outline: 2px solid var(--primario); outline-offset: -1px; }
+
+/* Campo con error: borde rojo y fondo rosado, como en el prototipo de login */
+input.invalido, select.invalido { border-color: var(--error); background: var(--error-suave); }
+.error-txt { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; color: var(--error); }
+
+/* ---------- Alertas ---------- */
+.alerta { padding: 12px 14px; border-radius: 10px; font-size: 0.9rem; }
+.alerta-error { background: var(--error-suave); color: var(--error); border: 1px solid var(--error-borde); }
+.alerta-ok { background: var(--ok-suave); color: var(--ok); border: 1px solid #bbf7d0; }
+
+/* ---------- Etiquetas de estado (Bajo / OK) ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--fondo);
+  color: var(--muted);
+}
+.badge-ok { background: var(--ok-suave); color: var(--ok); }
+.badge-bajo { background: var(--error-suave); color: var(--error); }

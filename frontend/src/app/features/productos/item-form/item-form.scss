@@ -1,0 +1,70 @@
+/* Tarjeta del formulario */
+.formulario {
+  padding: 24px 28px;
+
+  h2 { font-size: 1.1rem; }
+}
+
+.descripcion { margin: 4px 0 20px; font-size: 0.85rem; color: var(--muted); }
+
+/* Botones Producto / Insumo */
+.tipos { display: flex; gap: 10px; margin-top: 8px; }
+
+.tipo {
+  padding: 10px 22px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+
+  &.seleccionado {
+    background: var(--primario);
+    border-color: var(--primario);
+    color: #fff;
+  }
+}
+
+.tipo-ayuda { margin: 6px 0 18px; }
+
+/* Dos campos por fila */
+.fila {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Campo de dinero con "$" al inicio */
+.moneda {
+  position: relative;
+
+  span {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+  }
+
+  input { padding-left: 28px; }
+}
+
+/* Pie: mensaje + botones */
+.pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.pie-mensaje { flex: 1; min-width: 240px; }
+.acciones { display: flex; gap: 10px; }
+
+@media (max-width: 640px) {
+  .fila { grid-template-columns: 1fr; gap: 0; }
+  .formulario { padding: 20px; }
+}
