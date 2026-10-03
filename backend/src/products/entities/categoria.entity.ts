@@ -6,7 +6,8 @@
  */
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity('categoria')
+// synchronize: false -> TypeORM no modifica esta tabla; se crea con backend/database/001_productos_insumos.sql
+@Entity({ name: 'categoria', synchronize: false })
 export class Categoria {
   @PrimaryGeneratedColumn({ name: 'id_categoria' })
   id_categoria: number;

@@ -15,7 +15,8 @@ export enum TipoItem {
   INSUMO = 'INSUMO',
 }
 
-@Entity('item_inventario')
+// synchronize: false -> TypeORM no modifica esta tabla; se crea con backend/database/001_productos_insumos.sql
+@Entity({ name: 'item_inventario', synchronize: false })
 export class ItemInventario {
   @PrimaryGeneratedColumn({ name: 'id_item' })
   id_item: number;

@@ -1,5 +1,5 @@
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -8,12 +8,12 @@ async function bootstrap() {
   // Permite que el frontend Angular (localhost:4200) llame al backend
   app.enableCors({ origin: process.env.FRONTEND_URL ?? 'http://localhost:4200' });
 
-  // Valida automáticamente los DTO (campos obligatorios, tipos, rangos)
+  // Activación de validaciones globales para los DTOs en toda la API
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // ignora campos que no estén en el DTO
-      forbidNonWhitelisted: true, // ...y responde 400 si los envían
-      transform: true, // convierte el body al tipo del DTO
+      whitelist: true, // Elimina campos que el Frontend envía por error
+      forbidNonWhitelisted: true, // Bloquea la petición si el Frontend envía campos que no están en el DTO
+      transform: true, // Convierte el body al tipo del DTO (necesario para limpiar el nombre en CreateItemDto)
     }),
   );
 
