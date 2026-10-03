@@ -1,8 +1,10 @@
+// SCRUM-124 / SCRUM-125 · Validación de campos obligatorios
+
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { CreateItemDto } from './create-item.dto';
 
-// SCRUM-124 / SCRUM-125 · Validación de campos obligatorios
+
 const validar = async (datos: Record<string, unknown>) => {
   const errores = await validate(plainToInstance(CreateItemDto, datos));
   return errores.map((e) => e.property);

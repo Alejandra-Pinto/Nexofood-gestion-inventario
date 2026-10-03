@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS item_inventario (
   tipo_item          VARCHAR(10)  NOT NULL,
   cantidad_stock     INTEGER      NOT NULL DEFAULT 0,
   stock_minimo       INTEGER      NOT NULL DEFAULT 0,
-  costo_fabricacion  INTEGER      NOT NULL DEFAULT 0,   -- COP, sin decimales
-  precio_venta       INTEGER      NOT NULL DEFAULT 0,   -- COP, 0 para insumos
+  costo_fabricacion  INTEGER      NOT NULL DEFAULT 0,   
+  precio_venta       INTEGER      NOT NULL DEFAULT 0,   
   estado_activo      BOOLEAN      NOT NULL DEFAULT TRUE,
   -- Solo se permiten estos dos tipos
   CONSTRAINT ck_item_tipo      CHECK (tipo_item IN ('PRODUCTO', 'INSUMO')),

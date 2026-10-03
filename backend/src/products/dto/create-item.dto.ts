@@ -1,10 +1,6 @@
 /**
  * DTO (Data Transfer Object): CreateItemDto
  * ------------------------------------------------------------------
- * Define QUÉ DATOS debe enviar el frontend para registrar un ítem
- * y las REGLAS de cada campo. Si algo no cumple, NestJS responde
- * automáticamente 400 (Bad Request) con el mensaje de error en español.
- *
  * HU-2.1 · SCRUM-124 Validar duplicados y campos obligatorios
  *          (los duplicados se validan en products.service.ts)
  */
@@ -49,7 +45,7 @@ export class CreateItemDto {
   @Min(0, { message: 'El stock mínimo no puede ser negativo' })
   stock_minimo: number;
 
-  // Costo de producción o de compra en COP (sin decimales)
+  // Costo de producción o de compra en COP 
   @IsInt({ message: 'El costo debe ser un número entero (COP)' })
   @Min(0, { message: 'El costo no puede ser negativo' })
   costo_fabricacion: number;

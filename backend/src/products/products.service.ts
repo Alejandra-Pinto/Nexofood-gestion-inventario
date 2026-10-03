@@ -3,9 +3,6 @@
  * ------------------------------------------------------------------
  * Contiene la LÓGICA DE NEGOCIO del módulo Products:
  * consultar, buscar y registrar productos e insumos.
- * El controlador (products.controller.ts) recibe la petición HTTP
- * y le pide a este servicio que haga el trabajo.
- *
  * HU-2.1 · SCRUM-123 Implementar creación de ítem e inicialización de stock
  *        · SCRUM-124 Validar duplicados y campos obligatorios
  */
@@ -18,8 +15,6 @@ import { CreateItemDto } from './dto/create-item.dto';
 
 @Injectable()
 export class ProductsService {
-  // Los "repositorios" de TypeORM permiten leer y guardar en cada tabla.
-  // NestJS los inyecta automáticamente (inyección de dependencias).
   constructor(
     @InjectRepository(ItemInventario)
     private readonly itemsRepo: Repository<ItemInventario>,
@@ -58,9 +53,9 @@ export class ProductsService {
    *
    * Pasos:
    *  1. Verifica que la categoría exista            -> si no, 400 (Bad Request)
-   *  2. Verifica que el nombre no esté repetido     -> si sí, 409 (Conflict)  [SCRUM-124]
+   *  2. Verifica que el nombre no esté repetido     -> si sí, 409 (Conflict)  
    *  3. Si es INSUMO, el precio de venta se guarda en 0
-   *  4. Guarda el ítem con cantidad_stock = stock inicial  [SCRUM-123]
+   *  4. Guarda el ítem con cantidad_stock = stock inicial  
    */
   async create(dto: CreateItemDto): Promise<ItemInventario> {
     // 1. La categoría debe existir en la tabla categoria

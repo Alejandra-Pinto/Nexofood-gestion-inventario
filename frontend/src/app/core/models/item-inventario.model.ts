@@ -1,9 +1,3 @@
-/**
- * Modelos (interfaces) del inventario en el frontend.
- * Tienen los MISMOS nombres de atributos que las entidades del backend
- * y que las tablas del modelo de datos (Categoria, Item_Inventario <<STI>>).
- */
-
 /** Tabla categoria */
 export interface Categoria {
   id_categoria: number;

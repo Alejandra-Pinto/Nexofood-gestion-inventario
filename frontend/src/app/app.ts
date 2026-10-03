@@ -1,16 +1,11 @@
-/**
- * Componente raíz: estructura general de la aplicación
- * (menú lateral + contenido de cada pantalla).
- * Basado en los prototipos de interfaz (pantallas 17 a 21).
- */
 import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 /** Opción del menú lateral */
 interface OpcionMenu {
   texto: string;
-  ruta?: string;  // si no tiene ruta, la pantalla aún no está desarrollada
-  icono: string;  // trazo SVG del ícono (24x24)
+  ruta?: string;  
+  icono: string;  
 }
 
 @Component({

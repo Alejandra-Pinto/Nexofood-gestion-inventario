@@ -22,7 +22,7 @@
   padding: 0 6px;
 }
 
-/* Logo de la choripanería (se ajusta sin deformarse) */
+/* Logo de la choripanería  */
 .logo {
   height: 44px;
   width: auto;
@@ -57,7 +57,7 @@
 
   &:hover:not(.deshabilitado) { background: var(--fondo); color: var(--texto); }
 
-  /* Opción activa: fondo gris y barrita vinotinto a la derecha (prototipo) */
+  /* Opción activa: fondo gris y barrita vinotinto a la derecha */
   &.activo {
     background: var(--fondo);
     color: var(--primario);
