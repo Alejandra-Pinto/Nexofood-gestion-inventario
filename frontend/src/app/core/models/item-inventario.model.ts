@@ -24,4 +24,15 @@ export interface ItemInventario {
 export type CrearItem = Omit<ItemInventario, 'id_item' | 'estado_activo'>;
 
 /** true si el stock actual llegó al mínimo -> etiqueta "Bajo" */
-export const tieneStockBajo = (i: ItemInventario) => i.cantidad_stock <= i.stock_minimo;
+export type NivelStock = 'ok' | 'bajo' | 'agotado';
+
+/** HU-2.5: bajo = stock <= mínimo · agotado = stock en 0 (nivel crítico) */
+export function nivelStock(i: Pick<ItemInventario, 'cantidad_stock' | 'stock_minimo'>): NivelStock {
+  if (i.cantidad_stock <= 0) return 'agotado';
+  if (i.cantidad_stock <= i.stock_minimo) return 'bajo';
+  return 'ok';
+}
+
+export function tieneStockBajo(i: Pick<ItemInventario, 'cantidad_stock' | 'stock_minimo'>): boolean {
+  return nivelStock(i) !== 'ok';
+}

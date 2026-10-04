@@ -29,4 +29,8 @@ export class InventarioService {
   categorias() {
     return this.http.get<Categoria[]>(`${this.api}/categories`);
   }
+
+  alertasStock() {
+    return this.http.get<ItemInventario[]>(`${this.api}/products/alerts`); // ⚠ igual que en listar()
+  }
 }
