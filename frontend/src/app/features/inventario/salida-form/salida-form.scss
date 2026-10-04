@@ -1,6 +1,33 @@
+/* Encabezado blanco igual al de items-lista */
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 32px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+
+  h1 { font-size: 1.5rem; }
+}
+
+.subtitulo {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Contenedor principal: mismo padding que items-lista */
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px 32px;
+}
+
+/* Formulario ocupa todo el ancho disponible del contenedor */
 .formulario {
   padding: 24px 28px;
-  max-width: 720px;
 
   h2 { font-size: 1.15rem; }
 }
@@ -39,14 +66,14 @@
   }
 }
 
-/* Fila con dos campos (por si luego se agregan) */
+/* Fila de 2 columnas (por si se agregan campos luego) */
 .fila {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
-/* Textarea: hereda estilos base de input */
+/* Textarea hereda estilos globales; solo ajusta tamaño */
 textarea {
   resize: vertical;
   min-height: 72px;
@@ -61,10 +88,11 @@ textarea {
   margin-top: 20px;
 }
 
-/* Badge de stock bajo */
 .badge-bajo { margin-left: 6px; }
 
 @media (max-width: 640px) {
+  .encabezado { padding: 16px; }
+  .pagina { padding: 16px; }
   .fila { grid-template-columns: 1fr; gap: 0; }
   .formulario { padding: 20px; }
   .acciones { flex-direction: column-reverse; }

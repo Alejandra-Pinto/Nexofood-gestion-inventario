@@ -1,115 +1,135 @@
-<form class="card formulario" [formGroup]="form" (ngSubmit)="registrar()" novalidate>
-  <h2>Registrar salida de inventario</h2>
-  <p class="descripcion">
-    Registra mermas (daño o caducidad) o consumo interno del negocio.
-    El stock se descuenta automáticamente y queda registrado en el kardex.
-  </p>
-
-  <!-- Ítem -->
-  <div class="campo">
-    <label for="item">Ítem <span class="obligatorio">*</span></label>
-    <select
-      id="item"
-      formControlName="id_item"
-      [class.invalido]="invalido('id_item')"
-    >
-      <option [ngValue]="0" disabled>Seleccione un producto o insumo…</option>
-      @for (i of items(); track i.id_item) {
-        <option [ngValue]="i.id_item">
-          {{ i.nombre }} — {{ i.cantidad_stock }} en stock
-        </option>
-      }
-    </select>
-    @if (invalido('id_item')) {
-      <small class="error-txt">⚠ Debe seleccionar un ítem.</small>
-    } @else if (itemSeleccionado(); as sel) {
-      <small class="ayuda">
-        Stock actual: <strong>{{ sel.cantidad_stock }}</strong>
-        @if (stockBajo()) {
-          <span class="badge badge-bajo">● Bajo</span>
-        }
-      </small>
-    }
+<header class="encabezado">
+  <div>
+    <h1>Salidas de inventario</h1>
+    <p class="subtitulo">
+      Registra mermas (daño o caducidad) o consumo interno del negocio.
+    </p>
   </div>
+</header>
 
-  <!-- Motivo -->
-  <span class="etiqueta">Motivo <span class="obligatorio">*</span></span>
-  <div class="motivos" role="radiogroup">
-    @for (m of motivos; track m) {
+<div class="pagina">
+  <form
+    class="card formulario"
+    [formGroup]="form"
+    (ngSubmit)="registrar()"
+    novalidate
+  >
+    <h2>Registrar salida</h2>
+    <p class="descripcion">
+      El stock se descuenta automáticamente y queda registrado en el kardex.
+    </p>
+
+    <!-- Ítem -->
+    <div class="campo">
+      <label for="item">Ítem <span class="obligatorio">*</span></label>
+      <select
+        id="item"
+        formControlName="id_item"
+        [class.invalido]="invalido('id_item')"
+      >
+        <option [ngValue]="0" disabled>Seleccione un producto o insumo…</option>
+        @for (i of items(); track i.id_item) {
+          <option [ngValue]="i.id_item">
+            {{ i.nombre }} — {{ i.cantidad_stock }} en stock
+          </option>
+        }
+      </select>
+      @if (invalido('id_item')) {
+        <small class="error-txt">⚠ Debe seleccionar un ítem.</small>
+      } @else if (itemSeleccionado(); as sel) {
+        <small class="ayuda">
+          Stock actual: <strong>{{ sel.cantidad_stock }}</strong>
+          @if (stockBajo()) {
+            <span class="badge badge-bajo">● Bajo</span>
+          }
+        </small>
+      }
+    </div>
+
+    <!-- Motivo -->
+    <span class="etiqueta">Motivo <span class="obligatorio">*</span></span>
+    <div class="motivos" role="radiogroup">
+      @for (m of motivos; track m) {
+        <button
+          type="button"
+          class="motivo"
+          [class.seleccionado]="form.controls.motivo.value === m"
+          (click)="form.controls.motivo.setValue(m)"
+        >
+          {{ etiquetaMotivo[m] }}
+        </button>
+      }
+    </div>
+
+    <!-- Cantidad + Observaciones en grid si caben -->
+    <div class="fila">
+      <div class="campo">
+        <label for="cantidad">Cantidad <span class="obligatorio">*</span></label>
+        <input
+          id="cantidad"
+          type="number"
+          min="1"
+          step="1"
+          formControlName="cantidad"
+          [class.invalido]="invalido('cantidad')"
+        />
+        @if (invalido('cantidad')) {
+          <small class="error-txt">
+            ⚠ Ingrese un número entero mayor a 0.
+          </small>
+        } @else {
+          <small class="ayuda">Unidades a descontar.</small>
+        }
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="obs">Observaciones (opcional)</label>
+      <textarea
+        id="obs"
+        rows="3"
+        maxlength="255"
+        formControlName="observaciones"
+        placeholder="Ej: Lote #458, se dañó en cocina, uso para pruebas…"
+      ></textarea>
+      @if (invalido('observaciones', 'maxlength')) {
+        <small class="error-txt">⚠ Máximo 255 caracteres.</small>
+      }
+    </div>
+
+    <!-- Mensajes -->
+    @if (errorGeneral()) {
+      <div class="alerta alerta-error">⚠ {{ errorGeneral() }}</div>
+    }
+
+    @if (exito(); as mov) {
+      <div class="alerta alerta-ok">
+        ✓ Salida registrada. Stock de
+        <strong>{{ mov.stock_anterior }}</strong> →
+        <strong>{{ mov.stock_nuevo }}</strong
+        >.
+      </div>
+    }
+
+    <!-- Botones -->
+    <div class="acciones">
       <button
         type="button"
-        class="motivo"
-        [class.seleccionado]="form.controls.motivo.value === m"
-        (click)="form.controls.motivo.setValue(m)"
+        class="btn btn-secundario"
+        (click)="
+          form.reset({
+            id_item: 0,
+            motivo: 'MERMA',
+            cantidad: 1,
+            observaciones: '',
+          })
+        "
       >
-        {{ etiquetaMotivo[m] }}
+        Limpiar
       </button>
-    }
-  </div>
-
-  <!-- Cantidad -->
-  <div class="campo">
-    <label for="cantidad">Cantidad <span class="obligatorio">*</span></label>
-    <input
-      id="cantidad"
-      type="number"
-      min="1"
-      step="1"
-      formControlName="cantidad"
-      [class.invalido]="invalido('cantidad')"
-    />
-    @if (invalido('cantidad')) {
-      <small class="error-txt">
-        ⚠ Ingrese un número entero mayor a 0.
-      </small>
-    } @else {
-      <small class="ayuda">Unidades a descontar del stock.</small>
-    }
-  </div>
-
-  <!-- Observaciones -->
-  <div class="campo">
-    <label for="obs">Observaciones (opcional)</label>
-    <textarea
-      id="obs"
-      rows="3"
-      maxlength="255"
-      formControlName="observaciones"
-      placeholder="Ej: Lote #458, se dañó en cocina, uso para pruebas…"
-    ></textarea>
-    @if (invalido('observaciones', 'maxlength')) {
-      <small class="error-txt">⚠ Máximo 255 caracteres.</small>
-    }
-  </div>
-
-  <!-- Mensajes -->
-  @if (errorGeneral()) {
-    <div class="alerta alerta-error">⚠ {{ errorGeneral() }}</div>
-  }
-
-  @if (exito(); as mov) {
-    <div class="alerta alerta-ok">
-      ✓ Salida registrada. Stock de
-      <strong>{{ mov.stock_anterior }}</strong> → 
-      <strong>{{ mov.stock_nuevo }}</strong>.
+      <button type="submit" class="btn btn-primario" [disabled]="enviando()">
+        {{ enviando() ? 'Registrando…' : 'Registrar salida' }}
+      </button>
     </div>
-  }
-
-  <!-- Botones -->
-  <div class="acciones">
-    <button
-      type="button"
-      class="btn btn-secundario"
-      (click)="form.reset({ id_item: 0, motivo: 'MERMA', cantidad: 1, observaciones: '' })"
-    >
-      Limpiar
-    </button>
-    <button
-      type="submit"
-      class="btn btn-primario"
-      [disabled]="enviando()"
-    >
-      {{ enviando() ? 'Registrando…' : 'Registrar salida' }}
-    </button>
-  </div>
-</form>
+  </form>
+</div>
