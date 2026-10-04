@@ -62,36 +62,63 @@
       </div>
 
     } @else {
+      <!-- HU-2.5: banner de alerta de stock mínimo -->
+            @if (itemsBajos().length > 0) {
+        <div class="alerta-stock" [class.alerta-stock-critica]="hayAgotados()" role="alert">
+          <span class="alerta-stock-icono" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
+          </span>
+
+          <div class="alerta-stock-cuerpo">
+            <strong>{{ tituloAlerta() }}</strong>
+            <span>{{ detalleAlerta() }}</span>
+          </div>
+
+          @if (itemsBajos().length > 2) {
+            <button type="button" class="alerta-stock-btn" (click)="soloAlertas.set(!soloAlertas())">
+              {{ soloAlertas() ? 'Ver todos' : 'Mostrar solo estos' }}
+            </button>
+          }
+        </div>
+      }
+
+      @if (soloAlertas()) {
+        <p class="filtro-activo">
+          Mostrando solo ítems con stock bajo o agotado.
+          <button class="link" (click)="soloAlertas.set(false)">Quitar filtro</button>
+        </p>
+      }
       <div class="tabla-wrap">
-        <table class="tabla">
+                <table class="tabla">
           <thead>
             <tr>
               <th>Producto</th>
+              <th class="num">Cantidad disponible</th>
               <th>Tipo</th>
               <th>Categoría</th>
-              <th class="num">Cantidad disponible</th>
               <th class="num">Precio</th>
               <th>Estado</th>
             </tr>
           </thead>
           <tbody>
             @for (i of filtrados(); track i.id_item) {
-              <tr [class.inactivo]="!i.estado_activo">
+              <!-- HU-2.5: la fila se resalta si el ítem está bajo o agotado -->
+              <tr [class.inactivo]="!i.estado_activo"
+                  [class.fila-bajo]="i.estado_activo && nivel(i) === 'bajo'"
+                  [class.fila-agotado]="i.estado_activo && nivel(i) === 'agotado'">
                 <td class="nombre">{{ i.nombre }}</td>
+                <td class="num"><strong>{{ i.cantidad_stock }}</strong></td>
                 <td>{{ i.tipo_item === 'PRODUCTO' ? 'Producto' : 'Insumo' }}</td>
                 <td class="muted">{{ nombreCategoria(i.id_categoria) }}</td>
-                <td class="num"><strong>{{ i.cantidad_stock }}</strong></td>
                 <td class="num">
                   {{ i.tipo_item === 'PRODUCTO' ? (i.precio_venta | currency: 'COP' : 'symbol-narrow' : '1.0-0') : '—' }}
                 </td>
                 <td>
-                  <!-- Estado: Inactivo / Bajo (stock <= mínimo) / OK -->
+                  <!-- Estado: Inactivo / Bajo / Agotado / OK -->
                   @if (!i.estado_activo) {
                     <span class="badge">Inactivo</span>
-                  } @else if (stockBajo(i)) {
-                    <span class="badge badge-bajo">● Bajo</span>
                   } @else {
-                    <span class="badge badge-ok">● OK</span>
+                    <app-stock-badge [item]="i" />
                   }
                 </td>
               </tr>

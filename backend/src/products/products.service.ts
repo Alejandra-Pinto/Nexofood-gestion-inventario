@@ -33,6 +33,15 @@ export class ProductsService {
     });
   }
 
+  async alertasStock() {
+    return this.itemsRepo   
+      .createQueryBuilder('i')
+      .where('i.estado_activo = :activo', { activo: true })
+      .andWhere('i.cantidad_stock <= i.stock_minimo')
+      .orderBy('i.cantidad_stock', 'ASC')
+      .getMany();
+  }
+
   /**
    * Busca un ítem por su id.
    * Si no existe responde 404 (Not Found).

@@ -54,4 +54,14 @@ export class InventarioService {
       dto,
     );
   }
+
+  /**
+   * GET /products/alerts
+   * Lista los ítems que están en o por debajo del stock mínimo.
+   * Usado por el módulo de alertas (HU-2.5).
+   */
+  alertasStock() {
+    return this.http.get<ItemInventario[]>(`${this.api}/products/alerts`);
+  }
 }
+
