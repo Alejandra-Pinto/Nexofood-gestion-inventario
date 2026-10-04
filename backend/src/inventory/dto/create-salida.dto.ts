@@ -20,15 +20,12 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { MotivoMovimiento } from '../entities/movimiento-inventario.entity';
 
-/** Motivos permitidos para una salida manual (excluye los de entrada) */
-export const MOTIVOS_SALIDA = [
-  MotivoMovimiento.MERMA,
-  MotivoMovimiento.CONSUMO_INTERNO,
-] as const;
-
-export type MotivoSalida = (typeof MOTIVOS_SALIDA)[number];
+/** Motivos permitidos específicamente en este endpoint (solo salidas) */
+export enum MotivoSalida {
+  MERMA = 'MERMA',
+  CONSUMO_INTERNO = 'CONSUMO_INTERNO',
+}
 
 export class CreateSalidaDto {
   /** Id del ítem (producto o insumo) que se va a descontar */
@@ -36,11 +33,11 @@ export class CreateSalidaDto {
   @Min(1, { message: 'El id del ítem es obligatorio' })
   id_item: number;
 
-  /** Solo se acepta MERMA o CONSUMO_INTERNO en este endpoint */
-  @IsEnum(MotivoMovimiento, {
+  /** Solo se acepta MERMA o CONSUMO_INTERNO */
+  @IsEnum(MotivoSalida, {
     message: 'El motivo debe ser MERMA o CONSUMO_INTERNO',
   })
-  motivo: MotivoMovimiento;
+  motivo: MotivoSalida;
 
   /** Cantidad a descontar (unidades enteras, > 0) */
   @IsInt({ message: 'La cantidad debe ser un número entero' })

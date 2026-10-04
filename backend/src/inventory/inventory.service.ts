@@ -91,7 +91,7 @@ export class InventoryService {
         id_item: dto.id_item,
         id_usuario: idUsuario,
         tipo_movimiento: TipoMovimiento.SALIDA,
-        motivo: dto.motivo as MotivoMovimiento,
+        motivo: dto.motivo as unknown as MotivoMovimiento,
         cantidad: dto.cantidad,
         stock_anterior: stockAnterior,
         stock_nuevo: stockNuevo,
