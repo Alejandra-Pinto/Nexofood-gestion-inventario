@@ -14,8 +14,10 @@ import {
   TipoItem,
 } from '../models/item-inventario.model';
 import {
+  CrearIngreso,
   CrearSalida,
   MovimientoInventario,
+  Proveedor,
 } from '../models/movimiento-inventario.model';
 
 @Injectable({ providedIn: 'root' })
@@ -42,6 +44,23 @@ export class InventarioService {
   }
 
   // ---------- Inventario (InventoryModule) ----------
+
+  /**
+   * POST /inventory/ingresos  (HU-2.3)
+   * Registra un ingreso de inventario (compra a proveedor o producción propia).
+   * Suma al stock y deja el movimiento en el historial, en una sola transacción.
+   */
+  registrarIngreso(dto: CrearIngreso) {
+    return this.http.post<MovimientoInventario>(
+      `${this.api}/inventory/ingresos`,
+      dto,
+    );
+  }
+
+  /** GET /inventory/proveedores -> opciones del selector "Proveedor" (HU-2.3) */
+  proveedores() {
+    return this.http.get<Proveedor[]>(`${this.api}/inventory/proveedores`);
+  }
 
   /**
    * POST /inventory/salidas

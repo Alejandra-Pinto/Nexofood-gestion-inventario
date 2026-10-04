@@ -23,6 +23,7 @@ import {
   TipoItem,
 } from '../products/entities/item-inventario.entity';
 import { CreateSalidaDto, MotivoSalida } from './dto/create-salida.dto';
+import { Proveedor } from './entities/proveedor.entity';
 
 describe('InventoryService', () => {
   let service: InventoryService;
@@ -85,6 +86,10 @@ describe('InventoryService', () => {
         {
           provide: getRepositoryToken(ItemInventario),
           useValue: itemsRepo,
+        },
+        {
+          provide: getRepositoryToken(Proveedor),
+          useValue: {},
         },
         { provide: DataSource, useValue: dataSourceMock },
       ],

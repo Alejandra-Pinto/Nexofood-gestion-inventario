@@ -1,0 +1,118 @@
+/* Encabezado blanco igual al de salida-form / items-lista */
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 32px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+
+  h1 { font-size: 1.5rem; }
+}
+
+.subtitulo { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
+
+.enlace {
+  color: var(--primario);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover { text-decoration: underline; }
+}
+
+.pagina { padding: 24px 32px; }
+
+.formulario {
+  padding: 28px 32px;
+  border-radius: 20px;
+
+  h2 { font-size: 1.15rem; }
+}
+
+.descripcion { margin: 4px 0 22px; font-size: 0.85rem; color: var(--muted); }
+
+/* Tipo de ingreso: dos radios en línea */
+.tipos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 0 0 18px;
+  padding: 0;
+  border: 0;
+
+  legend { width: 100%; padding: 0; margin-bottom: 10px; }
+}
+
+.radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  cursor: pointer;
+
+  &.seleccionado { color: var(--texto); font-weight: 600; }
+
+  input[type='radio'] {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    margin: 0;
+    accent-color: var(--primario);
+    cursor: pointer;
+  }
+}
+
+.fila { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* Costo unitario con el "$" dentro del campo */
+.con-prefijo {
+  position: relative;
+
+  .prefijo {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+  }
+  input { padding-left: 32px; }
+}
+
+/* Total calculado: caja amarilla como en el prototipo */
+.total {
+  padding: 11px 14px;
+  border: 1px solid #f0e0b0;
+  border-radius: 10px;
+  background: #fbf3dc;
+  color: #8a6a00;
+  font-weight: 700;
+}
+
+textarea {
+  width: 100%;
+  min-height: 84px;
+  padding: 11px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  font: inherit;
+  resize: vertical;
+
+  &:focus { outline: 2px solid var(--primario); outline-offset: -1px; }
+}
+
+.acciones { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
+
+.badge-bajo { margin-left: 6px; }
+
+@media (max-width: 640px) {
+  .encabezado { padding: 16px; flex-direction: column; align-items: flex-start; }
+  .pagina { padding: 16px; }
+  .formulario { padding: 20px; }
+  .fila { grid-template-columns: 1fr; gap: 0; }
+  .acciones { flex-direction: column-reverse; }
+  .acciones .btn { width: 100%; }
+}

@@ -26,12 +26,28 @@ export const routes: Routes = [
           ),
       },
       {
-        // HU-2.4 Registrar salidas manuales de inventario
-        path: 'inventario/salidas',
-        loadComponent: () =>
-          import('./features/inventario/salida-form/salida-form').then(
-            (m) => m.SalidaForm,
-          ),
+        // Módulo Inventario: /inventario abre Ingresos; el menú lateral queda
+        // activo en cualquiera de sus pantallas.
+        path: 'inventario',
+        children: [
+          { path: '', redirectTo: 'ingresos', pathMatch: 'full' },
+          {
+            // HU-2.3 Ajuste de stock: registrar ingresos (compra / producción)
+            path: 'ingresos',
+            loadComponent: () =>
+              import('./features/inventario/ingreso-form/ingreso-form').then(
+                (m) => m.IngresoForm,
+              ),
+          },
+          {
+            // HU-2.4 Registrar salidas manuales de inventario
+            path: 'salidas',
+            loadComponent: () =>
+              import('./features/inventario/salida-form/salida-form').then(
+                (m) => m.SalidaForm,
+              ),
+          },
+        ],
       },
     ],
   },

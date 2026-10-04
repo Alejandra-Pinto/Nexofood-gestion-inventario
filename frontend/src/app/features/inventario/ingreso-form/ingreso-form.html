@@ -1,0 +1,184 @@
+<header class="encabezado">
+  <div>
+    <h1>Registrar ingreso de inventario</h1>
+    <p class="subtitulo">Registra un nuevo ingreso de productos al inventario.</p>
+  </div>
+  <a class="enlace" routerLink="/inventario/salidas">Registrar una salida →</a>
+</header>
+
+<div class="pagina">
+  <form
+    class="card formulario"
+    [formGroup]="form"
+    (ngSubmit)="registrar()"
+    novalidate
+  >
+    <h2>Datos del ingreso</h2>
+    <p class="descripcion">
+      El movimiento queda registrado en el historial de inventario y suma al
+      stock actual.
+    </p>
+
+    <!-- Tipo de ingreso -->
+    <fieldset class="tipos">
+      <legend class="etiqueta">Tipo de ingreso</legend>
+      @for (t of tipos; track t) {
+        <label class="radio" [class.seleccionado]="motivoSel() === t">
+          <input type="radio" formControlName="motivo" [value]="t" />
+          <span>{{ etiquetaTipo[t] }}</span>
+        </label>
+      }
+    </fieldset>
+
+    <!-- Proveedor: solo en "Compra a proveedor" -->
+    @if (esCompra()) {
+      <div class="campo">
+        <label for="proveedor">Proveedor</label>
+        <select
+          id="proveedor"
+          formControlName="id_proveedor"
+          [class.invalido]="invalido('id_proveedor')"
+        >
+          <option [ngValue]="null" disabled>Selecciona un proveedor…</option>
+          @for (p of proveedores(); track p.id_proveedor) {
+            <option [ngValue]="p.id_proveedor">{{ p.nombre }}</option>
+          }
+        </select>
+        @if (invalido('id_proveedor')) {
+          <small class="error-txt">⚠ Selecciona un proveedor.</small>
+        }
+      </div>
+    }
+
+    <!-- Producto -->
+    <div class="campo">
+      <label for="item">Producto</label>
+      <select
+        id="item"
+        formControlName="id_item"
+        [class.invalido]="invalido('id_item')"
+      >
+        <option [ngValue]="null" disabled>Selecciona un producto o insumo…</option>
+        @for (i of items(); track i.id_item) {
+          <option [ngValue]="i.id_item">{{ i.nombre }}</option>
+        }
+      </select>
+      @if (invalido('id_item')) {
+        <small class="error-txt">⚠ Selecciona un producto.</small>
+      } @else if (itemSeleccionado(); as sel) {
+        <small class="ayuda">
+          Stock actual: <strong>{{ sel.cantidad_stock }}</strong>
+          @if (stockBajo()) {
+            <span class="badge badge-bajo">● Bajo</span>
+          }
+        </small>
+      }
+    </div>
+
+    <!-- Cantidad | Costo unitario -->
+    <div class="fila">
+      <div class="campo">
+        <label for="cantidad">Cantidad</label>
+        <input
+          id="cantidad"
+          type="number"
+          min="1"
+          step="1"
+          placeholder="0"
+          formControlName="cantidad"
+          [class.invalido]="invalido('cantidad')"
+        />
+        @if (invalido('cantidad')) {
+          <small class="error-txt">⚠ Ingresa un número entero mayor a 0.</small>
+        }
+      </div>
+
+      <div class="campo">
+        <label for="costo">Costo unitario</label>
+        <div class="con-prefijo">
+          <span class="prefijo" aria-hidden="true">$</span>
+          <input
+            id="costo"
+            type="number"
+            min="1"
+            step="1"
+            placeholder="0"
+            formControlName="costo_unitario"
+            [class.invalido]="invalido('costo_unitario')"
+          />
+        </div>
+        @if (invalido('costo_unitario')) {
+          <small class="error-txt">⚠ Ingresa un costo entero mayor a 0.</small>
+        } @else if (!esCompra()) {
+          <small class="ayuda">
+            Opcional. Si lo dejas vacío se usa el costo de fabricación del producto
+            @if (itemSeleccionado(); as sel) {
+              ({{ sel.costo_fabricacion | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}).
+            }
+          </small>
+        }
+      </div>
+    </div>
+
+    <!-- Fecha de ingreso | Total -->
+    <div class="fila">
+      <div class="campo">
+        <label for="fecha">Fecha de ingreso</label>
+        <input
+          id="fecha"
+          type="date"
+          [max]="hoy"
+          formControlName="fecha_ingreso"
+          [class.invalido]="invalido('fecha_ingreso')"
+        />
+        @if (invalido('fecha_ingreso')) {
+          <small class="error-txt">
+            ⚠
+            {{
+              form.controls.fecha_ingreso.hasError('fechaFutura')
+                ? 'La fecha no puede ser futura.'
+                : 'Selecciona la fecha del ingreso.'
+            }}
+          </small>
+        }
+      </div>
+
+      <div class="campo">
+        <span class="etiqueta">Total del ingreso</span>
+        <div class="total" aria-live="polite" data-testid="total">
+          {{ total() | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Observaciones -->
+    <div class="campo">
+      <label for="obs">Observaciones (opcional)</label>
+      <textarea
+        id="obs"
+        rows="3"
+        maxlength="255"
+        formControlName="observaciones"
+        placeholder="Ej: Lote #458, factura #123"
+      ></textarea>
+      @if (invalido('observaciones', 'maxlength')) {
+        <small class="error-txt">⚠ Máximo 255 caracteres.</small>
+      }
+    </div>
+
+    <!-- Botones -->
+    <div class="acciones">
+      <button
+        type="button"
+        class="btn btn-secundario"
+        [disabled]="enviando()"
+        (click)="cancelar()"
+      >
+        Cancelar
+      </button>
+      <button type="submit" class="btn btn-primario" [disabled]="enviando()">
+        {{ enviando() ? 'Registrando…' : 'Registrar ingreso' }}
+      </button>
+    </div>
+  </form>
+</div>
