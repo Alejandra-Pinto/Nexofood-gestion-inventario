@@ -1,0 +1,72 @@
+.formulario {
+  padding: 24px 28px;
+  max-width: 720px;
+
+  h2 { font-size: 1.15rem; }
+}
+
+.descripcion {
+  margin: 4px 0 20px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Botones MERMA / CONSUMO_INTERNO */
+.motivos {
+  display: flex;
+  gap: 10px;
+  margin: 8px 0 18px;
+  flex-wrap: wrap;
+}
+
+.motivo {
+  padding: 10px 20px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover { border-color: var(--primario); }
+
+  &.seleccionado {
+    background: var(--primario);
+    border-color: var(--primario);
+    color: #fff;
+  }
+}
+
+/* Fila con dos campos (por si luego se agregan) */
+.fila {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Textarea: hereda estilos base de input */
+textarea {
+  resize: vertical;
+  min-height: 72px;
+  font-family: inherit;
+}
+
+/* Botones al pie */
+.acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Badge de stock bajo */
+.badge-bajo { margin-left: 6px; }
+
+@media (max-width: 640px) {
+  .fila { grid-template-columns: 1fr; gap: 0; }
+  .formulario { padding: 20px; }
+  .acciones { flex-direction: column-reverse; }
+  .acciones .btn { width: 100%; }
+}
