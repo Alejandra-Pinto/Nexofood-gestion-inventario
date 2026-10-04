@@ -10,10 +10,14 @@
  * Cubre:
  *   HU-2.3 — Ingresos de inventario (COMPRA / PRODUCCION)
  *   HU-2.4 — Salidas manuales de inventario (MERMA / CONSUMO_INTERNO)
+ *
+ * Columnas de ingreso (migración 003): id_proveedor, costo_unitario y total.
+ * Son NULL en las salidas; en los ingresos `total = cantidad x costo_unitario`.
  */
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { ItemInventario } from '../../products/entities/item-inventario.entity';
 import { User } from '../../users/entities/user.entity';
+import { Proveedor } from './proveedor.entity';
 
 /** Dirección del movimiento */
 export enum TipoMovimiento {
@@ -63,6 +67,22 @@ export class MovimientoInventario {
 
   @Column({ type: 'integer', name: 'stock_nuevo' })
   stock_nuevo: number;
+
+  // Solo en ingresos por COMPRA (HU-2.3)
+  @Column({ type: 'integer', name: 'id_proveedor', nullable: true })
+  id_proveedor: number | null;
+
+  @ManyToOne(() => Proveedor)
+  @JoinColumn({ name: 'id_proveedor' })
+  proveedor?: Proveedor;
+
+  // Costo por unidad en COP (solo ingresos)
+  @Column({ type: 'integer', name: 'costo_unitario', nullable: true })
+  costo_unitario: number | null;
+
+  // cantidad x costo_unitario, en COP (solo ingresos)
+  @Column({ type: 'integer', nullable: true })
+  total: number | null;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   observaciones: string | null;
