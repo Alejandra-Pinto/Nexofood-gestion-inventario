@@ -131,3 +131,104 @@
   .encabezado, .pagina { padding: 16px; }
   .buscar { width: 100%; }
 }
+
+/* HU-2.5: alerta de stock (estilo "Stock insuficiente") */
+.alerta-stock {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  background: #fbf3dc;
+  border: 1px solid #f0dca0;
+  border-radius: 12px;
+  color: #8a6a10;
+  font-size: 0.88rem;
+  line-height: 1.4;
+
+  strong { color: #9a6b00; font-size: 0.95rem; }
+}
+
+/* Nivel crítico: hay ítems agotados (estilo "Impresora no disponible") */
+.alerta-stock.alerta-stock-critica {
+  background: #fbe9e9;
+  border-color: #f3c9c9;
+  color: #c0392b;
+
+  strong { color: #c0392b; }
+  .alerta-stock-icono svg { stroke: #c0392b; }
+  .alerta-stock-lista li { background: rgba(255, 255, 255, 0.7); .n { color: #c0392b; } }
+}
+
+.alerta-stock-icono {
+  flex: none;
+  margin-top: 2px;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: #9a6b00;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+.alerta-stock-cuerpo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.alerta-stock-btn {
+  flex: none;
+  align-self: center;
+  padding: 8px 16px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.alerta-stock-lista {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.65);
+    border-radius: 8px;
+    font-size: 0.85rem;
+
+    .n { font-weight: 700; color: #7a5a00; }
+
+    &.agotado { color: #c0392b; .n { color: #c0392b; } }
+  }
+}
+
+@media (max-width: 640px) {
+  .alerta-stock { flex-wrap: wrap; }
+  .alerta-stock-btn { width: 100%; }
+}
+
+/* HU-2.5: resaltado de filas en la tabla */
+.tabla tr.fila-bajo td { background: #fffaf0; }
+.tabla tr.fila-bajo td strong { color: #9a6b00; }
+.tabla tr.fila-agotado td { background: #fdf0f0; }
+.tabla tr.fila-agotado td strong,
+.tabla tr.fila-agotado td.nombre { color: #c0392b; }
+.filtro-activo { margin: 0 0 10px; font-size: 0.85rem; color: var(--muted); }

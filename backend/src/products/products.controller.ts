@@ -23,6 +23,11 @@ import { TipoItem } from './entities/item-inventario.entity';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
+  @Get('alerts')
+  alertas() {
+    return this.productsService.alertasStock();
+  }
+
   /** GET /products?tipo=PRODUCTO|INSUMO  (si ?tipo no es válido responde 400) */
   @Get('products')
   findAll(@Query('tipo', new ParseEnumPipe(TipoItem, { optional: true })) tipo?: TipoItem) {
