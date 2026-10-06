@@ -49,6 +49,14 @@ export const routes: Routes = [
           },
         ],
       },
+      {
+        // HU-1.4 Modificar permisos de usuarios
+        path: 'usuarios',
+        loadComponent: () =>
+          import('./features/usuarios/permisos-usuarios/permisos-usuarios').then(
+            (m) => m.PermisosUsuarios,
+          ),
+      },
     ],
   },
 

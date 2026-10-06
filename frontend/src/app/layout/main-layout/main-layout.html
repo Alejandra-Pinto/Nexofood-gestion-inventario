@@ -26,9 +26,9 @@
 
     <!-- Usuario en sesión (se conectará con el módulo Auth en HU-1.1) -->
     <div class="usuario">
-      <span class="avatar">A</span>
+      <span class="avatar">{{ (usuario?.nombre ?? 'Administrador').charAt(0) }}</span>
       <div>
-        <strong>Administrador</strong>
+        <strong>{{ usuario?.nombre ?? 'Administrador' }}</strong>
         <small>Chori Company</small>
       </div>
     </div>
