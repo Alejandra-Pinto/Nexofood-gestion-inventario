@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { LoginUserDto } from '../users/dto/login-user.dto';
+import { permisosEfectivos } from '../users/entities/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -31,7 +32,8 @@ export class AuthService {
       access_token: await this.jwtService.signAsync(payload),
       usuario: {
         nombre: user.nombre_completo,
-        rol: user.rol
+        rol: user.rol,
+        permisos: permisosEfectivos(user), // HU-1.4: el menú muestra solo estas funcionalidades
       }
     };
   }

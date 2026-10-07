@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
@@ -15,6 +15,8 @@ export class RegisterComponent {
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
   private router = inject(Router);
+  // Angular sin zone.js: hay que avisar que la vista cambió tras la respuesta HTTP
+  private cdr = inject(ChangeDetectorRef);
 
   registerForm: FormGroup = this.fb.group({
     nombre_completo: ['', Validators.required],
@@ -55,6 +57,8 @@ export class RegisterComponent {
   onSubmit() {
     if (this.registerForm.invalid) {
       this.registerForm.markAllAsTouched();
+      this.successMessage = '';
+      this.errorMessage = 'Revisa los campos marcados en rojo antes de continuar.';
       return;
     }
 
@@ -75,6 +79,7 @@ export class RegisterComponent {
           this.isLoading = false;
           this.successMessage = 'Colaborador registrado exitosamente.';
           this.registerForm.reset({ status: 'activo', sendCredentials: true, forceReset: true, rol: '' });
+          this.cdr.markForCheck();
         },
         error: (err) => {
           this.isLoading = false; // Liberamos el botón
@@ -87,6 +92,7 @@ export class RegisterComponent {
           } else {
             this.errorMessage = 'Error al registrar el usuario en el servidor.';
           }
+          this.cdr.markForCheck();
         }
       });
   }

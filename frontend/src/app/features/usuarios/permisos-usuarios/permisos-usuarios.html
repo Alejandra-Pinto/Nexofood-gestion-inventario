@@ -1,0 +1,112 @@
+<header class="encabezado">
+  <div>
+    <h1>Usuarios y permisos</h1>
+    <p class="subtitulo">Selecciona un usuario para cambiar su rol, su estado y las funcionalidades que puede usar.</p>
+  </div>
+</header>
+
+<div class="pagina">
+  <section class="card tabla-card">
+    @if (cargando()) {
+      <p class="muted centro">Cargando…</p>
+    } @else if (error()) {
+      <div class="alerta alerta-error">⚠ No se pudo cargar la información. Revise que el backend esté corriendo.</div>
+    } @else if (usuarios().length === 0) {
+      <p class="muted centro">No hay usuarios registrados.</p>
+    } @else {
+      <div class="tabla-wrap">
+        <table class="tabla">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Correo</th>
+              <th>Rol</th>
+              <th>Estado</th>
+              <th>Funcionalidades</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (u of usuarios(); track u.id_usuario) {
+              <tr [class.seleccionada]="seleccionado()?.id_usuario === u.id_usuario">
+                <td class="nombre">{{ u.nombre_completo }}</td>
+                <td class="muted">{{ u.credencial }}</td>
+                <td>{{ u.rol }}</td>
+                <td>
+                  <span class="badge" [class.badge-ok]="u.estado_activo" [class.badge-bajo]="!u.estado_activo">
+                    {{ u.estado_activo ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+                <td class="muted permisos-txt">{{ nombresPermisos(u) }}</td>
+                <td>
+                  <button class="link" type="button" [disabled]="guardando()" (click)="seleccionar(u)">
+                    Editar permisos
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  @if (seleccionado(); as u) {
+    @if (borrador(); as b) {
+      <section class="card panel" aria-labelledby="titulo-panel">
+        <div class="panel-encabezado">
+          <div>
+            <h2 id="titulo-panel">Permisos de {{ u.nombre_completo }}</h2>
+            <p class="subtitulo">{{ u.credencial }}</p>
+          </div>
+        </div>
+
+        <div class="panel-grid">
+          <div class="campo">
+            <label for="rol">Rol</label>
+            <select id="rol" [value]="b.rol" (change)="cambiarRol($any($event.target).value)">
+              @for (r of roles; track r) {
+                <option [value]="r" [selected]="r === b.rol">{{ r }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="campo">
+            <span class="etiqueta">Estado</span>
+            <label class="opcion">
+              <input type="checkbox" class="check" [checked]="b.estado_activo"
+                (change)="cambiarActivo($any($event.target).checked)" />
+              Usuario activo (puede iniciar sesión)
+            </label>
+          </div>
+        </div>
+
+        <fieldset class="funcionalidades">
+          <legend class="etiqueta">Funcionalidades disponibles</legend>
+          @if (esAdmin()) {
+            <p class="ayuda">El Administrador tiene acceso a todas las funcionalidades.</p>
+          }
+          <div class="lista-permisos">
+            @for (p of permisos; track p.clave) {
+              <label class="permiso" [class.marcado]="tienePermiso(p.clave)">
+                <input type="checkbox" class="check" [checked]="tienePermiso(p.clave)" [disabled]="esAdmin()"
+                  (change)="alternarPermiso(p.clave, $any($event.target).checked)" />
+                <span>
+                  <strong>{{ p.nombre }}</strong>
+                  <small class="muted">{{ p.descripcion }}</small>
+                </span>
+              </label>
+            }
+          </div>
+        </fieldset>
+
+        <div class="acciones">
+          <button class="btn btn-secundario" type="button" [disabled]="guardando()" (click)="cancelar()">Cancelar</button>
+          <button class="btn btn-primario" type="button" [disabled]="!hayCambios() || guardando()" (click)="guardarCambios()">
+            {{ guardando() ? 'Guardando…' : 'Guardar cambios' }}
+          </button>
+        </div>
+      </section>
+    }
+  }
+</div>

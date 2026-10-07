@@ -1,0 +1,65 @@
+.encabezado {
+  padding: 22px 32px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+  h1 { font-size: 1.5rem; }
+}
+.subtitulo { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
+.pagina { display: flex; flex-direction: column; gap: 20px; padding: 24px 32px; }
+.tabla-card { padding: 20px 24px; min-width: 0; }
+.tabla-wrap { overflow-x: auto; }
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  th {
+    padding: 10px 12px; text-align: left; font-size: 0.72rem;
+    text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--borde);
+  }
+  td { padding: 12px; border-bottom: 1px solid var(--borde); white-space: nowrap; }
+  .nombre { font-weight: 500; }
+  .permisos-txt { white-space: normal; min-width: 160px; font-size: 0.85rem; }
+  tr.seleccionada td { background: var(--primario-suave); }
+}
+.check { width: 20px; height: 20px; padding: 0; flex: none; accent-color: var(--primario); }
+.centro { text-align: center; }
+
+.link {
+  border: 0;
+  background: none;
+  color: var(--primario);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+/* HU-1.4: panel de edición del usuario seleccionado */
+.panel { padding: 20px 24px; }
+.panel-encabezado { margin-bottom: 16px; h2 { font-size: 1.05rem; } }
+.panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 20px; }
+.opcion { display: flex; align-items: center; gap: 10px; padding: 11px 0; font-size: 0.9rem; cursor: pointer; }
+
+.funcionalidades { margin: 0 0 20px; padding: 0; border: 0; min-width: 0; legend { margin-bottom: 8px; } }
+.lista-permisos { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.permiso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  cursor: pointer;
+  span { display: flex; flex-direction: column; gap: 2px; }
+  strong { font-size: 0.9rem; }
+  small { font-size: 0.78rem; }
+  &.marcado { border-color: var(--primario); background: var(--primario-suave); }
+}
+
+.acciones { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  .encabezado, .pagina { padding: 16px; }
+  .acciones .btn { flex: 1; }
+}

@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
@@ -15,6 +15,8 @@ export class LoginComponent {
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
   private router = inject(Router);
+  // Angular sin zone.js: hay que avisar que la vista cambió tras la respuesta HTTP
+  private cdr = inject(ChangeDetectorRef);
 
   loginForm: FormGroup = this.fb.group({
     credencial: ['', [Validators.required, Validators.email]],
@@ -54,6 +56,7 @@ export class LoginComponent {
           } else {
             this.errorMessage = 'Error de conexión con el servidor.';
           }
+          this.cdr.markForCheck();
         }
       });
   }
