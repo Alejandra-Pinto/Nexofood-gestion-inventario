@@ -1,13 +1,14 @@
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, HttpClientModule],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './register.html',
   styleUrls: ['./register.scss']
 })
@@ -73,7 +74,7 @@ export class RegisterComponent {
       rol: this.registerForm.value.rol
     };
 
-    this.http.post('http://localhost:3000/users/register', payload)
+    this.http.post(`${environment.apiUrl}/users/register`, payload)
       .subscribe({
         next: () => {
           this.isLoading = false;
