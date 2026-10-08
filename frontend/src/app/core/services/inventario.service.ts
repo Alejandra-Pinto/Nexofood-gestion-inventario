@@ -6,6 +6,7 @@
  */
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
+import { map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   Categoria,
@@ -20,6 +21,17 @@ import {
   Proveedor,
 } from '../models/movimiento-inventario.model';
 
+/** El backend (PostgreSQL) puede devolver los NUMERIC como texto: se convierten a número */
+function normalizar(i: ItemInventario): ItemInventario {
+  return {
+    ...i,
+    cantidad_stock: Number(i.cantidad_stock),
+    stock_minimo: Number(i.stock_minimo),
+    costo_fabricacion: Number(i.costo_fabricacion),
+    precio_venta: Number(i.precio_venta),
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class InventarioService {
   private http = inject(HttpClient);
@@ -30,12 +42,16 @@ export class InventarioService {
   /** GET /products (filtro opcional por tipo) */
   listar(tipo?: TipoItem) {
     const params = tipo ? new HttpParams().set('tipo', tipo) : undefined;
-    return this.http.get<ItemInventario[]>(`${this.api}/products`, { params });
+    return this.http
+      .get<ItemInventario[]>(`${this.api}/products`, { params })
+      .pipe(map((lista) => lista.map(normalizar)));
   }
 
   /** POST /products -> registra un producto o insumo */
   crear(item: CrearItem) {
-    return this.http.post<ItemInventario>(`${this.api}/products`, item);
+    return this.http
+      .post<ItemInventario>(`${this.api}/products`, item)
+      .pipe(map(normalizar));
   }
 
   /** GET /categories -> opciones del selector de categoría */
@@ -80,7 +96,8 @@ export class InventarioService {
    * Usado por el módulo de alertas (HU-2.5).
    */
   alertasStock() {
-    return this.http.get<ItemInventario[]>(`${this.api}/products/alerts`);
+    return this.http
+      .get<ItemInventario[]>(`${this.api}/products/alerts`)
+      .pipe(map((lista) => lista.map(normalizar)));
   }
 }
-

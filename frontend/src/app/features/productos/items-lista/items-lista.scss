@@ -56,7 +56,11 @@
 .buscar { width: 220px; padding: 8px 12px; }
 
 /* Tabla (estilo "Control de Inventario Activo") */
-.tabla-wrap { overflow-x: auto; }
+.tabla-wrap {
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
 
 .tabla {
   width: 100%;
@@ -71,6 +75,12 @@
     text-transform: uppercase;
     color: var(--muted);
     border-bottom: 1px solid var(--borde);
+
+    /* Encabezado fijo al hacer scroll */
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--superficie);
   }
 
   td {
@@ -232,3 +242,90 @@
 .tabla tr.fila-agotado td strong,
 .tabla tr.fila-agotado td.nombre { color: #c0392b; }
 .filtro-activo { margin: 0 0 10px; font-size: 0.85rem; color: var(--muted); }
+
+/* ===== Responsive: en pantallas pequeñas cada fila pasa a ser una tarjeta ===== */
+@media (max-width: 720px) {
+
+  /* Encabezado de la pantalla */
+  .encabezado {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .encabezado .btn { width: 100%; }
+
+  /* Título de la tarjeta + filtros en columna */
+  .tabla-encabezado {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .filtros {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .pestanas { overflow-x: auto; }
+  .buscar { width: 100%; }
+
+  /* Banner de alerta: el botón baja a otra línea */
+  .alerta-stock { flex-wrap: wrap; }
+  .alerta-stock-btn { width: 100%; }
+
+  /* Tabla -> tarjetas */
+  .tabla-wrap { overflow-x: visible; }
+
+  .tabla,
+  .tabla tbody { display: block; width: 100%; }
+
+  /* El encabezado se oculta visualmente (sigue disponible para lectores de pantalla) */
+  .tabla thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .tabla tr {
+    display: block;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+  }
+
+  .tabla td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 0;
+    border: 0;
+    text-align: right;
+  }
+
+  /* Nombre como título de la tarjeta */
+  .tabla td.nombre {
+    font-weight: 600;
+    font-size: 1.05rem;
+    text-align: left;
+    padding-bottom: 8px;
+  }
+
+  /* Etiqueta de la columna a la izquierda */
+  .tabla td[data-label]::before {
+    content: attr(data-label);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #6b7280;
+    text-align: left;
+  }
+
+  /* Fila de "Sin resultados" */
+  .tabla td[colspan] {
+    display: block;
+    text-align: center;
+  }
+}

@@ -107,14 +107,13 @@
                   [class.fila-bajo]="i.estado_activo && nivel(i) === 'bajo'"
                   [class.fila-agotado]="i.estado_activo && nivel(i) === 'agotado'">
                 <td class="nombre">{{ i.nombre }}</td>
-                <td class="num"><strong>{{ i.cantidad_stock }}</strong></td>
-                <td>{{ i.tipo_item === 'PRODUCTO' ? 'Producto' : 'Insumo' }}</td>
-                <td class="muted">{{ nombreCategoria(i.id_categoria) }}</td>
-                <td class="num">
+                <td class="num" data-label="Cantidad disponible"><strong>{{ i.cantidad_stock }}</strong></td>
+                <td data-label="Tipo">{{ i.tipo_item === 'PRODUCTO' ? 'Producto' : 'Insumo' }}</td>
+                <td class="muted" data-label="Categoría">{{ nombreCategoria(i.id_categoria) }}</td>
+                <td class="num" data-label="Precio">
                   {{ i.tipo_item === 'PRODUCTO' ? (i.precio_venta | currency: 'COP' : 'symbol-narrow' : '1.0-0') : '—' }}
                 </td>
-                <td>
-                  <!-- Estado: Inactivo / Bajo / Agotado / OK -->
+                <td data-label="Estado">
                   @if (!i.estado_activo) {
                     <span class="badge">Inactivo</span>
                   } @else {
