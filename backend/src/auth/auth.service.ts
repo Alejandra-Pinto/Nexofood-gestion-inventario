@@ -19,7 +19,12 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    // 2. Comparar la contraseña ingresada con el hash de la base de datos
+    // 2. Validar que el usuario se encuentre activo
+    if (!user.estado_activo) {
+      throw new UnauthorizedException('El usuario se encuentra inactivo. Comuníquese con el administrador.');
+    }
+
+    // 3. Comparar la contraseña ingresada con el hash de la base de datos
     const isPasswordValid = await bcrypt.compare(loginDto.password, user.password_hash);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales inválidas');

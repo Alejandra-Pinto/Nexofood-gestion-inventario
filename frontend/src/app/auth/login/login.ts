@@ -1,26 +1,26 @@
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, HttpClientModule],
+  imports: [CommonModule, ReactiveFormsModule],
   selector: 'app-login',
   styleUrl: './login.scss',
   templateUrl: './login.html',
 })
 export class LoginComponent {
   private fb = inject(FormBuilder);
-  private http = inject(HttpClient);
+  private authService = inject(AuthService);
   private router = inject(Router);
   // Angular sin zone.js: hay que avisar que la vista cambió tras la respuesta HTTP
   private cdr = inject(ChangeDetectorRef);
 
   loginForm: FormGroup = this.fb.group({
     credencial: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]]
+    password: ['', [Validators.required, Validators.minLength(6)]],
   });
 
   showPassword = false;
@@ -40,24 +40,22 @@ export class LoginComponent {
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.http.post<any>('http://localhost:3000/auth/login', this.loginForm.value)
-      .subscribe({
-        next: (response) => {
-          localStorage.setItem('access_token', response.access_token);
-          localStorage.setItem('usuario', JSON.stringify(response.usuario));
-          
-          this.isLoading = false;
-          this.router.navigate(['/']); 
-        },
-        error: (err) => {
-          this.isLoading = false;
-          if (err.status === 401 || err.status === 400) {
-            this.errorMessage = 'Usuario o contraseña incorrectos.';
-          } else {
-            this.errorMessage = 'Error de conexión con el servidor.';
-          }
-          this.cdr.markForCheck();
+    this.authService.login(this.loginForm.value).subscribe({
+      next: () => {
+        this.isLoading = false;
+        // Redirige según el rol (eliminando la pantalla blanca)
+        const ruta = this.authService.obtenerRutaInicial();
+        this.router.navigate([ruta]);
+      },
+      error: (err) => {
+        this.isLoading = false;
+        if (err.status === 401 || err.status === 400) {
+          this.errorMessage = err.error?.message || 'Usuario o contraseña incorrectos.';
+        } else {
+          this.errorMessage = 'Error de conexión con el servidor.';
         }
-      });
+        this.cdr.markForCheck();
+      },
+    });
   }
 }

@@ -121,3 +121,85 @@ describe('UsersService · permisos', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
+
+describe('UsersService · registro y consulta (HU-1.3)', () => {
+  let service: UsersService;
+
+  const repo = {
+    findOne: jest.fn(),
+    save: jest.fn(),
+    create: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        { provide: getRepositoryToken(User), useValue: repo },
+      ],
+    }).compile();
+    service = module.get(UsersService);
+  });
+
+  it('crea un usuario con contraseña hasheada y asignación de rol (HU-1.3)', async () => {
+    const dto = {
+      nombre_completo: 'Carlos Ruiz',
+      credencial: 'carlos@chori.com',
+      password: 'password123',
+      rol: RolUsuario.CAJERO,
+    };
+
+    repo.create.mockReturnValue({
+      ...dto,
+      password_hash: '$2b$10$hashed',
+      estado_activo: true,
+      permisos: PERMISOS_POR_ROL[RolUsuario.CAJERO],
+    });
+
+    repo.save.mockResolvedValue({
+      id_usuario: 10,
+      ...dto,
+      password_hash: '$2b$10$hashed',
+      estado_activo: true,
+      permisos: PERMISOS_POR_ROL[RolUsuario.CAJERO],
+    });
+
+    const resultado = await service.create(dto);
+
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nombre_completo: 'Carlos Ruiz',
+        credencial: 'carlos@chori.com',
+        rol: RolUsuario.CAJERO,
+      }),
+    );
+    expect(repo.save).toHaveBeenCalled();
+    expect(resultado).not.toHaveProperty('password_hash');
+    expect(resultado.id_usuario).toBe(10);
+    expect(resultado.credencial).toBe('carlos@chori.com');
+  });
+
+  it('rechaza el registro con 409 si la credencial ya existe (código 23505)', async () => {
+    const dto = {
+      nombre_completo: 'Carlos Ruiz',
+      credencial: 'duplicado@chori.com',
+      password: 'password123',
+      rol: RolUsuario.MESERO,
+    };
+
+    repo.create.mockReturnValue(dto);
+    repo.save.mockRejectedValue({ code: '23505' });
+
+    await expect(service.create(dto)).rejects.toThrow('La credencial ingresada ya está registrada');
+  });
+
+  it('busca un usuario por su credencial (findByCredencial)', async () => {
+    const mockUser = { id_usuario: 5, credencial: 'test@chori.com' };
+    repo.findOne.mockResolvedValue(mockUser);
+
+    const resultado = await service.findByCredencial('test@chori.com');
+    expect(repo.findOne).toHaveBeenCalledWith({ where: { credencial: 'test@chori.com' } });
+    expect(resultado).toEqual(mockUser);
+  });
+});
