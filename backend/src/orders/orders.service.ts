@@ -1,4 +1,154 @@
-import { Injectable } from '@nestjs/common';
+/**
+ * Servicio: OrdersService
+ * ------------------------------------------------------------------
+ * Lógica de negocio del módulo Orders (pedidos).
+ *
+ * HU-3.1 · SCRUM-148 Implementar registro de pedido con ID único y estado Pendiente
+ *        · SCRUM-149 Validar stock, cantidad inválida y pedido vacío
+ */
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, In, Repository } from 'typeorm';
+import { ItemInventario, TipoItem } from '../products/entities/item-inventario.entity';
+import { CANTIDAD_MAXIMA, CreatePedidoDto } from './dto/create-pedido.dto';
+import { DetallePedido } from './entities/detalle-pedido.entity';
+import { EstadoPedido, Pedido } from './entities/pedido.entity';
+
+/** Máximo valor de una columna INTEGER de PostgreSQL */
+const INT_MAX = 2_147_483_647;
 
 @Injectable()
-export class OrdersService {}
+export class OrdersService {
+  constructor(
+    @InjectRepository(Pedido)
+    private readonly pedidosRepo: Repository<Pedido>,
+    private readonly dataSource: DataSource,
+  ) {}
+
+  /**
+   * Registra un pedido nuevo (SCRUM-148).
+   *
+   * - El ID único lo genera la BD (SERIAL id_pedido).
+   * - El pedido inicia en estado PENDIENTE.
+   * - El precio de cada línea se toma del precio de venta actual del producto.
+   * - El total se calcula aquí (no se confía en el valor del frontend).
+   *
+   * Todo va en una transacción: si falla un detalle, no queda un pedido a medias.
+   *
+   * @param dto       Productos y cantidades
+   * @param idMesero  Id del usuario autenticado (viene del JWT, no del body)
+   */
+  async crear(dto: CreatePedidoDto, idMesero: number): Promise<Pedido> {
+    const lineas = this.agruparLineas(dto);
+
+    const idPedido = await this.dataSource.transaction(async (manager) => {
+      // 1. Productos solicitados (bloqueados para que el stock no cambie mientras se valida)
+      const ids = lineas.map((l) => l.id_item);
+      const productos = await manager.find(ItemInventario, {
+        where: { id_item: In(ids) },
+        lock: { mode: 'pessimistic_read' },
+      });
+
+      // 2. Validaciones de existencia, tipo y stock (SCRUM-149)
+      let total = 0;
+      const detalles = lineas.map((l) => {
+        const producto = productos.find((p) => p.id_item === l.id_item);
+        if (!producto) {
+          throw new NotFoundException(`El producto con id ${l.id_item} no existe`);
+        }
+        if (producto.tipo_item !== TipoItem.PRODUCTO) {
+          throw new BadRequestException(
+            `"${producto.nombre}" es un insumo y no se puede vender en un pedido`,
+          );
+        }
+        if (!producto.estado_activo) {
+          throw new BadRequestException(`"${producto.nombre}" no está disponible`);
+        }
+        if (producto.cantidad_stock < l.cantidad) {
+          throw new BadRequestException(
+            `Stock insuficiente para "${producto.nombre}". Disponible: ${producto.cantidad_stock}, solicitado: ${l.cantidad}`,
+          );
+        }
+
+        total += l.cantidad * producto.precio_venta;
+        return { id_item: l.id_item, cantidad: l.cantidad, precio_unitario: producto.precio_venta };
+      });
+
+      if (total > INT_MAX) {
+        throw new BadRequestException('El total del pedido supera el máximo permitido');
+      }
+
+      // 3. Cabecera del pedido (ID único + estado PENDIENTE)
+      const pedido = await manager.save(
+        manager.create(Pedido, {
+          id_mesero: idMesero,
+          estado_pedido: EstadoPedido.PENDIENTE,
+          total_calculado: total,
+        }),
+      );
+
+      // 4. Detalles (productos del pedido)
+      await manager.save(
+        detalles.map((d) => manager.create(DetallePedido, { ...d, id_pedido: pedido.id_pedido })),
+      );
+
+      return pedido.id_pedido;
+    });
+
+    return this.buscarPorId(idPedido);
+  }
+
+  /** GET /orders?estado= -> pedidos más recientes primero (con sus productos) */
+  listar(estado?: EstadoPedido): Promise<Pedido[]> {
+    return this.pedidosRepo.find({
+      where: estado ? { estado_pedido: estado } : {},
+      relations: { detalles: { item: true } },
+      order: { fecha_hora: 'DESC' },
+      take: 100,
+    });
+  }
+
+  /** GET /orders/:id -> un pedido con sus productos */
+  async buscarPorId(id: number): Promise<Pedido> {
+    const pedido = await this.pedidosRepo.findOne({
+      where: { id_pedido: id },
+      relations: { detalles: { item: true } },
+    });
+    if (!pedido) {
+      throw new NotFoundException(`El pedido #${id} no existe`);
+    }
+    return pedido;
+  }
+
+  /**
+   * SCRUM-149: valida el pedido sin tocar la BD y une las líneas repetidas
+   * (si el mismo producto viene dos veces se suman las cantidades, para
+   * validar el stock con la cantidad total pedida).
+   * El DTO ya valida esto en el endpoint; aquí se repite para que el
+   * servicio sea seguro aunque lo llame otro módulo.
+   */
+  private agruparLineas(dto: CreatePedidoDto): { id_item: number; cantidad: number }[] {
+    if (!dto?.detalles?.length) {
+      throw new BadRequestException('El pedido debe tener al menos un producto');
+    }
+
+    const porProducto = new Map<number, number>();
+    for (const d of dto.detalles) {
+      if (!Number.isInteger(d.cantidad) || d.cantidad <= 0) {
+        throw new BadRequestException('La cantidad debe ser un número entero mayor a 0');
+      }
+      porProducto.set(d.id_item, (porProducto.get(d.id_item) ?? 0) + d.cantidad);
+    }
+
+    const lineas = [...porProducto].map(([id_item, cantidad]) => ({ id_item, cantidad }));
+    const excedida = lineas.find((l) => l.cantidad > CANTIDAD_MAXIMA);
+    if (excedida) {
+      throw new BadRequestException(`La cantidad máxima por producto es ${CANTIDAD_MAXIMA}`);
+    }
+    return lineas;
+  }
+}
