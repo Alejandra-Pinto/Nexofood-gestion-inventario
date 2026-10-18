@@ -7,6 +7,7 @@
  *   POST /orders            -> registra un pedido nuevo (estado PENDIENTE) — HU-3.1
  *   GET  /orders?estado=    -> lista pedidos (filtro opcional por estado)
  *   GET  /orders/:id        -> consulta un pedido con sus productos
+ *   POST /orders/:id/pago   -> registra el pago y su medio de pago   — HU-3.5
  */
 import {
   BadRequestException,
@@ -19,7 +20,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { OrdersService } from './orders.service';
+import { OrdersService, ResultadoPago } from './orders.service';
+import { RegistrarPagoDto } from './dto/registrar-pago.dto';
 import { CreatePedidoDto } from './dto/create-pedido.dto';
 import { EstadoPedido, Pedido } from './entities/pedido.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -65,5 +67,26 @@ export class OrdersController {
   @Get(':id')
   buscar(@Param('id', ParseIntPipe) id: number): Promise<Pedido> {
     return this.ordersService.buscarPorId(id);
+  }
+
+  /**
+   * HU-3.5 · Registrar método de pago de un pedido
+   * Solo Administrador y Cajero pueden cobrar.
+   *
+   * Respuestas:
+   *   201 -> pago registrado (pedido PAGADO, ingreso y cambio)
+   *   400 -> medio de pago inválido, efectivo insuficiente o pedido anulado
+   *   403 -> rol no autorizado (Mesero)
+   *   404 -> el pedido no existe
+   *   409 -> el pedido ya fue pagado
+   */
+  @Post(':id/pago')
+  @Roles(RolUsuario.ADMINISTRADOR, RolUsuario.CAJERO)
+  registrarPago(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RegistrarPagoDto,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ): Promise<ResultadoPago> {
+    return this.ordersService.registrarPago(id, dto, usuario.id_usuario);
   }
 }

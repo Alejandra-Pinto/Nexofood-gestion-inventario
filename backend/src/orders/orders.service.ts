@@ -5,9 +5,11 @@
  *
  * HU-3.1 · SCRUM-148 Implementar registro de pedido con ID único y estado Pendiente
  *        · SCRUM-149 Validar stock, cantidad inválida y pedido vacío
+ * HU-3.5 · SCRUM-168 Implementar selección y registro del método de pago
  */
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -17,6 +19,19 @@ import { ItemInventario, TipoItem } from '../products/entities/item-inventario.e
 import { CANTIDAD_MAXIMA, CreatePedidoDto } from './dto/create-pedido.dto';
 import { DetallePedido } from './entities/detalle-pedido.entity';
 import { EstadoPedido, Pedido } from './entities/pedido.entity';
+import { RegistrarPagoDto } from './dto/registrar-pago.dto';
+import {
+  MedioPago,
+  MovimientoFinanciero,
+  TipoMovimientoFinanciero,
+} from '../finance/entities/movimiento-financiero.entity';
+
+/** Respuesta del cobro: el pedido pagado, el ingreso registrado y el cambio */
+export interface ResultadoPago {
+  pedido: Pedido;
+  movimiento: MovimientoFinanciero;
+  cambio: number;
+}
 
 /** Máximo valor de una columna INTEGER de PostgreSQL */
 const INT_MAX = 2_147_483_647;
@@ -100,6 +115,87 @@ export class OrdersService {
     });
 
     return this.buscarPorId(idPedido);
+  }
+
+  /**
+   * Registra el pago de un pedido (SCRUM-168).
+   *
+   * En una transacción:
+   *   1. Valida que el pedido exista, no esté anulado ni pagado.
+   *   2. Valida el monto recibido en efectivo y calcula el cambio.
+   *   3. INSERT movimiento_financiero (INGRESO, total del pedido, medio de pago).
+   *   4. UPDATE pedido.estado_pedido = PAGADO.
+   *
+   * El índice único ux_movfin_pago_pedido evita un segundo cobro aunque
+   * llegan dos peticiones al mismo tiempo (doble clic).
+   *
+   * @param idPedido  Pedido que se cobra
+   * @param dto       Medio de pago y monto recibido (efectivo)
+   * @param idUsuario Cajero o administrador (viene del JWT)
+   */
+  async registrarPago(
+    idPedido: number,
+    dto: RegistrarPagoDto,
+    idUsuario: number,
+  ): Promise<ResultadoPago> {
+    if (!Object.values(MedioPago).includes(dto?.medio_pago)) {
+      throw new BadRequestException('Seleccione un medio de pago válido');
+    }
+
+    const { movimiento, cambio } = await this.dataSource.transaction(async (manager) => {
+      // 1. Pedido (bloqueado para que no se cobre dos veces a la vez)
+      const pedido = await manager.findOne(Pedido, {
+        where: { id_pedido: idPedido },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!pedido) {
+        throw new NotFoundException(`El pedido #${idPedido} no existe`);
+      }
+      if (pedido.estado_pedido === EstadoPedido.ANULADO) {
+        throw new BadRequestException(`El pedido #${idPedido} está anulado y no se puede cobrar`);
+      }
+
+      // Evitar pagos duplicados
+      const pagoPrevio = await manager.findOne(MovimientoFinanciero, {
+        where: { id_pedido: idPedido, tipo_movimiento: TipoMovimientoFinanciero.INGRESO },
+      });
+      if (pedido.estado_pedido === EstadoPedido.PAGADO || pagoPrevio) {
+        throw new ConflictException(`El pedido #${idPedido} ya fue pagado`);
+      }
+      if (pedido.total_calculado <= 0) {
+        throw new BadRequestException(`El pedido #${idPedido} no tiene valor a cobrar`);
+      }
+
+      // 2. Efectivo: lo recibido debe cubrir el total -> cambio
+      let cambio = 0;
+      if (dto.medio_pago === MedioPago.EFECTIVO) {
+        const recibido = dto.monto_recibido ?? pedido.total_calculado;
+        if (recibido < pedido.total_calculado) {
+          throw new BadRequestException(
+            `El monto recibido ($${recibido}) es menor al total del pedido ($${pedido.total_calculado})`,
+          );
+        }
+        cambio = recibido - pedido.total_calculado;
+      }
+
+      // 3. Ingreso con su medio de pago
+      const movimiento = await manager.save(
+        manager.create(MovimientoFinanciero, {
+          id_usuario: idUsuario,
+          id_pedido: idPedido,
+          tipo_movimiento: TipoMovimientoFinanciero.INGRESO,
+          monto: pedido.total_calculado,
+          medio_pago: dto.medio_pago,
+        }),
+      );
+
+      // 4. El pedido queda pagado
+      await manager.update(Pedido, { id_pedido: idPedido }, { estado_pedido: EstadoPedido.PAGADO });
+
+      return { movimiento, cambio };
+    });
+
+    return { pedido: await this.buscarPorId(idPedido), movimiento, cambio };
   }
 
   /** GET /orders?estado= -> pedidos más recientes primero (con sus productos) */

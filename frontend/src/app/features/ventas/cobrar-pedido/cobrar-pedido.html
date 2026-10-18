@@ -1,0 +1,139 @@
+<!-- HU-3.5 · SCRUM-167 Interfaz para seleccionar el método de pago -->
+<header class="encabezado">
+  <div>
+    <h1>Cobrar pedido</h1>
+    <p class="subtitulo">Selecciona el pedido y registra su medio de pago.</p>
+  </div>
+  <nav class="subnav">
+    <a routerLink="/ventas/nuevo-pedido" routerLinkActive="activa">Nuevo pedido</a>
+    <a routerLink="/ventas/cobrar" routerLinkActive="activa">Cobrar pedido</a>
+  </nav>
+</header>
+
+<div class="pagina">
+  <!-- ===================== PEDIDOS POR COBRAR ===================== -->
+  <section class="card lista">
+    <div class="lista-encabezado">
+      <h2>Pedidos por cobrar</h2>
+      <button type="button" class="link" (click)="cargar()">Actualizar</button>
+    </div>
+
+    @if (cargando()) {
+      <p class="muted centro">Cargando pedidos…</p>
+    } @else if (errorCarga()) {
+      <div class="alerta alerta-error">⚠ No se pudieron cargar los pedidos. Revise que el backend esté corriendo.</div>
+    } @else if (pedidos().length === 0) {
+      <div class="vacio">
+        <strong>No hay pedidos por cobrar</strong>
+        <p>Los pedidos registrados aparecerán aquí hasta que se paguen.</p>
+      </div>
+    } @else {
+      <ul class="pedidos">
+        @for (p of pedidos(); track p.id_pedido) {
+          <li>
+            <button type="button" class="pedido" [class.activo]="seleccionado()?.id_pedido === p.id_pedido"
+              (click)="seleccionar(p)">
+              <span class="pedido-id">#{{ p.id_pedido }}</span>
+              <span class="pedido-info">
+                <strong>{{ p.total_calculado | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+                <small class="muted">{{ p.fecha_hora | date: 'dd/MM/yyyy h:mm a' }} · {{ p.detalles.length }} producto(s)</small>
+              </span>
+              <span class="badge estado">{{ etiquetaEstado[p.estado_pedido] }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+
+  <!-- ===================== PAGO ===================== -->
+  <section class="card pago">
+    @if (resultado(); as r) {
+      <div class="alerta alerta-ok">
+        ✓ Pedido <strong>#{{ r.pedido.id_pedido }}</strong> pagado con
+        <strong>{{ r.movimiento.medio_pago | titlecase }}</strong> por
+        {{ r.movimiento.monto | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}.
+        @if (r.cambio > 0) {
+          <br />Cambio a devolver: <strong>{{ r.cambio | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+        }
+      </div>
+    }
+
+    @if (!seleccionado()) {
+      <div class="vacio">
+        <strong>Selecciona un pedido</strong>
+        <p>Elige un pedido de la lista para registrar su pago.</p>
+      </div>
+    } @else {
+      @let p = seleccionado()!;
+      <h2>Pedido #{{ p.id_pedido }}</h2>
+
+      <!-- Resumen del pedido -->
+      <ul class="detalle">
+        @for (d of p.detalles; track d.id_detalle) {
+          <li>
+            <span>{{ d.cantidad }}x {{ d.item?.nombre ?? 'Producto #' + d.id_item }}</span>
+            <span>{{ d.cantidad * d.precio_unitario | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+          </li>
+        }
+      </ul>
+      <div class="total">
+        <span>Total a cobrar</span>
+        <strong>{{ p.total_calculado | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+      </div>
+
+      <!-- Medio de pago -->
+      <span class="etiqueta">Medio de pago <span class="obligatorio">*</span></span>
+      <div class="medios" role="radiogroup" aria-label="Medio de pago">
+        @for (m of medios; track m.valor) {
+          <button type="button" class="medio" role="radio" [attr.aria-checked]="medio() === m.valor"
+            [class.seleccionado]="medio() === m.valor" (click)="elegirMedio(m.valor)">
+            {{ m.texto }}
+          </button>
+        }
+      </div>
+      @if (intento() && !medio()) {
+        <small class="error-txt">⚠ Seleccione el medio de pago.</small>
+      }
+
+      <!-- Solo en efectivo: valor recibido y cambio -->
+      @if (esEfectivo()) {
+        <div class="fila">
+          <div class="campo">
+            <label for="recibido">Valor recibido <span class="obligatorio">*</span></label>
+            <div class="moneda">
+              <span>$</span>
+              <input id="recibido" type="number" min="1" step="1" placeholder="0"
+                [class.invalido]="intento() && errorEfectivo()"
+                [value]="recibido()" (input)="recibido.set($any($event.target).value)" />
+            </div>
+            @if (intento() && errorEfectivo()) {
+              <small class="error-txt">⚠ {{ errorEfectivo() }}</small>
+            }
+          </div>
+          <div class="campo">
+            <span class="etiqueta">Cambio</span>
+            <strong class="cambio" [class.negativo]="(cambio() ?? 0) < 0">
+              {{ (cambio() ?? 0) < 0 ? '—' : ((cambio() ?? 0) | currency: 'COP' : 'symbol-narrow' : '1.0-0') }}
+            </strong>
+          </div>
+        </div>
+      }
+
+      @if (errorGeneral()) {
+        <div class="alerta alerta-error">⚠ {{ errorGeneral() }}</div>
+      }
+
+      @if (!puedeCobrar()) {
+        <div class="alerta alerta-error">⚠ Solo el cajero o el administrador pueden registrar pagos.</div>
+      }
+
+      <div class="acciones">
+        <button type="button" class="btn btn-secundario" (click)="seleccionado.set(null)">Cancelar</button>
+        <button type="button" class="btn btn-primario" [disabled]="enviando() || !puedeCobrar()" (click)="registrar()">
+          {{ enviando() ? 'Registrando…' : 'Registrar pago' }}
+        </button>
+      </div>
+    }
+  </section>
+</div>

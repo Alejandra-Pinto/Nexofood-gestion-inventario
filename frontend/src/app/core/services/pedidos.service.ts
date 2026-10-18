@@ -2,7 +2,7 @@
  * Servicio: PedidosService
  * ------------------------------------------------------------------
  * Se comunica con el módulo Orders del backend.
- * HU-3.1 Registrar nuevo pedido
+ * HU-3.1 Registrar nuevo pedido · HU-3.5 Registrar método de pago
  * El token JWT lo agrega el AuthInterceptor.
  */
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -14,6 +14,8 @@ import {
   EstadoPedido,
   normalizarPedido,
   Pedido,
+  RegistrarPago,
+  ResultadoPago,
 } from '../models/pedido.model';
 
 @Injectable({ providedIn: 'root' })
@@ -32,5 +34,12 @@ export class PedidosService {
     return this.http
       .get<Pedido[]>(this.api, { params })
       .pipe(map((lista) => lista.map(normalizarPedido)));
+  }
+
+  /** POST /orders/:id/pago -> registra el medio de pago (HU-3.5) */
+  registrarPago(idPedido: number, dto: RegistrarPago) {
+    return this.http.post<ResultadoPago>(`${this.api}/${idPedido}/pago`, dto).pipe(
+      map((r) => ({ ...r, pedido: normalizarPedido(r.pedido), cambio: Number(r.cambio) })),
+    );
   }
 }

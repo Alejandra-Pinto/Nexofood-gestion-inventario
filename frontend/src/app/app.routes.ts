@@ -61,6 +61,14 @@ export const routes: Routes = [
                 (m) => m.NuevoPedido,
               ),
           },
+          {
+            // HU-3.5 Registrar método de pago
+            path: 'cobrar',
+            loadComponent: () =>
+              import('./features/ventas/cobrar-pedido/cobrar-pedido').then(
+                (m) => m.CobrarPedido,
+              ),
+          },
         ],
       },
       {
