@@ -49,6 +49,21 @@ export const routes: Routes = [
         ],
       },
       {
+        // Módulo Ventas: /ventas abre Nuevo pedido
+        path: 'ventas',
+        children: [
+          { path: '', redirectTo: 'nuevo-pedido', pathMatch: 'full' },
+          {
+            // HU-3.1 Registrar nuevo pedido
+            path: 'nuevo-pedido',
+            loadComponent: () =>
+              import('./features/ventas/nuevo-pedido/nuevo-pedido').then(
+                (m) => m.NuevoPedido,
+              ),
+          },
+        ],
+      },
+      {
         // HU-1.4 Modificar permisos de usuarios
         path: 'usuarios',
         loadComponent: () =>

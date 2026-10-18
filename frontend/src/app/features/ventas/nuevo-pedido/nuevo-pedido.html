@@ -1,0 +1,130 @@
+<!-- HU-3.1 · SCRUM-146 Interfaz de selección de productos y cantidades -->
+<header class="encabezado">
+  <div>
+    <h1>Nuevo pedido</h1>
+    <p class="subtitulo">Selecciona los productos que pidió el cliente y sus cantidades.</p>
+  </div>
+  <!-- Navegación del módulo Ventas -->
+  <nav class="subnav">
+    <a routerLink="/ventas/nuevo-pedido" routerLinkActive="activa">Nuevo pedido</a>
+  </nav>
+</header>
+
+<div class="pagina">
+  <!-- ===================== CATÁLOGO ===================== -->
+  <section class="card catalogo">
+    <div class="catalogo-encabezado">
+      <h2>Productos</h2>
+      <input class="buscar" type="search" placeholder="Buscar producto…"
+        [value]="busqueda()" (input)="busqueda.set($any($event.target).value)" />
+    </div>
+
+    <!-- Filtro por categoría -->
+    @if (categoriasConProductos().length > 1) {
+      <div class="pestanas">
+        <button type="button" class="pestana" [class.activa]="categoriaSel() === null" (click)="categoriaSel.set(null)">
+          Todas
+        </button>
+        @for (c of categoriasConProductos(); track c.id_categoria) {
+          <button type="button" class="pestana" [class.activa]="categoriaSel() === c.id_categoria"
+            (click)="categoriaSel.set(c.id_categoria)">
+            {{ c.nombre }}
+          </button>
+        }
+      </div>
+    }
+
+    @if (cargando()) {
+      <p class="muted centro">Cargando productos…</p>
+    } @else if (errorCarga()) {
+      <div class="alerta alerta-error">
+        ⚠ No se pudieron cargar los productos. Revise que el backend esté corriendo.
+        <button type="button" class="btn btn-secundario btn-sm" (click)="cargar()">Reintentar</button>
+      </div>
+    } @else if (catalogo().length === 0) {
+      <p class="muted centro">No hay productos para mostrar.</p>
+    } @else {
+      <div class="grid">
+        @for (p of catalogo(); track p.id_item) {
+          <button type="button" class="producto"
+            [class.en-pedido]="cantidadEnPedido(p.id_item) > 0"
+            [disabled]="p.cantidad_stock <= 0"
+            (click)="agregar(p)">
+            @if (cantidadEnPedido(p.id_item) > 0) {
+              <span class="contador">{{ cantidadEnPedido(p.id_item) }}</span>
+            }
+            <strong class="nombre">{{ p.nombre }}</strong>
+            <span class="precio">{{ p.precio_venta | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+            @if (p.cantidad_stock <= 0) {
+              <span class="badge badge-bajo">Agotado</span>
+            } @else {
+              <span class="stock">{{ p.cantidad_stock }} disponibles</span>
+            }
+          </button>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- ===================== RESUMEN ===================== -->
+  <aside class="card resumen">
+    <div class="resumen-encabezado">
+      <h2>Resumen del pedido</h2>
+      @if (lineas().length > 0) {
+        <button type="button" class="link" (click)="vaciar()">Vaciar</button>
+      }
+    </div>
+
+    @if (lineas().length === 0) {
+      <div class="vacio" [class.vacio-error]="intentoVacio()">
+        <strong>Aún no hay productos</strong>
+        <p>Toca un producto del catálogo para agregarlo.</p>
+        @if (intentoVacio()) {
+          <small class="error-txt">⚠ El pedido debe tener al menos un producto.</small>
+        }
+      </div>
+    } @else {
+      <ul class="lineas">
+        @for (l of lineas(); track l.producto.id_item) {
+          <li class="linea">
+            <div class="linea-info">
+              <strong>{{ l.producto.nombre }}</strong>
+              <small class="muted">{{ l.producto.precio_venta | currency: 'COP' : 'symbol-narrow' : '1.0-0' }} c/u</small>
+            </div>
+
+            <!-- Selector de cantidad -->
+            <div class="cantidad">
+              <button type="button" aria-label="Restar" (click)="cambiarCantidad(l.producto, l.cantidad - 1)">−</button>
+              <input type="number" min="1" [max]="limite(l.producto)" step="1" [value]="l.cantidad"
+                (change)="escribirCantidad(l.producto, $any($event.target).value)" aria-label="Cantidad" />
+              <button type="button" aria-label="Sumar" [disabled]="l.cantidad >= limite(l.producto)"
+                (click)="cambiarCantidad(l.producto, l.cantidad + 1)">+</button>
+            </div>
+
+            <span class="subtotal">{{ l.cantidad * l.producto.precio_venta | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+            <button type="button" class="quitar" aria-label="Quitar producto" (click)="quitar(l.producto)">✕</button>
+          </li>
+        }
+      </ul>
+
+      <div class="total">
+        <span>Total ({{ totalUnidades() }} {{ totalUnidades() === 1 ? 'unidad' : 'unidades' }})</span>
+        <strong>{{ total() | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+      </div>
+    }
+
+    @if (errorGeneral()) {
+      <div class="alerta alerta-error">⚠ {{ errorGeneral() }}</div>
+    }
+    @if (registrado(); as p) {
+      <div class="alerta alerta-ok">
+        ✓ Pedido <strong>#{{ p.id_pedido }}</strong> registrado en estado <strong>Pendiente</strong>
+        por {{ p.total_calculado | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}.
+      </div>
+    }
+
+    <button type="button" class="btn btn-primario btn-bloque" [disabled]="enviando()" (click)="registrar()">
+      {{ enviando() ? 'Registrando…' : 'Registrar pedido' }}
+    </button>
+  </aside>
+</div>
