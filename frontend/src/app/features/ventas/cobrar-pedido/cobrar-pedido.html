@@ -5,7 +5,7 @@
     <p class="subtitulo">Selecciona el pedido y registra su medio de pago.</p>
   </div>
   <nav class="subnav">
-    <a routerLink="/ventas/nuevo-pedido" routerLinkActive="activa">Nuevo pedido</a>
+    <a routerLink="/ventas/mesas" routerLinkActive="activa">Mis mesas</a>
     <a routerLink="/ventas/cobrar" routerLinkActive="activa">Cobrar pedido</a>
   </nav>
 </header>
@@ -36,7 +36,10 @@
               <span class="pedido-id">#{{ p.id_pedido }}</span>
               <span class="pedido-info">
                 <strong>{{ p.total_calculado | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
-                <small class="muted">{{ p.fecha_hora | date: 'dd/MM/yyyy h:mm a' }} · {{ p.detalles.length }} producto(s)</small>
+                <small class="muted">
+                  {{ p.numero_mesa ? 'Mesa ' + p.numero_mesa : 'Para llevar' }} ·
+                  {{ p.fecha_hora | date: 'dd/MM/yyyy h:mm a' }} · {{ p.detalles.length }} producto(s)
+                </small>
               </span>
               <span class="badge estado">{{ etiquetaEstado[p.estado_pedido] }}</span>
             </button>
@@ -66,7 +69,7 @@
       </div>
     } @else {
       @let p = seleccionado()!;
-      <h2>Pedido #{{ p.id_pedido }}</h2>
+      <h2>Pedido #{{ p.id_pedido }} · {{ p.numero_mesa ? 'Mesa ' + p.numero_mesa : 'Para llevar' }}</h2>
 
       <!-- Resumen del pedido -->
       <ul class="detalle">
