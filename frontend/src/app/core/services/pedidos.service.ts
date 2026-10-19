@@ -12,6 +12,7 @@ import { environment } from '../../../environments/environment';
 import {
   CrearPedido,
   EstadoPedido,
+  MesaResumen,
   normalizarPedido,
   Pedido,
   RegistrarPago,
@@ -26,6 +27,16 @@ export class PedidosService {
   /** POST /orders -> registra el pedido (queda en estado PENDIENTE) */
   crear(dto: CrearPedido) {
     return this.http.post<Pedido>(this.api, dto).pipe(map(normalizarPedido));
+  }
+
+  /** GET /orders/mesas -> estado de cada mesa (pantalla "Mis mesas") */
+  mesas() {
+    return this.http.get<MesaResumen[]>(`${this.api}/mesas`);
+  }
+
+  /** GET /orders/:id -> un pedido con sus productos */
+  obtener(id: number) {
+    return this.http.get<Pedido>(`${this.api}/${id}`).pipe(map(normalizarPedido));
   }
 
   /** GET /orders?estado= -> pedidos más recientes primero */

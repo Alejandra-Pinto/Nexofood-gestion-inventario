@@ -49,12 +49,26 @@ export const routes: Routes = [
         ],
       },
       {
-        // Módulo Ventas: /ventas abre Nuevo pedido
+        // Módulo Ventas: /ventas abre "Mis mesas"
         path: 'ventas',
         children: [
-          { path: '', redirectTo: 'nuevo-pedido', pathMatch: 'full' },
+          { path: '', redirectTo: 'mesas', pathMatch: 'full' },
           {
-            // HU-3.1 Registrar nuevo pedido
+            // HU-3.1 Mis mesas: el mesero elige la mesa
+            path: 'mesas',
+            loadComponent: () =>
+              import('./features/ventas/mis-mesas/mis-mesas').then((m) => m.MisMesas),
+          },
+          {
+            // HU-3.1 Pedido de una mesa (/ventas/mesa/4)
+            path: 'mesa/:numero',
+            loadComponent: () =>
+              import('./features/ventas/nuevo-pedido/nuevo-pedido').then(
+                (m) => m.NuevoPedido,
+              ),
+          },
+          {
+            // HU-3.1 Pedido sin mesa (para llevar / tomado en caja)
             path: 'nuevo-pedido',
             loadComponent: () =>
               import('./features/ventas/nuevo-pedido/nuevo-pedido').then(

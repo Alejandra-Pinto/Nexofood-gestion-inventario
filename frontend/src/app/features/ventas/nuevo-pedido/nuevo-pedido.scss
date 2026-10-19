@@ -1,187 +1,313 @@
-/* Encabezado blanco igual al de las demás pantallas */
-.encabezado {
+/* Pantalla del mesero (prototipo "Mesa N" y "Nuevo choripán").
+   Responsiva: en celular es una sola columna con el total fijo abajo;
+   en tablet/escritorio los productos van a la izquierda y el total a la derecha. */
+.movil {
+  min-height: 100vh;
+  background: var(--fondo);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 22px 32px;
-  background: var(--superficie);
-  border-bottom: 1px solid var(--borde);
-  h1 { font-size: 1.5rem; }
-}
-.subtitulo { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
-
-/* Pestañas Nuevo pedido / Cobrar pedido */
-.subnav {
-  display: flex;
-  gap: 6px;
-  a {
-    padding: 8px 14px;
-    border-radius: 10px;
-    color: var(--muted);
-    font-weight: 600;
-    font-size: 0.9rem;
-    text-decoration: none;
-    border: 1px solid var(--borde);
-    &.activa { background: var(--primario); border-color: var(--primario); color: #fff; }
-  }
+  flex-direction: column;
 }
 
-/* Catálogo a la izquierda, resumen a la derecha */
-.pagina {
+.contenedor {
+  flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 20px;
+  gap: 24px;
   align-items: start;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
   padding: 24px 32px;
 }
 
-.catalogo, .resumen { padding: 20px 24px; }
-h2 { font-size: 1.1rem; }
+/* Barra negra con flecha atrás y subtítulo dorado */
+.barra {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 32px;
+  background: #1c1c1e;
+  color: #fff;
+  h1 { color: #fff; font-size: 1.2rem; margin: 0; }
+  p { margin: 2px 0 0; font-size: 0.78rem; color: var(--dorado); }
+}
+.volver {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font: inherit;
+  font-size: 1.4rem;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  &:hover { background: rgba(255, 255, 255, 0.22); }
+}
+
+.cuerpo { min-width: 0; }
 .centro { text-align: center; padding: 24px 0; }
 
-.catalogo-encabezado, .resumen-encabezado {
+.titulo-seccion {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--texto);
 }
-.buscar { width: 240px; padding: 8px 12px; }
-
-.pestanas { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-.pestana {
-  padding: 7px 14px;
-  border: 1px solid var(--borde);
-  border-radius: 999px;
-  background: var(--superficie);
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.85rem;
+.chip {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #e6e9ef;
+  font-size: 0.7rem;
   font-weight: 600;
-  cursor: pointer;
-  &.activa { background: var(--primario); border-color: var(--primario); color: #fff; }
+  letter-spacing: 0;
 }
 
-/* Tarjetas de producto */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
+/* Botón punteado "+ Nuevo choripán" */
+.nuevo-chori {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  border: 1.5px dashed #c99a9b;
+  border-radius: 12px;
+  background: var(--primario-suave);
+  color: var(--primario);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  &:hover { background: #f1dcdc; }
 }
-.producto {
-  position: relative;
+.mas {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--primario);
+  color: #fff;
+  font-size: 1rem;
+}
+
+/* Imagen del producto: inicial sobre fondo cálido (no hay fotos en la BD) */
+.foto {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #8b3a1e, #3b1a12);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.3rem;
+}
+
+/* Tarjeta de choripán en el pedido */
+.tarjeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+}
+.tarjeta-info {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: 4px;
-  padding: 14px;
-  min-height: 104px;
+}
+.tarjeta-precio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  small { font-size: 0.72rem; }
+}
+
+/* Selector − n + */
+.cantidad {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  button {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid var(--borde);
+    background: var(--superficie);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    &:disabled { opacity: 0.4; cursor: not-allowed; }
+  }
+  span { min-width: 18px; text-align: center; font-weight: 700; }
+}
+
+.titulo-categoria {
+  margin: 18px 0 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--texto);
+}
+
+/* Filas de bebidas / adicionales */
+.filas { list-style: none; padding: 0; margin: 0 0 4px; display: flex; flex-direction: column; gap: 8px; }
+.fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  &.elegida { border-color: var(--dorado); box-shadow: 0 0 0 1px var(--dorado); }
+  &.agotada { opacity: 0.6; }
+}
+.fila-boton {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  &:disabled { cursor: not-allowed; }
+}
+.icono {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #fdf8e6;
+  color: #8a6d12;
+  font-weight: 700;
+}
+.fila-nombre { flex: 1; font-weight: 500; }
+.agotado { display: block; color: var(--error); font-size: 0.72rem; }
+.precio { font-weight: 700; white-space: nowrap; }
+.mini { display: inline-flex; align-items: center; gap: 6px; }
+.mini button {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--borde);
+  background: var(--superficie);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cant {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #e6e9ef;
+  font-size: 0.75rem;
+  font-weight: 700;
+  &.activa { background: var(--primario); color: #fff; }
+}
+
+/* Paso "Elegí tu chori" */
+.titulo-paso { font-size: 1.05rem; color: var(--texto); margin-bottom: 12px; }
+.opciones { display: flex; flex-direction: column; gap: 10px; }
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
   border: 1px solid var(--borde);
   border-radius: 12px;
   background: var(--superficie);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
-
-  &:hover:not(:disabled) { border-color: var(--primario); box-shadow: 0 2px 8px rgb(0 0 0 / 6%); }
+  &.seleccionada { border-color: var(--dorado); box-shadow: 0 0 0 1px var(--dorado); }
   &:disabled { opacity: 0.55; cursor: not-allowed; }
-  &.en-pedido { border-color: var(--primario); background: var(--primario-suave); }
-
-  .nombre { color: var(--texto); }
-  .precio { font-weight: 600; color: var(--primario); }
-  .stock { font-size: 0.75rem; color: var(--muted); }
 }
-.contador {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--primario);
-  color: #fff;
-  font-size: 0.8rem;
-  font-weight: 700;
-  display: grid;
-  place-items: center;
-}
-
-/* Resumen del pedido */
-.resumen { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 14px; }
-.link { border: 0; background: none; color: var(--primario); font: inherit; font-weight: 600; cursor: pointer; }
-
-.vacio {
-  padding: 24px 12px;
-  text-align: center;
-  border: 1px dashed var(--borde);
-  border-radius: 12px;
-  p { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
-  small { justify-content: center; margin-top: 8px; }
-  &.vacio-error { border-color: var(--error); background: var(--error-suave); }
-}
-
-.lineas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.linea {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: 'info quitar' 'cantidad subtotal';
-  gap: 8px 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--borde);
-}
-.linea-info { grid-area: info; display: flex; flex-direction: column; }
-.quitar { grid-area: quitar; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; }
-.subtotal { grid-area: subtotal; align-self: center; font-weight: 600; }
-
-.cantidad {
-  grid-area: cantidad;
-  display: inline-flex;
+.opcion-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.cantidad-chori {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--superficie);
   border: 1px solid var(--borde);
-  border-radius: 10px;
-  overflow: hidden;
-  width: max-content;
-  button {
-    width: 34px;
-    height: 34px;
-    border: 0;
-    background: var(--fondo);
-    font: inherit;
-    font-size: 1.1rem;
-    cursor: pointer;
-    &:disabled { opacity: 0.4; cursor: not-allowed; }
-  }
-  input {
-    width: 52px;
-    padding: 6px 4px;
-    border: 0;
-    border-radius: 0;
-    text-align: center;
-    -moz-appearance: textfield;
-    &::-webkit-inner-spin-button, &::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-  }
+  font-weight: 600;
 }
 
+/* Panel con total y botón: a la derecha en pantallas grandes */
+.pie {
+  position: sticky;
+  top: 24px;
+  padding: 18px;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+}
+
+/* Choripanes en dos columnas cuando hay espacio */
+@media (min-width: 1100px) {
+  .opciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .total {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 0.95rem;
-  strong { font-size: 1.35rem; color: var(--primario); }
+  margin-bottom: 10px;
+  span { color: var(--muted); }
+  strong { font-size: 1.4rem; }
 }
-.btn-bloque { width: 100%; padding: 12px; }
-.btn-sm { padding: 6px 12px; margin-left: 8px; }
+.btn-bloque { width: 100%; padding: 13px; }
+.vaciar { display: block; margin: 0 0 10px auto; font-size: 0.8rem; }
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primario);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-sm { padding: 6px 12px; font-size: 0.85rem; margin-left: 8px; }
+.error-txt { margin: 12px 0 0; }
+.alerta { margin-top: 12px; }
+.alerta-info { background: #eef4ff; color: #1e3a8a; border: 1px solid #c7d7fe; }
 
+/* Tablet y celular: una sola columna y el total fijo en la parte de abajo */
 @media (max-width: 900px) {
-  .pagina { grid-template-columns: 1fr; }
-  .resumen { position: static; }
-}
-@media (max-width: 640px) {
-  .encabezado { flex-direction: column; align-items: flex-start; padding: 16px; }
-  .pagina { padding: 16px; }
-  .catalogo-encabezado { flex-direction: column; align-items: stretch; }
-  .buscar { width: 100%; }
+  .contenedor { grid-template-columns: 1fr; gap: 0; padding: 16px 16px 0; }
+  .barra { padding: 14px 16px; }
+  .pie {
+    position: sticky;
+    top: auto;
+    bottom: 0;
+    margin: 16px -16px 0;
+    border-radius: 0;
+    border-width: 1px 0 0;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+  }
 }

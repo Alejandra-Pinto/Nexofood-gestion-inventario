@@ -63,12 +63,13 @@ export class AuthService {
       return '/productos';
     }
 
-    // Mesero: si tiene permiso productos va a /productos, sino inventario
+    // Mesero: si tiene permiso productos va a /productos
     if (usuario.permisos?.includes('productos')) {
       return '/productos';
     }
 
-    return '/productos';
+    // HU-3.1: el Mesero solo tiene Ventas -> entra a "Mis mesas"
+    return '/ventas/mesas';
   }
 }
 

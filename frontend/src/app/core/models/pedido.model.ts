@@ -38,6 +38,8 @@ export interface DetallePedido {
 export interface Pedido {
   id_pedido: number;
   id_mesero: number;
+  /** Mesa del pedido (1 a 8). null = para llevar / tomado en caja */
+  numero_mesa: number | null;
   fecha_hora: string;
   estado_pedido: EstadoPedido;
   total_calculado: number;
@@ -46,8 +48,28 @@ export interface Pedido {
 
 /** Lo que se envía al registrar un pedido (POST /orders) */
 export interface CrearPedido {
+  numero_mesa?: number;
   detalles: { id_item: number; cantidad: number }[];
 }
+
+// ---------- HU-3.1 Mesas (prototipo "Mis mesas") ----------
+
+/** LIBRE sin pedido · PENDIENTE enviado a caja · OCUPADA en cocina o entregado */
+export type EstadoMesa = 'LIBRE' | 'PENDIENTE' | 'OCUPADA';
+
+/** Respuesta de GET /orders/mesas */
+export interface MesaResumen {
+  numero: number;
+  estado: EstadoMesa;
+  id_pedido: number | null;
+  total: number;
+}
+
+export const ETIQUETA_MESA: Record<EstadoMesa, string> = {
+  LIBRE: 'Libre',
+  PENDIENTE: 'Pendiente',
+  OCUPADA: 'Ocupada',
+};
 
 /** Cantidad máxima por producto (igual que en el backend) */
 export const CANTIDAD_MAXIMA = 99;

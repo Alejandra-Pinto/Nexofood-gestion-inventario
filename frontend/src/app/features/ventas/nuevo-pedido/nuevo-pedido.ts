@@ -4,73 +4,135 @@
  * HU-3.1 · SCRUM-146 Diseñar interfaz de selección de productos y cantidades
  *        · SCRUM-149 Validar stock, cantidad inválida y pedido vacío (en pantalla)
  *
- * El mesero toca un producto del catálogo para agregarlo y ajusta la
- * cantidad con − / +. El resumen muestra subtotales y el total.
- * El backend vuelve a validar todo y calcula el total real.
+ * Pantalla "Mesa N" del prototipo del mesero:
+ *   - "+ Nuevo choripán" abre el paso "Elegí tu chori" (productos de la
+ *     categoría Choripanes).
+ *   - Las demás categorías (Bebidas, Adicionales...) se agregan tocando la fila.
+ *   - Abajo: total de la mesa y "Enviar pedido a caja" (registra el pedido).
+ *
+ * Rutas: /ventas/mesa/:numero (pedido de una mesa)
+ *        /ventas/nuevo-pedido  (sin mesa: para llevar / tomado en caja)
+ *
+ * Si la mesa ya tiene un pedido activo se muestra ese pedido (solo lectura);
+ * agregarle productos corresponde a la HU-3.3 (modificar pedido).
+ *
+ * Nota HU-3.2 (Yezid): los pasos 2 y 3 del prototipo (pan, aderezos, combo y
+ * adicionales) se agregan en la vista 'choripan' después de "Elegí tu chori".
  */
 import { CurrencyPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { forkJoin, of, switchMap } from 'rxjs';
 import { InventarioService } from '../../../core/services/inventario.service';
 import { PedidosService } from '../../../core/services/pedidos.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { AuthService } from '../../../core/services/auth.service';
+import {
+  BorradorPedidoService,
+  LineaBorrador,
+} from '../../../core/services/borrador-pedido.service';
 import { Categoria, ItemInventario } from '../../../core/models/item-inventario.model';
-import { CANTIDAD_MAXIMA, Pedido } from '../../../core/models/pedido.model';
+import { CANTIDAD_MAXIMA, ETIQUETA_ESTADO, Pedido } from '../../../core/models/pedido.model';
 
-/** Una línea del pedido que se está armando */
-interface Linea {
-  producto: ItemInventario;
-  cantidad: number;
+/** Una sección de productos que se agregan tocando la fila (Bebidas, Adicionales...) */
+interface Seccion {
+  categoria: Categoria;
+  productos: ItemInventario[];
+}
+
+/** true si la categoría es la de choripanes (se eligen con "+ Nuevo choripán") */
+function esCategoriaChoripan(c: Categoria): boolean {
+  return c.nombre
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .includes('chori');
 }
 
 @Component({
   selector: 'app-nuevo-pedido',
-  imports: [CurrencyPipe, RouterLink, RouterLinkActive],
+  imports: [CurrencyPipe, RouterLink],
   templateUrl: './nuevo-pedido.html',
   styleUrl: './nuevo-pedido.scss',
 })
 export class NuevoPedido {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private inventario = inject(InventarioService);
   private pedidos = inject(PedidosService);
+  private borradores = inject(BorradorPedidoService);
   private toast = inject(ToastService);
+  private auth = inject(AuthService);
 
   protected readonly maximo = CANTIDAD_MAXIMA;
+  protected readonly etiquetaEstado = ETIQUETA_ESTADO;
 
-  /** Catálogo: solo productos (los insumos no se venden) */
+  /** Número de mesa (null = para llevar) */
+  protected readonly mesa: number | null = this.leerMesa();
+  private readonly clave = this.mesa ? `mesa-${this.mesa}` : 'llevar';
+
+  protected nombreUsuario = computed(() => this.auth.usuarioActual()?.nombre ?? 'Mesero');
+
+  /** Catálogo: solo productos activos (los insumos no se venden) */
   protected productos = signal<ItemInventario[]>([]);
   protected categorias = signal<Categoria[]>([]);
   protected cargando = signal(true);
   protected errorCarga = signal(false);
 
-  /** Filtros del catálogo */
-  protected categoriaSel = signal<number | null>(null);
-  protected busqueda = signal('');
+  /** Pedido activo de la mesa (si ya se envió a caja) */
+  protected pedidoActivo = signal<Pedido | null>(null);
 
-  /** Pedido en construcción */
-  protected lineas = signal<Linea[]>([]);
+  /** Vista actual: el pedido o el paso "Elegí tu chori" */
+  protected vista = signal<'pedido' | 'choripan'>('pedido');
+  protected choriSel = signal<ItemInventario | null>(null);
+  protected choriCantidad = signal(1);
+
+  /** Pedido en construcción (se guarda como borrador por mesa) */
+  protected lineas = signal<LineaBorrador[]>(this.borradores.obtener(this.clave));
   protected enviando = signal(false);
   protected errorGeneral = signal<string | null>(null);
-  protected registrado = signal<Pedido | null>(null);
-  /** true cuando se intentó registrar sin productos (SCRUM-149) */
+  /** true cuando se intentó enviar sin productos (SCRUM-149) */
   protected intentoVacio = signal(false);
 
-  /** Categorías que tienen al menos un producto */
-  protected categoriasConProductos = computed(() =>
-    this.categorias().filter((c) => this.productos().some((p) => p.id_categoria === c.id_categoria)),
-  );
+  /** Categoría de choripanes (puede no existir) */
+  private categoriaChori = computed(() => this.categorias().find(esCategoriaChoripan) ?? null);
 
-  /** Productos visibles según categoría y búsqueda */
-  protected catalogo = computed(() => {
-    const texto = this.busqueda().trim().toLowerCase();
-    const cat = this.categoriaSel();
-    return this.productos().filter(
-      (p) => (cat === null || p.id_categoria === cat) && (!texto || p.nombre.toLowerCase().includes(texto)),
-    );
+  /** Productos que se eligen en "Elegí tu chori" */
+  protected choripanes = computed(() => {
+    const cat = this.categoriaChori();
+    return cat ? this.productos().filter((p) => p.id_categoria === cat.id_categoria) : [];
   });
 
-  protected totalUnidades = computed(() => this.lineas().reduce((s, l) => s + l.cantidad, 0));
+  /** Demás categorías con productos: se muestran como listas (Bebidas, Adicionales...) */
+  protected secciones = computed<Seccion[]>(() => {
+    const idChori = this.categoriaChori()?.id_categoria;
+    return this.categorias()
+      .filter((c) => c.id_categoria !== idChori)
+      .map((c) => ({ categoria: c, productos: this.productos().filter((p) => p.id_categoria === c.id_categoria) }))
+      .filter((s) => s.productos.length > 0);
+  });
+
+  /** Líneas de choripán del pedido actual (tarjetas grandes) */
+  protected lineasChori = computed(() => {
+    const idChori = this.categoriaChori()?.id_categoria;
+    return this.lineas().filter((l) => l.producto.id_categoria === idChori);
+  });
+
+  /** Resumen "2 Choripanes · 4 Bebidas" */
+  protected resumen = computed(() => {
+    const partes: string[] = [];
+    const chori = this.lineasChori().reduce((s, l) => s + l.cantidad, 0);
+    if (chori) partes.push(`${chori} ${chori === 1 ? 'Choripán' : 'Choripanes'}`);
+    for (const s of this.secciones()) {
+      const n = this.lineas()
+        .filter((l) => l.producto.id_categoria === s.categoria.id_categoria)
+        .reduce((t, l) => t + l.cantidad, 0);
+      if (n) partes.push(`${n} ${s.categoria.nombre}`);
+    }
+    return partes.join(' · ');
+  });
+
   protected total = computed(() =>
     this.lineas().reduce((s, l) => s + l.cantidad * l.producto.precio_venta, 0),
   );
@@ -79,14 +141,34 @@ export class NuevoPedido {
     this.cargar();
   }
 
-  /** Carga productos activos y categorías */
+  private leerMesa(): number | null {
+    const n = Number(this.route.snapshot.paramMap.get('numero'));
+    return Number.isInteger(n) && n > 0 ? n : null;
+  }
+
+  /** Carga productos, categorías y (si es mesa) su pedido activo */
   protected cargar(): void {
     this.cargando.set(true);
     this.errorCarga.set(false);
-    forkJoin({ items: this.inventario.listar('PRODUCTO'), categorias: this.inventario.categorias() }).subscribe({
-      next: ({ items, categorias }) => {
+
+    const pedidoActivo$ = this.mesa
+      ? this.pedidos.mesas().pipe(
+          switchMap((mesas) => {
+            const m = mesas.find((x) => x.numero === this.mesa);
+            return m?.id_pedido ? this.pedidos.obtener(m.id_pedido) : of(null);
+          }),
+        )
+      : of(null);
+
+    forkJoin({
+      items: this.inventario.listar('PRODUCTO'),
+      categorias: this.inventario.categorias(),
+      activo: pedidoActivo$,
+    }).subscribe({
+      next: ({ items, categorias, activo }) => {
         this.productos.set(items.filter((i) => i.tipo_item === 'PRODUCTO' && i.estado_activo !== false));
         this.categorias.set(categorias);
+        this.pedidoActivo.set(activo);
         this.cargando.set(false);
       },
       error: () => {
@@ -96,7 +178,10 @@ export class NuevoPedido {
     });
   }
 
-  /** Cantidad del producto que ya está en el pedido */
+  // ------------------------------------------------------------------
+  // Cantidades (SCRUM-149: stock, máximo y enteros)
+  // ------------------------------------------------------------------
+
   protected cantidadEnPedido(id: number): number {
     return this.lineas().find((l) => l.producto.id_item === id)?.cantidad ?? 0;
   }
@@ -106,16 +191,10 @@ export class NuevoPedido {
     return Math.min(p.cantidad_stock, this.maximo);
   }
 
-  /** Toca un producto del catálogo: lo agrega o suma 1 */
-  protected agregar(p: ItemInventario): void {
-    this.registrado.set(null);
-    this.intentoVacio.set(false);
-    this.cambiarCantidad(p, this.cantidadEnPedido(p.id_item) + 1);
-  }
-
-  /** Cambia la cantidad de un producto validando stock y máximo (SCRUM-149) */
+  /** Cambia la cantidad de un producto validando stock y máximo */
   protected cambiarCantidad(p: ItemInventario, cantidad: number): void {
     this.errorGeneral.set(null);
+    this.intentoVacio.set(false);
     const tope = this.limite(p);
 
     if (!Number.isInteger(cantidad) || cantidad < 0) return;
@@ -136,32 +215,64 @@ export class NuevoPedido {
         ? ls.map((l) => (l.producto.id_item === p.id_item ? { ...l, cantidad } : l))
         : [...ls, { producto: p, cantidad }];
     });
+    this.borradores.guardar(this.clave, this.lineas());
   }
 
-  /** Cantidad escrita a mano en el resumen */
-  protected escribirCantidad(p: ItemInventario, valor: string): void {
-    const n = Number(valor);
-    if (!Number.isInteger(n) || n < 1) {
-      this.toast.error('La cantidad debe ser un número entero mayor a 0.');
-      this.lineas.update((ls) => ls.map((l) => ({ ...l }))); // vuelve a pintar el valor anterior
+  /** Toca una fila (bebida, adicional...): suma 1 */
+  protected sumar(p: ItemInventario): void {
+    if (p.cantidad_stock <= 0) return;
+    this.cambiarCantidad(p, this.cantidadEnPedido(p.id_item) + 1);
+  }
+
+  // ------------------------------------------------------------------
+  // Paso "Elegí tu chori"
+  // ------------------------------------------------------------------
+
+  protected abrirChoripan(): void {
+    this.choriSel.set(null);
+    this.choriCantidad.set(1);
+    this.vista.set('choripan');
+  }
+
+  protected elegirChori(p: ItemInventario): void {
+    if (p.cantidad_stock <= 0) return;
+    this.choriSel.set(p);
+    this.choriCantidad.set(1);
+  }
+
+  protected cambiarChoriCantidad(n: number): void {
+    const p = this.choriSel();
+    if (!p) return;
+    const disponible = this.limite(p) - this.cantidadEnPedido(p.id_item);
+    if (n < 1) return;
+    if (n > disponible) {
+      this.toast.error(`Stock insuficiente: solo puede agregar ${disponible} más de "${p.nombre}".`);
       return;
     }
-    this.cambiarCantidad(p, n);
+    this.choriCantidad.set(n);
   }
 
-  protected quitar(p: ItemInventario): void {
-    this.cambiarCantidad(p, 0);
+  /** Agrega el choripán elegido al pedido y vuelve a la mesa */
+  protected agregarChoripan(): void {
+    const p = this.choriSel();
+    if (!p) return;
+    this.cambiarCantidad(p, this.cantidadEnPedido(p.id_item) + this.choriCantidad());
+    this.vista.set('pedido');
   }
+
+  // ------------------------------------------------------------------
+  // Enviar a caja (SCRUM-148)
+  // ------------------------------------------------------------------
 
   protected vaciar(): void {
     this.lineas.set([]);
+    this.borradores.limpiar(this.clave);
     this.errorGeneral.set(null);
   }
 
-  /** Registra el pedido en el backend (SCRUM-148) */
-  protected registrar(): void {
+  /** Registra el pedido en el backend: queda PENDIENTE con su ID único */
+  protected enviar(): void {
     this.errorGeneral.set(null);
-    this.registrado.set(null);
 
     // SCRUM-149: pedido vacío
     if (this.lineas().length === 0) {
@@ -170,19 +281,28 @@ export class NuevoPedido {
     }
 
     this.enviando.set(true);
-    const dto = { detalles: this.lineas().map((l) => ({ id_item: l.producto.id_item, cantidad: l.cantidad })) };
+    const dto = {
+      ...(this.mesa ? { numero_mesa: this.mesa } : {}),
+      detalles: this.lineas().map((l) => ({ id_item: l.producto.id_item, cantidad: l.cantidad })),
+    };
 
     this.pedidos.crear(dto).subscribe({
       next: (pedido) => {
         this.enviando.set(false);
-        this.registrado.set(pedido);
         this.lineas.set([]);
-        this.toast.exito(`Pedido #${pedido.id_pedido} registrado`);
-        this.cargar(); // refresca el stock mostrado
+        this.borradores.limpiar(this.clave);
+        this.toast.exito(
+          this.mesa
+            ? `Pedido #${pedido.id_pedido} de la mesa ${this.mesa} enviado a caja`
+            : `Pedido #${pedido.id_pedido} registrado`,
+        );
+        if (this.mesa) this.router.navigate(['/ventas/mesas']);
+        else this.cargar(); // refresca el stock mostrado
       },
       error: (e: HttpErrorResponse) => {
         this.enviando.set(false);
         this.errorGeneral.set(this.mensajeError(e));
+        if (e.status === 409) this.cargar(); // la mesa ya tenía pedido: se muestra
       },
     });
   }
@@ -194,6 +314,7 @@ export class NuevoPedido {
     switch (e.status) {
       case 400:
       case 404:
+      case 409:
         return texto ?? 'Revise los productos del pedido.';
       case 401:
         return 'Sesión expirada. Vuelva a iniciar sesión.';
