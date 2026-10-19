@@ -14,11 +14,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, In, QueryFailedError, Repository } from 'typeorm';
 import { ItemInventario, TipoItem } from '../products/entities/item-inventario.entity';
 import { CANTIDAD_MAXIMA, CreatePedidoDto } from './dto/create-pedido.dto';
 import { DetallePedido } from './entities/detalle-pedido.entity';
 import { EstadoPedido, Pedido } from './entities/pedido.entity';
+import { ESTADOS_PEDIDO_ACTIVO, MesaResumen, TOTAL_MESAS } from './mesas';
 import { RegistrarPagoDto } from './dto/registrar-pago.dto';
 import {
   MedioPago,
@@ -51,6 +52,7 @@ export class OrdersService {
    * - El pedido inicia en estado PENDIENTE.
    * - El precio de cada línea se toma del precio de venta actual del producto.
    * - El total se calcula aquí (no se confía en el valor del frontend).
+   * - Si trae mesa, la mesa no puede tener otro pedido activo.
    *
    * Todo va en una transacción: si falla un detalle, no queda un pedido a medias.
    *
@@ -60,7 +62,24 @@ export class OrdersService {
   async crear(dto: CreatePedidoDto, idMesero: number): Promise<Pedido> {
     const lineas = this.agruparLineas(dto);
 
+    const mesa = dto.numero_mesa ?? null;
+    if (mesa !== null && (!Number.isInteger(mesa) || mesa < 1 || mesa > TOTAL_MESAS)) {
+      throw new BadRequestException(`La mesa debe estar entre 1 y ${TOTAL_MESAS}`);
+    }
+
     const idPedido = await this.dataSource.transaction(async (manager) => {
+      // 0. La mesa debe estar libre (un pedido activo por mesa)
+      if (mesa !== null) {
+        const activo = await manager.findOne(Pedido, {
+          where: { numero_mesa: mesa, estado_pedido: In(ESTADOS_PEDIDO_ACTIVO) },
+        });
+        if (activo) {
+          throw new ConflictException(
+            `La mesa ${mesa} ya tiene el pedido #${activo.id_pedido} activo`,
+          );
+        }
+      }
+
       // 1. Productos solicitados (bloqueados para que el stock no cambie mientras se valida)
       const ids = lineas.map((l) => l.id_item);
       const productos = await manager.find(ItemInventario, {
@@ -101,6 +120,7 @@ export class OrdersService {
       const pedido = await manager.save(
         manager.create(Pedido, {
           id_mesero: idMesero,
+          numero_mesa: mesa,
           estado_pedido: EstadoPedido.PENDIENTE,
           total_calculado: total,
         }),
@@ -112,9 +132,40 @@ export class OrdersService {
       );
 
       return pedido.id_pedido;
+    }).catch((e: unknown) => {
+      // Dos meseros enviaron pedido a la misma mesa al mismo tiempo:
+      // lo frena el índice único ux_pedido_mesa_activa
+      if (e instanceof QueryFailedError && (e as QueryFailedError & { code?: string }).code === '23505') {
+        throw new ConflictException(`La mesa ${mesa} ya tiene un pedido activo`);
+      }
+      throw e;
     });
 
     return this.buscarPorId(idPedido);
+  }
+
+  /**
+   * GET /orders/mesas -> estado de las mesas para la pantalla "Mis mesas".
+   * LIBRE sin pedido activo · PENDIENTE pedido enviado a caja ·
+   * OCUPADA pedido en preparación, listo o entregado (aún sin pagar).
+   */
+  async mesas(): Promise<MesaResumen[]> {
+    const activos = await this.pedidosRepo.find({
+      where: { estado_pedido: In(ESTADOS_PEDIDO_ACTIVO) },
+      order: { fecha_hora: 'DESC' },
+    });
+
+    return Array.from({ length: TOTAL_MESAS }, (_, i) => {
+      const numero = i + 1;
+      const pedido = activos.find((p) => p.numero_mesa === numero);
+      if (!pedido) return { numero, estado: 'LIBRE', id_pedido: null, total: 0 };
+      return {
+        numero,
+        estado: pedido.estado_pedido === EstadoPedido.PENDIENTE ? 'PENDIENTE' : 'OCUPADA',
+        id_pedido: pedido.id_pedido,
+        total: Number(pedido.total_calculado),
+      };
+    });
   }
 
   /**

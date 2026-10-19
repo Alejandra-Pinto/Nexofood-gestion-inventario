@@ -5,7 +5,9 @@
  *        · SCRUM-149 Validar stock, cantidad inválida y pedido vacío
  *
  * Datos que envía el frontend para registrar un pedido:
- *   { "detalles": [ { "id_item": 1, "cantidad": 2 }, ... ] }
+ *   { "numero_mesa": 4, "detalles": [ { "id_item": 1, "cantidad": 2 }, ... ] }
+ *
+ * numero_mesa es opcional: sin mesa = pedido para llevar / tomado en caja.
  *
  * El mesero (id_usuario) NO va aquí: se toma del token JWT.
  * El precio y el total NO van aquí: los calcula el backend con el
@@ -17,10 +19,12 @@ import {
   ArrayMinSize,
   IsArray,
   IsInt,
+  IsOptional,
   Max,
   Min,
   ValidateNested,
 } from 'class-validator';
+import { TOTAL_MESAS } from '../mesas';
 
 /** Cantidad máxima de un mismo producto en una línea del pedido */
 export const CANTIDAD_MAXIMA = 99;
@@ -39,6 +43,13 @@ export class DetallePedidoDto {
 }
 
 export class CreatePedidoDto {
+  // Mesa del pedido (prototipo "Mis mesas")
+  @IsOptional()
+  @IsInt({ message: 'La mesa debe ser un número entero' })
+  @Min(1, { message: `La mesa debe estar entre 1 y ${TOTAL_MESAS}` })
+  @Max(TOTAL_MESAS, { message: `La mesa debe estar entre 1 y ${TOTAL_MESAS}` })
+  numero_mesa?: number;
+
   // SCRUM-149: pedido vacío
   @IsArray({ message: 'Los productos del pedido deben enviarse como una lista' })
   @ArrayMinSize(1, { message: 'El pedido debe tener al menos un producto' })

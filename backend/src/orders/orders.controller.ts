@@ -5,6 +5,7 @@
  *
  * Endpoints:
  *   POST /orders            -> registra un pedido nuevo (estado PENDIENTE) — HU-3.1
+ *   GET  /orders/mesas      -> estado de las mesas (Libre / Pendiente / Ocupada) — HU-3.1
  *   GET  /orders?estado=    -> lista pedidos (filtro opcional por estado)
  *   GET  /orders/:id        -> consulta un pedido con sus productos
  *   POST /orders/:id/pago   -> registra el pago y su medio de pago   — HU-3.5
@@ -21,6 +22,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { OrdersService, ResultadoPago } from './orders.service';
+import { MesaResumen } from './mesas';
 import { RegistrarPagoDto } from './dto/registrar-pago.dto';
 import { CreatePedidoDto } from './dto/create-pedido.dto';
 import { EstadoPedido, Pedido } from './entities/pedido.entity';
@@ -45,6 +47,7 @@ export class OrdersController {
    *   400 -> pedido vacío, cantidad inválida, insumo o stock insuficiente
    *   401 -> sin token o token inválido
    *   404 -> algún producto no existe
+   *   409 -> la mesa ya tiene un pedido activo
    */
   @Post()
   crear(
@@ -52,6 +55,15 @@ export class OrdersController {
     @CurrentUser() usuario: UsuarioAutenticado,
   ): Promise<Pedido> {
     return this.ordersService.crear(dto, usuario.id_usuario);
+  }
+
+  /**
+   * HU-3.1 · GET /orders/mesas -> pantalla "Mis mesas" del mesero.
+   * Va antes de GET /orders/:id para que "mesas" no se tome como un id.
+   */
+  @Get('mesas')
+  mesas(): Promise<MesaResumen[]> {
+    return this.ordersService.mesas();
   }
 
   /** GET /orders?estado=PENDIENTE */
