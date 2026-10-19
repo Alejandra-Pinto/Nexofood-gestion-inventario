@@ -2,10 +2,9 @@
  * Servicio: OrdersService
  * ------------------------------------------------------------------
  * Lógica de negocio del módulo Orders (pedidos).
- *
- * HU-3.1 · SCRUM-148 Implementar registro de pedido con ID único y estado Pendiente
- *        · SCRUM-149 Validar stock, cantidad inválida y pedido vacío
- * HU-3.5 · SCRUM-168 Implementar selección y registro del método de pago
+ *  Implementar registro de pedido con ID único y estado Pendiente
+ *  Validar stock, cantidad inválida y pedido vacío
+ * Implementar selección y registro del método de pago
  */
 import {
   BadRequestException,
@@ -46,7 +45,7 @@ export class OrdersService {
   ) {}
 
   /**
-   * Registra un pedido nuevo (SCRUM-148).
+   * Registra un pedido nuevo 
    *
    * - El ID único lo genera la BD (SERIAL id_pedido).
    * - El pedido inicia en estado PENDIENTE.
@@ -169,7 +168,7 @@ export class OrdersService {
   }
 
   /**
-   * Registra el pago de un pedido (SCRUM-168).
+   * Registra el pago de un pedido .
    *
    * En una transacción:
    *   1. Valida que el pedido exista, no esté anulado ni pagado.
@@ -272,7 +271,7 @@ export class OrdersService {
   }
 
   /**
-   * SCRUM-149: valida el pedido sin tocar la BD y une las líneas repetidas
+   * valida el pedido sin tocar la BD y une las líneas repetidas
    * (si el mismo producto viene dos veces se suman las cantidades, para
    * validar el stock con la cantidad total pedida).
    * El DTO ya valida esto en el endpoint; aquí se repite para que el

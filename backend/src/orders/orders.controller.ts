@@ -4,11 +4,11 @@
  * Rutas HTTP del módulo Orders (pedidos).
  *
  * Endpoints:
- *   POST /orders            -> registra un pedido nuevo (estado PENDIENTE) — HU-3.1
- *   GET  /orders/mesas      -> estado de las mesas (Libre / Pendiente / Ocupada) — HU-3.1
+ *   POST /orders            -> registra un pedido nuevo (estado PENDIENTE) 
+ *   GET  /orders/mesas      -> estado de las mesas (Libre / Pendiente / Ocupada) 
  *   GET  /orders?estado=    -> lista pedidos (filtro opcional por estado)
  *   GET  /orders/:id        -> consulta un pedido con sus productos
- *   POST /orders/:id/pago   -> registra el pago y su medio de pago   — HU-3.5
+ *   POST /orders/:id/pago   -> registra el pago y su medio de pago  
  */
 import {
   BadRequestException,
@@ -40,7 +40,7 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   /**
-   * HU-3.1 · Registrar nuevo pedido
+   *  Registrar nuevo pedido
    *
    * Respuestas:
    *   201 -> pedido registrado (con id_pedido, estado PENDIENTE y total)
@@ -58,7 +58,7 @@ export class OrdersController {
   }
 
   /**
-   * HU-3.1 · GET /orders/mesas -> pantalla "Mis mesas" del mesero.
+   *  GET /orders/mesas -> pantalla "Mis mesas" del mesero.
    * Va antes de GET /orders/:id para que "mesas" no se tome como un id.
    */
   @Get('mesas')
@@ -82,7 +82,7 @@ export class OrdersController {
   }
 
   /**
-   * HU-3.5 · Registrar método de pago de un pedido
+   * Registrar método de pago de un pedido
    * Solo Administrador y Cajero pueden cobrar.
    *
    * Respuestas:

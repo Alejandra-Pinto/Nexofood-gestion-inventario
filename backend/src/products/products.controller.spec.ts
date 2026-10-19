@@ -1,7 +1,7 @@
 /**
  * Pruebas unitarias: ProductsController
  * ------------------------------------------------------------------
- * HU-2.1 · SCRUM-125 Pruebas de registro de ítems
+ *  Pruebas de registro de ítems
  * Verifica que el controlador entregue los datos al servicio.
  * El servicio se reemplaza por un mock.
  */

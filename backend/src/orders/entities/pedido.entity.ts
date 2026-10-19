@@ -1,8 +1,6 @@
 /**
  * Entidad: Pedido
  * ------------------------------------------------------------------
- * HU-3.1 · SCRUM-147 Modelar tablas de pedidos y detalle de pedido
- *
  * Cabecera de un pedido. Un pedido tiene uno o más detalles (productos).
  * `id_pedido` es el ID único que genera la base de datos (SERIAL).
  */

@@ -1,9 +1,6 @@
 /**
  * DTO: CreatePedidoDto
  * ------------------------------------------------------------------
- * HU-3.1 · SCRUM-148 Implementar registro de pedido
- *        · SCRUM-149 Validar stock, cantidad inválida y pedido vacío
- *
  * Datos que envía el frontend para registrar un pedido:
  *   { "numero_mesa": 4, "detalles": [ { "id_item": 1, "cantidad": 2 }, ... ] }
  *

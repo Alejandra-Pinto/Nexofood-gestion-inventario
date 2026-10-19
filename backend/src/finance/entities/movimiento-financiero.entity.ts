@@ -1,11 +1,10 @@
 /**
  * Entidad: MovimientoFinanciero
  * ------------------------------------------------------------------
- * HU-3.5 · SCRUM-168 Implementar selección y registro del método de pago
+ * Implementar selección y registro del método de pago
  *
  * Registra la entrada o salida de dinero con su medio de pago.
  * Al cobrar un pedido se guarda un INGRESO ligado al pedido (id_pedido).
- * El módulo Finance (HU-7.1) la usa también para movimientos sin pedido.
  */
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { User } from '../../users/entities/user.entity';

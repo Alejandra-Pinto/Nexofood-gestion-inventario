@@ -2,9 +2,9 @@
  * Servicio: ProductsService
  * ------------------------------------------------------------------
  * Contiene la LÓGICA DE NEGOCIO del módulo Products:
- * consultar, buscar y registrar productos e insumos.
- * HU-2.1 · SCRUM-123 Implementar creación de ítem e inicialización de stock
- *        · SCRUM-124 Validar duplicados y campos obligatorios
+ * consultar, buscar y registrar productos e insum
+ * Implementar creación de ítem e inicialización de stock
+ * Validar duplicados y campos obligatorios
  */
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
