@@ -1,13 +1,4 @@
--- ============================================================================
--- HU-3.5 · SCRUM-168 Implementar selección y registro del método de pago
--- Tabla: movimiento_financiero (diagrama de clases: Movimiento_Financiero)
---   Pedido 1 --- 0..1 Movimiento_Financiero  ("liquida")
--- ============================================================================
--- Al cobrar un pedido se registra un movimiento de tipo INGRESO con el monto
--- del pedido y su medio de pago. El módulo Finance (HU-7.1) reutiliza esta
--- misma tabla para ingresos/egresos que no vienen de ventas (id_pedido NULL).
--- Ejecutar en PostgreSQL local DESPUÉS de 005_pedidos.sql.
--- ============================================================================
+
 
 CREATE TABLE IF NOT EXISTS movimiento_financiero (
   id_movimiento    SERIAL PRIMARY KEY,

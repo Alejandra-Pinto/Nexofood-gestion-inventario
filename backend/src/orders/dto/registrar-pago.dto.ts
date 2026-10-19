@@ -1,12 +1,6 @@
 /**
  * DTO: RegistrarPagoDto
  * ------------------------------------------------------------------
- * HU-3.5 · SCRUM-168 Implementar selección y registro del método de pago
- *
- *   { "medio_pago": "EFECTIVO", "monto_recibido": 50000 }
- *
- * El monto a cobrar NO va aquí: es el total del pedido guardado en la BD.
- * `monto_recibido` solo aplica en EFECTIVO para calcular el cambio.
  */
 import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { MedioPago } from '../../finance/entities/movimiento-financiero.entity';

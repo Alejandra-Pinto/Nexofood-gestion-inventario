@@ -1,8 +1,6 @@
 /**
  * Entidad: DetallePedido
  * ------------------------------------------------------------------
- * HU-3.1 · SCRUM-147 Modelar tablas de pedidos y detalle de pedido
- *
  * Cada fila es un producto del pedido con su cantidad y el precio
  * de venta que tenía en el momento de registrar el pedido.
  */

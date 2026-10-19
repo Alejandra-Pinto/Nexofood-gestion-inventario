@@ -1,12 +1,4 @@
--- ============================================================================
--- HU-3.1 · SCRUM-147 Modelar tablas de pedidos y detalle de pedido
--- Tablas: pedido (cabecera) y detalle_pedido (productos del pedido)
--- Basado en el diagrama de clases: Pedido 1 --- 1..* Detalle_Pedido
--- ============================================================================
--- Ejecutar en PostgreSQL local (pgAdmin -> nexofood -> Query Tool) DESPUÉS de
--- 001 a 004. Las entidades TypeORM usan synchronize:false, por eso las tablas
--- se crean manualmente aquí (mismo patrón que 001_productos_insumos.sql).
--- ============================================================================
+
 
 -- Cabecera del pedido. id_pedido (SERIAL) es el ID único del pedido.
 CREATE TABLE IF NOT EXISTS pedido (
