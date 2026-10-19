@@ -41,6 +41,11 @@ export class Pedido {
   @JoinColumn({ name: 'id_mesero' })
   mesero?: User;
 
+  // Mesa del pedido (1 a 8). NULL = para llevar / tomado en caja.
+  // Columna agregada en backend/database/007_pedido_mesa.sql
+  @Column({ type: 'smallint', name: 'numero_mesa', nullable: true })
+  numero_mesa: number | null;
+
   @Column({ type: 'timestamptz', name: 'fecha_hora', default: () => 'NOW()' })
   fecha_hora: Date;
 
