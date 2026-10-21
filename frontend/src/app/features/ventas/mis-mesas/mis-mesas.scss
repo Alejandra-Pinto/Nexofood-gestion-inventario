@@ -1,0 +1,124 @@
+/* Pantalla del mesero (prototipo "Mis mesas"). Responsiva:
+   2 columnas en celular, más columnas en tablet y escritorio. */
+.movil {
+  min-height: 100vh;
+  background: var(--fondo);
+}
+
+/* Barra negra superior con subtítulo dorado */
+.barra {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 32px;
+  background: #1c1c1e;
+  color: #fff;
+  h1 { color: #fff; font-size: 1.2rem; margin: 0; }
+  p { margin: 2px 0 0; font-size: 0.78rem; color: var(--dorado); }
+}
+.accesos {
+  display: flex;
+  gap: 6px;
+  a {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    &:hover { background: rgba(255, 255, 255, 0.1); }
+  }
+}
+
+.cuerpo { max-width: 1200px; margin: 0 auto; padding: 24px 32px; }
+.centro { text-align: center; padding: 24px 0; }
+
+/* Cuadrícula de mesas: 2 columnas como en el prototipo */
+.mesas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+.mesa {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px 16px;
+  min-height: 92px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  strong { font-size: 1rem; }
+  small { font-size: 0.75rem; }
+  &:hover { border-color: var(--primario); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); }
+}
+
+/* Punto de color y etiqueta según el estado */
+.punto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.mesa .punto { position: absolute; top: 16px; right: 16px; }
+.badge-mesa {
+  padding: 2px 10px;
+  border-radius: 6px;
+  border: 1px solid;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.estado-libre {
+  .punto { background: #0f766e; }
+  .badge-mesa { color: #0f766e; border-color: #99d5cf; background: #effaf8; }
+}
+.estado-pendiente {
+  .punto { background: var(--dorado); }
+  .badge-mesa { color: #8a6d12; border-color: #ecd98f; background: #fdf8e6; }
+}
+.estado-ocupada {
+  .punto { background: var(--primario); }
+  .badge-mesa { color: var(--primario); border-color: #e3b9ba; background: var(--primario-suave); }
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  li { display: flex; align-items: center; gap: 6px; }
+  .libre { background: #0f766e; }
+  .pendiente { background: var(--dorado); }
+  .ocupada { background: var(--primario); }
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primario);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.actualizar { margin-top: 10px; font-size: 0.85rem; }
+.btn-sm { padding: 6px 12px; font-size: 0.85rem; margin-left: 8px; }
+
+@media (max-width: 600px) {
+  .barra { padding: 14px 16px; }
+  .cuerpo { padding: 16px; }
+  .mesas { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+}

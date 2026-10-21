@@ -1,4 +1,4 @@
-// SCRUM-124 / SCRUM-125 · Validación de campos obligatorios
+// Validación de campos obligatorios
 
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';

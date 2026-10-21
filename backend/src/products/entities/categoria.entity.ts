@@ -2,7 +2,7 @@
  * Entidad: Categoria
  * ------------------------------------------------------------------
  * Agrupa los ítems del inventario (ej: Choripanes, Bebidas, Insumos cárnicos).
- * HU-2.1 · SCRUM-122 Modelar tablas de productos e insumos
+ * Modelar tablas de productos e insumos
  */
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
