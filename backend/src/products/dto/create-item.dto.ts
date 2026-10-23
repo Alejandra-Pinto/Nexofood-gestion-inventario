@@ -1,8 +1,8 @@
 /**
  * DTO (Data Transfer Object): CreateItemDto
  * ------------------------------------------------------------------
- * HU-2.1 · SCRUM-124 Validar duplicados y campos obligatorios
- *          (los duplicados se validan en products.service.ts)
+ * Validar duplicados y campos obligatorios
+ * (los duplicados se validan en products.service.ts)
  */
 import { Transform } from 'class-transformer';
 import {

@@ -90,6 +90,26 @@
   small { color: var(--muted); font-size: 0.75rem; }
 }
 
+/* Botón de cerrar sesión (HU-1.1): antes no tenía estilos y el ícono no se veía */
+.btn-logout {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+
+  svg { width: 18px; height: 18px; }
+
+  &:hover { background: var(--fondo); color: var(--primario); border-color: var(--primario); }
+}
+
 .avatar {
   width: 34px;
   height: 34px;

@@ -49,6 +49,43 @@ export const routes: Routes = [
         ],
       },
       {
+        // Módulo Ventas: /ventas abre "Mis mesas"
+        path: 'ventas',
+        children: [
+          { path: '', redirectTo: 'mesas', pathMatch: 'full' },
+          {
+            // HU-3.1 Mis mesas: el mesero elige la mesa
+            path: 'mesas',
+            loadComponent: () =>
+              import('./features/ventas/mis-mesas/mis-mesas').then((m) => m.MisMesas),
+          },
+          {
+            // HU-3.1 Pedido de una mesa (/ventas/mesa/4)
+            path: 'mesa/:numero',
+            loadComponent: () =>
+              import('./features/ventas/nuevo-pedido/nuevo-pedido').then(
+                (m) => m.NuevoPedido,
+              ),
+          },
+          {
+            // HU-3.1 Pedido sin mesa (para llevar / tomado en caja)
+            path: 'nuevo-pedido',
+            loadComponent: () =>
+              import('./features/ventas/nuevo-pedido/nuevo-pedido').then(
+                (m) => m.NuevoPedido,
+              ),
+          },
+          {
+            // HU-3.5 Registrar método de pago
+            path: 'cobrar',
+            loadComponent: () =>
+              import('./features/ventas/cobrar-pedido/cobrar-pedido').then(
+                (m) => m.CobrarPedido,
+              ),
+          },
+        ],
+      },
+      {
         // HU-1.4 Modificar permisos de usuarios
         path: 'usuarios',
         loadComponent: () =>

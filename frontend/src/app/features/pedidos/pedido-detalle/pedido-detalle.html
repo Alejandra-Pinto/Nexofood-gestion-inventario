@@ -2,15 +2,13 @@
   <div class="pedido-container">
     <header class="pedido-header">
       <h2>Pedido #{{ p.id_pedido }}</h2>
-      <span class="badge" [ngClass]="p.estado_pedido.toLowerCase().replace(' ', '-')">
+      <span class="badge" [ngClass]="p.estado_pedido.toLowerCase().replace('_', '-')">
         {{ p.estado_pedido }}
       </span>
     </header>
 
     <div class="pedido-info">
-      <p><strong>Cliente:</strong> {{ p.nombre_cliente || 'Cliente general' }}</p>
       <p><strong>Mesa:</strong> {{ p.numero_mesa || 'Para llevar' }}</p>
-      <p><strong>Mesero:</strong> {{ p.mesero?.nombre || 'N/A' }}</p>
       <p><strong>Total:</strong> {{ p.total_calculado | currency:'COP' }}</p>
     </div>
 
@@ -29,48 +27,32 @@
     </div>
 
     <div class="pedido-acciones">
-      @if (p.estado_pedido === 'Pendiente') {
-        <button 
-          (click)="cambiarEstado('En preparación')" 
-          [disabled]="isLoading()"
-          class="btn btn-primario">
+      @if (p.estado_pedido === 'PENDIENTE') {
+        <button (click)="cambiarEstado('EN_PREPARACION')" [disabled]="isLoading()" class="btn btn-primario">
           {{ isLoading() ? 'Procesando...' : 'Confirmar y Enviar a Cocina' }}
         </button>
       }
 
-      @if (p.estado_pedido === 'En preparación') {
-        <button 
-          (click)="cambiarEstado('Listo')" 
-          [disabled]="isLoading()"
-          class="btn btn-secundario">
+      @if (p.estado_pedido === 'EN_PREPARACION') {
+        <button (click)="cambiarEstado('LISTO')" [disabled]="isLoading()" class="btn btn-secundario">
           {{ isLoading() ? 'Procesando...' : 'Marcar como Listo' }}
         </button>
       }
 
-      @if (p.estado_pedido === 'Listo') {
-        <button 
-          (click)="cambiarEstado('Entregado')" 
-          [disabled]="isLoading()"
-          class="btn btn-secundario">
+      @if (p.estado_pedido === 'LISTO') {
+        <button (click)="cambiarEstado('ENTREGADO')" [disabled]="isLoading()" class="btn btn-secundario">
           {{ isLoading() ? 'Procesando...' : 'Marcar como Entregado' }}
         </button>
       }
 
-      <!-- BOTÓN DE REIMPRIMIR (HU-4.1) -->
-      @if (p.estado_pedido === 'En preparación' || p.estado_pedido === 'Listo' || p.estado_pedido === 'Entregado') {
-        <button 
-          (click)="mostrarTicket.set(true)" 
-          class="btn btn-secundario"
-          style="margin-left: auto; border-color: #6B2020; color: #6B2020;">
-           Reimprimir Comanda
+      @if (p.estado_pedido === 'EN_PREPARACION' || p.estado_pedido === 'LISTO' || p.estado_pedido === 'ENTREGADO') {
+        <button (click)="mostrarTicket.set(true)" class="btn btn-secundario" style="margin-left: auto; border-color: #6B2020; color: #6B2020;">
+          🖨️ Reimprimir Comanda
         </button>
       }
     </div>
 
-    <!-- EL TICKET SE MUESTRA AQUÍ -->
-    <app-ticket-comanda [pedido]="p" 
-      [visible]="mostrarTicket()" 
-      (cerrar)="mostrarTicket.set(false)" />
+    <app-ticket-comanda [pedido]="p" [visible]="mostrarTicket()" (cerrar)="mostrarTicket.set(false)" />
   </div>
 } @else {
   <div class="loading">Cargando pedido...</div>

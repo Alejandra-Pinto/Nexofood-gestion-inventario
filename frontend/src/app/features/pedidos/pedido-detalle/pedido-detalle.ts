@@ -26,17 +26,14 @@ export class PedidoDetalleComponent implements OnInit {
   }
 
   cargarPedido(id: number) {
-    this.pedidosService.obtenerPedido(id).subscribe({
+    this.pedidosService.obtener(id).subscribe({
       next: (data: Pedido) => this.pedido.set(data),
-      error: (err: HttpErrorResponse) => {
-        this.toastService.error('Error al cargar el pedido. Verifique que exista en la BD.');
-      }
+      error: (err: HttpErrorResponse) => this.toastService.error('Error al cargar el pedido.')
     });
   }
 
   cambiarEstado(nuevoEstado: EstadoPedido) {
     if (this.isLoading()) return; 
-
     const pedidoActual = this.pedido();
     if (!pedidoActual) return;
 
@@ -47,7 +44,8 @@ export class PedidoDetalleComponent implements OnInit {
         this.pedido.set(pedidoActualizado);
         this.isLoading.set(false);
         
-        if (nuevoEstado === 'En preparación') {
+        // Comparación ajustada a mayúsculas
+        if (nuevoEstado === 'EN_PREPARACION') {
           this.toastService.exito('Pedido en preparación. ¡Comanda generada!');
           this.mostrarTicket.set(true); 
         } else {

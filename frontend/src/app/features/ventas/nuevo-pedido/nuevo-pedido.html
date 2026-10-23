@@ -1,0 +1,181 @@
+<!-- HU-3.1 · SCRUM-146 Pedido de la mesa (prototipo del mesero) -->
+<div class="movil">
+  @if (vista() === 'pedido') {
+    <!-- ===================== MESA N ===================== -->
+    <header class="barra">
+      <a class="volver" routerLink="/ventas/mesas" aria-label="Volver a Mis mesas">‹</a>
+      <div>
+        <h1>{{ mesa ? 'Mesa ' + mesa : 'Pedido para llevar' }}</h1>
+        <p>{{ pedidoActivo() ? etiquetaEstado[pedidoActivo()!.estado_pedido] : 'Atendiendo' }} · {{ nombreUsuario() }}</p>
+      </div>
+    </header>
+
+    <div class="contenedor">
+    <div class="cuerpo">
+      @if (cargando()) {
+        <p class="muted centro">Cargando productos…</p>
+      } @else if (errorCarga()) {
+        <div class="alerta alerta-error">
+          ⚠ No se pudieron cargar los productos. Revise que el backend esté corriendo.
+          <button type="button" class="btn btn-secundario btn-sm" (click)="cargar()">Reintentar</button>
+        </div>
+      } @else if (pedidoActivo(); as p) {
+        <!-- La mesa ya tiene un pedido enviado: solo lectura (modificarlo es la HU-3.3) -->
+        <div class="titulo-seccion">
+          <span>PEDIDO #{{ p.id_pedido }}</span>
+          <span class="chip">{{ etiquetaEstado[p.estado_pedido] }}</span>
+        </div>
+        <ul class="filas">
+          @for (d of p.detalles; track d.id_detalle) {
+            <li class="fila">
+              <span class="icono">{{ (d.item?.nombre ?? '?').charAt(0) }}</span>
+              <span class="fila-nombre">{{ d.item?.nombre ?? 'Producto #' + d.id_item }}</span>
+              <span class="precio">{{ d.cantidad * d.precio_unitario | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+              <span class="cant">x{{ d.cantidad }}</span>
+            </li>
+          }
+        </ul>
+        <div class="alerta alerta-info">
+          Esta mesa ya tiene un pedido enviado a caja. Para agregar productos use "Modificar pedido".
+        </div>
+      } @else {
+        <!-- Pedido en construcción -->
+        <div class="titulo-seccion">
+          <span>PEDIDO ACTUAL</span>
+          @if (resumen()) {
+            <span class="chip">{{ resumen() }}</span>
+          }
+        </div>
+
+        @if (choripanes().length > 0) {
+          <button type="button" class="nuevo-chori" (click)="abrirChoripan()">
+            <span class="mas">+</span> Nuevo choripán
+          </button>
+        }
+
+        <!-- Choripanes elegidos (tarjetas grandes) -->
+        @for (l of lineasChori(); track l.producto.id_item) {
+          <article class="tarjeta">
+            <span class="foto">{{ l.producto.nombre.charAt(0) }}</span>
+            <div class="tarjeta-info">
+              <strong>{{ l.producto.nombre }}</strong>
+              <small class="muted">{{ l.producto.cantidad_stock }} disponibles</small>
+              <div class="cantidad">
+                <button type="button" aria-label="Restar" (click)="cambiarCantidad(l.producto, l.cantidad - 1)">−</button>
+                <span>{{ l.cantidad }}</span>
+                <button type="button" aria-label="Sumar" [disabled]="l.cantidad >= limite(l.producto)"
+                  (click)="cambiarCantidad(l.producto, l.cantidad + 1)">+</button>
+              </div>
+            </div>
+            <div class="tarjeta-precio">
+              <strong>{{ l.cantidad * l.producto.precio_venta | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+              <small class="muted">Cant: {{ l.cantidad }}</small>
+            </div>
+          </article>
+        }
+
+        <!-- Bebidas, adicionales y demás categorías: tocar la fila suma 1 -->
+        @for (s of secciones(); track s.categoria.id_categoria) {
+          <h2 class="titulo-categoria">{{ s.categoria.nombre }}</h2>
+          <ul class="filas">
+            @for (p of s.productos; track p.id_item) {
+              @let cant = cantidadEnPedido(p.id_item);
+              <li class="fila" [class.elegida]="cant > 0" [class.agotada]="p.cantidad_stock <= 0">
+                <button type="button" class="fila-boton" [disabled]="p.cantidad_stock <= 0" (click)="sumar(p)">
+                  <span class="icono">{{ p.nombre.charAt(0) }}</span>
+                  <span class="fila-nombre">
+                    {{ p.nombre }}
+                    @if (p.cantidad_stock <= 0) { <small class="agotado">Agotado</small> }
+                  </span>
+                  <span class="precio">{{ p.precio_venta | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+                </button>
+                @if (cant > 0) {
+                  <span class="mini">
+                    <button type="button" aria-label="Restar" (click)="cambiarCantidad(p, cant - 1)">−</button>
+                    <span class="cant activa">x{{ cant }}</span>
+                  </span>
+                }
+              </li>
+            }
+          </ul>
+        }
+
+        @if (choripanes().length === 0 && secciones().length === 0) {
+          <p class="muted centro">No hay productos registrados para vender.</p>
+        }
+
+        @if (intentoVacio()) {
+          <p class="error-txt">⚠ El pedido debe tener al menos un producto.</p>
+        }
+        @if (errorGeneral()) {
+          <div class="alerta alerta-error">⚠ {{ errorGeneral() }}</div>
+        }
+      }
+    </div>
+
+    @if (!cargando() && !errorCarga() && !pedidoActivo()) {
+      <footer class="pie">
+        <div class="total">
+          <span>{{ mesa ? 'Total mesa' : 'Total' }}</span>
+          <strong>{{ total() | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+        </div>
+        @if (lineas().length > 0) {
+          <button type="button" class="link vaciar" (click)="vaciar()">Vaciar pedido</button>
+        }
+        <button type="button" class="btn btn-primario btn-bloque" [disabled]="enviando()" (click)="enviar()">
+          {{ enviando() ? 'Enviando…' : mesa ? 'Enviar pedido a caja' : 'Registrar pedido' }}
+        </button>
+      </footer>
+    }
+    </div>
+  } @else {
+    <!-- ===================== NUEVO CHORIPÁN ===================== -->
+    <!-- Paso 1: embutido. Los pasos de pan, aderezos y adicionales son de la HU-3.2 -->
+    <header class="barra">
+      <button type="button" class="volver" aria-label="Volver al pedido" (click)="vista.set('pedido')">‹</button>
+      <div>
+        <h1>Nuevo choripán</h1>
+        <p>Paso 1: Embutido</p>
+      </div>
+    </header>
+
+    <div class="contenedor">
+    <div class="cuerpo">
+      <h2 class="titulo-paso">Elegí tu chori</h2>
+      <div class="opciones">
+        @for (p of choripanes(); track p.id_item) {
+          <button type="button" class="opcion" [class.seleccionada]="choriSel()?.id_item === p.id_item"
+            [disabled]="p.cantidad_stock <= 0" (click)="elegirChori(p)">
+            <span class="foto">{{ p.nombre.charAt(0) }}</span>
+            <span class="opcion-info">
+              <strong>{{ p.nombre }}</strong>
+              <small class="muted">
+                {{ p.cantidad_stock <= 0 ? 'Agotado' : p.cantidad_stock + ' disponibles' }}
+                @if (cantidadEnPedido(p.id_item) > 0) { · {{ cantidadEnPedido(p.id_item) }} en el pedido }
+              </small>
+            </span>
+            <span class="precio">{{ p.precio_venta | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+          </button>
+        }
+      </div>
+
+      @if (choriSel(); as p) {
+        <div class="cantidad-chori">
+          <span>Cantidad</span>
+          <div class="cantidad">
+            <button type="button" aria-label="Restar" (click)="cambiarChoriCantidad(choriCantidad() - 1)">−</button>
+            <span>{{ choriCantidad() }}</span>
+            <button type="button" aria-label="Sumar" (click)="cambiarChoriCantidad(choriCantidad() + 1)">+</button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <footer class="pie">
+      <button type="button" class="btn btn-primario btn-bloque" [disabled]="!choriSel()" (click)="agregarChoripan()">
+        Agregar al pedido
+      </button>
+    </footer>
+    </div>
+  }
+</div>

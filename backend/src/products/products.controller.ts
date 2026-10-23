@@ -11,7 +11,7 @@
  *   POST /products              -> registra un producto o insumo (HU-2.1)
  *   GET  /categories            -> lista las categorías
  *
- * HU-2.1 · SCRUM-123 Implementar creación de ítem e inicialización de stock
+ * Implementar creación de ítem e inicialización de stock
  */
 import { Body, Controller, Get, Param, ParseEnumPipe, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { ProductsService } from './products.service';

@@ -9,7 +9,7 @@ import { CreateItemDto } from './dto/create-item.dto';
 /**
  * Pruebas unitarias: ProductsService
  * ------------------------------------------------------------------
- * HU-2.1 · SCRUM-125 Pruebas de registro de ítems
+ *  Pruebas de registro de ítems
  *
  * No se usa la base de datos real: los repositorios de TypeORM se
  * reemplazan por "mocks" (objetos falsos) para probar solo la lógica.

@@ -4,7 +4,7 @@
  * Se usa UNA sola tabla para dos tipos de ítems, diferenciados por `tipo_item`:
  *   - PRODUCTO: lo que se vende al cliente (choripán, gaseosa…). Tiene precio de venta.
  *   - INSUMO:   materia prima para preparar productos (chorizo, pan…). Precio de venta = 0.
- * HU-2.1 · SCRUM-122 Modelar tablas de productos e insumos (costos, precios, stock)
+ * Modelar tablas de productos e insumos (costos, precios, stock)
  */
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Categoria } from './categoria.entity';

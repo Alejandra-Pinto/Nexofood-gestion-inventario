@@ -1,0 +1,46 @@
+<!-- HU-3.1 · SCRUM-146 Mis mesas (prototipo del mesero) -->
+<div class="movil">
+  <header class="barra">
+    <div>
+      <h1>Mis mesas</h1>
+      <p>{{ nombreUsuario() }} · Selección rápida</p>
+    </div>
+    <nav class="accesos">
+      @if (puedeParaLlevar()) {
+        <a routerLink="/ventas/nuevo-pedido">Para llevar</a>
+      }
+      <a routerLink="/ventas/cobrar">Cobrar</a>
+    </nav>
+  </header>
+
+  <div class="cuerpo">
+    @if (cargando()) {
+      <p class="muted centro">Cargando mesas…</p>
+    } @else if (errorCarga()) {
+      <div class="alerta alerta-error">
+        ⚠ No se pudieron cargar las mesas. Revise que el backend esté corriendo.
+        <button type="button" class="btn btn-secundario btn-sm" (click)="cargar()">Reintentar</button>
+      </div>
+    } @else {
+      <div class="mesas">
+        @for (m of mesas(); track m.numero) {
+          <button type="button" class="mesa" [class]="'mesa estado-' + m.estado.toLowerCase()" (click)="abrir(m)">
+            <span class="punto" aria-hidden="true"></span>
+            <strong>Mesa {{ m.numero }}</strong>
+            <span class="badge-mesa">{{ enCurso(m) ? 'Atendiendo' : etiqueta[m.estado] }}</span>
+            @if (m.id_pedido) {
+              <small class="muted">#{{ m.id_pedido }} · {{ m.total | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</small>
+            }
+          </button>
+        }
+      </div>
+
+      <ul class="leyenda">
+        <li><span class="punto libre"></span> Libre</li>
+        <li><span class="punto pendiente"></span> Pendiente (enviado a caja)</li>
+        <li><span class="punto ocupada"></span> Ocupada</li>
+      </ul>
+      <button type="button" class="link actualizar" (click)="cargar()">Actualizar</button>
+    }
+  </div>
+</div>

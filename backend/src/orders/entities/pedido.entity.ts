@@ -1,76 +1,61 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+/**
+ * Entidad: Pedido
+ * ------------------------------------------------------------------
+ * Cabecera de un pedido. Un pedido tiene uno o más detalles (productos).
+ * `id_pedido` es el ID único que genera la base de datos (SERIAL).
+ */
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { ItemInventario } from '../../products/entities/item-inventario.entity';
+import { DetallePedido } from './detalle-pedido.entity';
 
-// Nombres EXACTOS según la líder
+/** Estados posibles del pedido (deben coincidir con ck_pedido_estado en la BD) */
 export enum EstadoPedido {
-  PENDIENTE = 'Pendiente',
-  EN_PREPARACION = 'En preparación',
-  LISTO = 'Listo',
-  ENTREGADO = 'Entregado',
-  PAGADO = 'Pagado',
-  ANULADO = 'Anulado',
+  PENDIENTE = 'PENDIENTE',
+  EN_PREPARACION = 'EN_PREPARACION',
+  LISTO = 'LISTO',
+  ENTREGADO = 'ENTREGADO',
+  PAGADO = 'PAGADO',
+  ANULADO = 'ANULADO',
 }
 
-@Entity({ name: 'pedidos', synchronize: false })
+// synchronize: false -> la tabla se crea con backend/database/005_pedidos.sql
+@Entity({ name: 'pedido', synchronize: false })
 export class Pedido {
   @PrimaryGeneratedColumn({ name: 'id_pedido' })
   id_pedido: number;
 
-  @Column({ name: 'id_mesero', nullable: true })
+  // Usuario que registró el pedido (se toma del token JWT)
+  @Column({ name: 'id_mesero' })
   id_mesero: number;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'id_mesero' })
   mesero?: User;
 
-  @Column({ type: 'integer', name: 'numero_mesa', nullable: true })
-  numero_mesa: number;
-
-  @Column({ type: 'varchar', length: 100, name: 'nombre_cliente', nullable: true })
-  nombre_cliente: string;
+  // Mesa del pedido (1 a 8). NULL = para llevar / tomado en caja.
+  // Columna agregada en backend/database/007_pedido_mesa.sql
+  @Column({ type: 'smallint', name: 'numero_mesa', nullable: true })
+  numero_mesa: number | null;
 
   @Column({ type: 'timestamptz', name: 'fecha_hora', default: () => 'NOW()' })
   fecha_hora: Date;
 
-  @Column({ type: 'varchar', length: 50, name: 'estado_pedido', default: EstadoPedido.PENDIENTE })
+  // Todo pedido nuevo inicia en PENDIENTE
+  @Column({ type: 'varchar', length: 20, name: 'estado_pedido', default: EstadoPedido.PENDIENTE })
   estado_pedido: EstadoPedido;
 
+  // Suma de cantidad x precio_unitario de los detalles, en COP
   @Column({ type: 'integer', name: 'total_calculado', default: 0 })
   total_calculado: number;
 
-  @OneToMany(() => DetallePedido, (detalle) => detalle.pedido, { cascade: true })
-  detalles?: DetallePedido[];
-}
-
-@Entity({ name: 'detalles_pedido', synchronize: false })
-export class DetallePedido {
-  @PrimaryGeneratedColumn({ name: 'id_detalle' })
-  id_detalle: number;
-
-  @Column({ name: 'id_pedido' })
-  id_pedido: number;
-
-  @ManyToOne(() => Pedido, (pedido) => pedido.detalles, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'id_pedido' })
-  pedido?: Pedido;
-
-  @Column({ name: 'id_item' })
-  id_item: number;
-
-  @ManyToOne(() => ItemInventario)
-  @JoinColumn({ name: 'id_item' })
-  item?: ItemInventario;
-
-  @Column({ type: 'numeric' })
-  cantidad: number;
-
-  @Column({ type: 'integer', name: 'precio_unitario' })
-  precio_unitario: number;
-
-  @Column({ type: 'text', name: 'notas_especiales', nullable: true })
-  notas_especiales: string | null;
-
-  @Column({ type: 'varchar', length: 100, name: 'promocion_aplicada', nullable: true })
-  promocion_aplicada: string | null;
+  // Productos del pedido (se guardan en la misma transacción que el pedido)
+  @OneToMany(() => DetallePedido, (d) => d.pedido)
+  detalles: DetallePedido[];
 }
