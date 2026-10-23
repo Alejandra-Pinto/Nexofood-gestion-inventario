@@ -4,11 +4,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { PedidosService } from '../../../core/services/pedidos.service';
 import { Pedido, EstadoPedido } from '../../../core/models/pedido.model';
 import { ToastService } from '../../../core/services/toast.service';
+import { TicketComandaComponent } from '../ticket-comanda/ticket-comanda';
 
 @Component({
   selector: 'app-pedido-detalle',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TicketComandaComponent],
   templateUrl: './pedido-detalle.html',
   styleUrl: './pedido-detalle.scss'
 })
@@ -18,6 +19,7 @@ export class PedidoDetalleComponent implements OnInit {
 
   public pedido = signal<Pedido | null>(null);
   public isLoading = signal<boolean>(false);
+  public mostrarTicket = signal<boolean>(false);
 
   ngOnInit() {
     this.cargarPedido(1);
@@ -27,7 +29,6 @@ export class PedidoDetalleComponent implements OnInit {
     this.pedidosService.obtenerPedido(id).subscribe({
       next: (data: Pedido) => this.pedido.set(data),
       error: (err: HttpErrorResponse) => {
-        // Usamos el método correcto de tu compañero
         this.toastService.error('Error al cargar el pedido. Verifique que exista en la BD.');
       }
     });
@@ -48,6 +49,7 @@ export class PedidoDetalleComponent implements OnInit {
         
         if (nuevoEstado === 'En preparación') {
           this.toastService.exito('Pedido en preparación. ¡Comanda generada!');
+          this.mostrarTicket.set(true); 
         } else {
           this.toastService.exito('Estado actualizado correctamente');
         }

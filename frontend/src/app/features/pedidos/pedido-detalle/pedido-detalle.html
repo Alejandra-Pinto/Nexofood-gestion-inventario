@@ -55,7 +55,22 @@
           {{ isLoading() ? 'Procesando...' : 'Marcar como Entregado' }}
         </button>
       }
+
+      <!-- BOTÓN DE REIMPRIMIR (HU-4.1) -->
+      @if (p.estado_pedido === 'En preparación' || p.estado_pedido === 'Listo' || p.estado_pedido === 'Entregado') {
+        <button 
+          (click)="mostrarTicket.set(true)" 
+          class="btn btn-secundario"
+          style="margin-left: auto; border-color: #6B2020; color: #6B2020;">
+           Reimprimir Comanda
+        </button>
+      }
     </div>
+
+    <!-- EL TICKET SE MUESTRA AQUÍ -->
+    <app-ticket-comanda [pedido]="p" 
+      [visible]="mostrarTicket()" 
+      (cerrar)="mostrarTicket.set(false)" />
   </div>
 } @else {
   <div class="loading">Cargando pedido...</div>

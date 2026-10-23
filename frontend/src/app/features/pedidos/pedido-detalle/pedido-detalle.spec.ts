@@ -1,18 +1,26 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { PedidoDetalle } from './pedido-detalle';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { PedidoDetalleComponent } from './pedido-detalle';
 
-describe('PedidoDetalle', () => {
-  let component: PedidoDetalle;
-  let fixture: ComponentFixture<PedidoDetalle>;
+describe('PedidoDetalleComponent', () => {
+  let component: PedidoDetalleComponent;
+  let fixture: ComponentFixture<PedidoDetalleComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [PedidoDetalle],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(PedidoDetalle);
+      imports: [PedidoDetalleComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting()
+      ]
+    })
+    .compileComponents();
+    
+    fixture = TestBed.createComponent(PedidoDetalleComponent);
     component = fixture.componentInstance;
-    await fixture.whenStable();
+    // No hacemos fixture.detectChanges() aquí porque el componente 
+    // intenta hacer una petición HTTP en el ngOnInit.
   });
 
   it('should create', () => {
