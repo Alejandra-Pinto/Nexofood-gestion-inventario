@@ -1,0 +1,34 @@
+@if (visible && pedido) {
+  <div class="modal-overlay">
+    <div class="ticket" id="ticket-print">
+      <div class="centrado bold">CHORI COMPANY</div>
+      <div class="centrado">COMANDA DE COCINA</div>
+      <hr>
+      <div class="fila"><span>PEDIDO</span> <span>#{{ pedido.id_pedido }}</span></div>
+      <div class="fila"><span>MESA</span> <span>{{ pedido.numero_mesa || 'N/A' }}</span></div>
+      <div class="fila"><span>MESERO</span> <span>{{ pedido.mesero?.nombre || 'N/A' }}</span></div>
+      <div class="fila"><span>HORA</span> <span>{{ pedido.fecha_hora | date:'shortTime' }}</span></div>
+      <hr>
+      
+      @for (detalle of pedido.detalles; track detalle.id_detalle) {
+        <div class="fila bold">
+          <span>{{ detalle.cantidad }}x {{ detalle.item?.nombre }}</span>
+        </div>
+        @if (detalle.notas_especiales) {
+          <div class="nota">** {{ detalle.notas_especiales }} **</div>
+        }
+        @if (detalle.promocion_aplicada) {
+          <div class="nota">> {{ detalle.promocion_aplicada }}</div>
+        }
+      }
+      
+      <hr>
+      <div class="centrado small">Impreso {{ pedido.fecha_hora | date:'mediumTime' }}</div>
+    </div>
+    
+    <div class="acciones no-print">
+      <button class="btn-cerrar" (click)="cerrarModal()">Cerrar</button>
+      <button class="btn-imprimir" (click)="imprimir()">Imprimir Comanda</button>
+    </div>
+  </div>
+}
