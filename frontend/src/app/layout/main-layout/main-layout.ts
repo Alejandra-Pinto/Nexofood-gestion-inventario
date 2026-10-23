@@ -35,6 +35,9 @@ export class MainLayout {
   private readonly opciones: OpcionMenu[] = [
     { texto: 'Inicio', icono: 'M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z' },
     { texto: 'Ventas', permiso: 'ventas', icono: 'M3 4h2l2.4 11h10.2L20 7H6.2M9 20h.01M17 20h.01' },
+    // --- BOTÓN DE PRUEBA SPRINT 2 ---
+    { texto: 'Pedidos (Prueba)', ruta: '/pedidos/1', icono: 'M3 4h2l2.4 11h10.2L20 7H6.2M9 20h.01M17 20h.01' },
+    // --------------------------------
     { texto: 'Productos', ruta: '/productos', permiso: 'productos', icono: 'M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8' },
     { texto: 'Inventario', ruta: '/inventario', permiso: 'inventario', icono: 'M12 3 2 8l10 5 10-5zM2 12.5l10 5 10-5M2 17l10 5 10-5' },
     { texto: 'Usuarios', ruta: '/usuarios', soloAdmin: true, icono: 'M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.3M15.5 4.2a3.5 3.5 0 0 1 0 6.6' },
