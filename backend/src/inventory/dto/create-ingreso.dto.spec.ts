@@ -47,6 +47,26 @@ describe('CreateIngresoDto', () => {
     expect(await validar({ ...compra, cantidad })).toContain('cantidad');
   });
 
+  // @Type(() => Number): el DTO convierte el texto numérico ANTES de validar, así el
+  // servicio siempre recibe un number (evita "7" + "1" = "71").
+  it('convierte la cantidad recibida como texto ("1") en número', () => {
+    const dto = plainToInstance(CreateIngresoDto, { ...compra, cantidad: '1' });
+
+    expect(dto.cantidad).toBe(1);
+    expect(typeof dto.cantidad).toBe('number');
+  });
+
+  it('acepta una cantidad numérica enviada como texto ("120")', async () => {
+    expect(await validar({ ...compra, cantidad: '120' })).toEqual([]);
+  });
+
+  it.each([['abc'], [''], ['1.5'], ['-3'], ['0'], ['1e999']])(
+    'rechaza la cantidad en texto %j (no es un entero > 0)',
+    async (cantidad) => {
+      expect(await validar({ ...compra, cantidad })).toContain('cantidad');
+    },
+  );
+
   it('rechaza cantidad no numérica', async () => {
     expect(await validar({ ...compra, cantidad: 'abc' })).toContain('cantidad');
   });

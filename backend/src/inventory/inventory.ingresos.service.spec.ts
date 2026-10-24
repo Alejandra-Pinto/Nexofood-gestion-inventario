@@ -383,4 +383,97 @@ describe('InventoryService · ingresos', () => {
       });
     });
   });
+  // ======================================================================
+  // REGRESIÓN · BUG "7 + 1 = 71": el stock se SUMA, nunca se concatena
+  // ----------------------------------------------------------------------
+  // Causa: según el tipo de la columna (NUMERIC / BIGINT) el driver `pg` devuelve
+  // el stock como TEXTO ("7"). Con el operador + eso concatena ("7" + 1 = "71").
+  // ======================================================================
+  describe('regresión: suma numérica (no concatenación de texto)', () => {
+    const ambos: Array<[string, CreateIngresoDto]> = [
+      ['COMPRA', compra],
+      ['PRODUCCION', produccion],
+    ];
+
+    it('stock 7 + ingreso 1 = 8 (entero), nunca "71"', async () => {
+      item = Object.assign({}, item, { cantidad_stock: 7 });
+
+      const mov = await service.registrarIngreso(con(produccion, { cantidad: 1 }), 5);
+
+      expect(mov.stock_anterior).toBe(7);
+      expect(mov.stock_nuevo).toBe(8);
+      expect(mov.stock_nuevo).not.toBe('71');
+      expect(typeof mov.stock_nuevo).toBe('number');
+      expect(managerMock.update).toHaveBeenCalledWith(ItemInventario, { id_item: 1 }, { cantidad_stock: 8 });
+    });
+
+    it.each(ambos)('%s: con el stock en BD como TEXTO "7" + 1 = 8 (no "71")', async (_motivo, base) => {
+      item = Object.assign({}, item, { cantidad_stock: '7' as unknown as number });
+
+      const mov = await service.registrarIngreso(con(base, { cantidad: 1 }), 5);
+
+      expect(mov.stock_anterior).toBe(7); // número, no "7"
+      expect(mov.stock_nuevo).toBe(8); // número, no "71"
+      expect(mov.stock_nuevo).not.toBe('71');
+      expect(typeof mov.stock_anterior).toBe('number');
+      expect(typeof mov.stock_nuevo).toBe('number');
+      expect(managerMock.update).toHaveBeenCalledWith(ItemInventario, { id_item: 1 }, { cantidad_stock: 8 });
+      expect(managerMock.update).not.toHaveBeenCalledWith(
+        ItemInventario,
+        { id_item: 1 },
+        { cantidad_stock: '71' },
+      );
+    });
+
+    // Casos donde concatenar daría un resultado "plausible" y difícil de notar
+    it.each([
+      ['7', 1, 8], // "71"
+      ['9', 1, 10], // "91"
+      ['1', 2, 3], // "12"
+      ['0', 5, 5], // "05"
+      ['99', 1, 100], // "991"
+      ['10', 10, 20], // "1010"
+    ])('stock texto "%s" + cantidad %i = %i', async (stock, cantidad, esperado) => {
+      item = Object.assign({}, item, { cantidad_stock: stock as unknown as number });
+
+      const mov = await service.registrarIngreso(con(produccion, { cantidad }), 5);
+
+      expect(mov.stock_nuevo).toBe(esperado);
+      expect(managerMock.update).toHaveBeenCalledWith(ItemInventario, { id_item: 1 }, { cantidad_stock: esperado });
+    });
+
+    it('el movimiento guarda cantidad, stock y costos como números (no texto)', async () => {
+      item = Object.assign({}, item, {
+        cantidad_stock: '7' as unknown as number,
+        costo_fabricacion: '8400' as unknown as number,
+      });
+
+      const mov = await service.registrarIngreso(con(produccion, { cantidad: 1 }), 5);
+
+      expect(typeof mov.cantidad).toBe('number');
+      expect(typeof mov.costo_unitario).toBe('number');
+      expect(typeof mov.total).toBe('number');
+      expect(mov).toMatchObject({ cantidad: 1, stock_anterior: 7, stock_nuevo: 8, costo_unitario: 8400, total: 8400 });
+    });
+
+    it('dos ingresos seguidos acumulan: 7 -> 8 -> 10', async () => {
+      item = Object.assign({}, item, { cantidad_stock: '7' as unknown as number });
+      const primero = await service.registrarIngreso(con(produccion, { cantidad: 1 }), 5);
+
+      // La BD devuelve el stock actualizado (otra vez como texto)
+      item = Object.assign({}, item, { cantidad_stock: String(primero.stock_nuevo) as unknown as number });
+      const segundo = await service.registrarIngreso(con(produccion, { cantidad: 2 }), 5);
+
+      expect([primero.stock_nuevo, segundo.stock_nuevo]).toEqual([8, 10]);
+    });
+
+    it('el servicio exige cantidad numérica: un texto "1" sin convertir se rechaza (400)', async () => {
+      // En HTTP, @Type(() => Number) del DTO convierte "1" -> 1 antes de llegar aquí;
+      // si alguien invoca el servicio directamente con texto, se rechaza en vez de arriesgar la suma.
+      const dto = con(produccion, { cantidad: '1' as unknown as number });
+
+      await expect(service.registrarIngreso(dto, 5)).rejects.toBeInstanceOf(BadRequestException);
+      noEscribio();
+    });
+  });
 });

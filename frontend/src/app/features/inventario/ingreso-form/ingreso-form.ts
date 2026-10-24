@@ -205,13 +205,14 @@ export class IngresoForm {
 
     const v = this.form.getRawValue();
     const dto: CrearIngreso = {
-      id_item: v.id_item as number,
+      id_item: Number(v.id_item),
       motivo: v.motivo,
-      cantidad: v.cantidad as number,
+      // Number(): el payload debe llevar números primitivos (nunca "1" como texto)
+      cantidad: Number(v.cantidad),
       fecha_ingreso: v.fecha_ingreso,
     };
-    if (v.motivo === 'COMPRA') dto.id_proveedor = v.id_proveedor as number;
-    if (v.costo_unitario) dto.costo_unitario = v.costo_unitario;
+    if (v.motivo === 'COMPRA') dto.id_proveedor = Number(v.id_proveedor);
+    if (v.costo_unitario) dto.costo_unitario = Number(v.costo_unitario);
     const observaciones = v.observaciones.trim();
     if (observaciones) dto.observaciones = observaciones;
 
