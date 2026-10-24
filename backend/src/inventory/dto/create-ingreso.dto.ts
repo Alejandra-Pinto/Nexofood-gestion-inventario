@@ -13,7 +13,7 @@
  * `id_usuario` NO va aquí: se toma del JWT con @CurrentUser().
  * `total` NO va aquí: lo calcula el servidor (cantidad x costo_unitario).
  */
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsEnum,
   IsInt,
@@ -57,7 +57,13 @@ export class CreateIngresoDto {
   @Min(1, { message: 'Debe indicar el proveedor' })
   id_proveedor?: number;
 
-  /** Unidades que ingresan (entero > 0) */
+  /**
+   * Unidades que ingresan (entero > 0).
+   * @Type(() => Number) convierte el valor recibido ("1" -> 1) ANTES de validar, así
+   * el servicio siempre recibe un `number` y el operador + suma en lugar de concatenar
+   * ("7" + "1" = "71"). Lo que no sea numérico ("abc") queda como NaN y @IsInt lo rechaza.
+   */
+  @Type(() => Number)
   @IsInt({ message: 'La cantidad debe ser un número entero' })
   @Min(1, { message: 'La cantidad debe ser mayor a 0' })
   cantidad: number;

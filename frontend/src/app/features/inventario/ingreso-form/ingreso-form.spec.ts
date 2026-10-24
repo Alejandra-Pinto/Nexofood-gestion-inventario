@@ -350,6 +350,27 @@ describe('IngresoForm', () => {
       http.expectOne(`${api}/products`).flush(items);
     });
 
+    it('el payload lleva cantidad, costo e ids como NÚMEROS aunque los controles tengan texto', async () => {
+      const { cmp } = await crear();
+      llenarCompra(cmp);
+      cmp.form.patchValue({ id_item: '1', id_proveedor: '2', cantidad: '1', costo_unitario: '18000' });
+
+      cmp.registrar();
+
+      const req = http.expectOne(`${api}/inventory/ingresos`);
+      const body = req.request.body;
+      expect(body.cantidad).toBe(1);
+      expect(typeof body.cantidad).toBe('number');
+      expect(typeof body.costo_unitario).toBe('number');
+      expect(body.costo_unitario).toBe(18000);
+      expect(typeof body.id_item).toBe('number');
+      expect(typeof body.id_proveedor).toBe('number');
+      // Sobrevive a la serialización JSON (lo que realmente viaja por la red)
+      expect(JSON.parse(JSON.stringify(body)).cantidad).toBe(1);
+      req.flush(movimiento);
+      http.expectOne(`${api}/products`).flush(items);
+    });
+
     it('PRODUCCION: no envía proveedor ni costo si no se digitaron', async () => {
       const { cmp } = await crear();
       cmp.form.controls.motivo.setValue('PRODUCCION');

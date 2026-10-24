@@ -105,10 +105,14 @@ export class InventoryService {
       }
 
       // 3. Costo y total. En producción sin costo se usa el costo de fabricación del ítem.
-      const costoUnitario = dto.costo_unitario ?? item.costo_fabricacion;
-      const total = dto.cantidad * costoUnitario;
-      const stockAnterior = item.cantidad_stock;
-      const stockNuevo = stockAnterior + dto.cantidad;
+      //    Casteo explícito a number: según el tipo de la columna en la BD (NUMERIC / BIGINT)
+      //    el driver `pg` devuelve el stock como TEXTO ("7"), y "7" + 1 = "71" (concatena).
+      //    Con Number() siempre se hace aritmética: 7 + 1 = 8.
+      const costoUnitario = dto.costo_unitario ?? Number(item.costo_fabricacion);
+      const cantidadIngreso = Number(dto.cantidad);
+      const total = cantidadIngreso * costoUnitario;
+      const stockAnterior = Number(item.cantidad_stock);
+      const stockNuevo = stockAnterior + cantidadIngreso;
 
       if (total > INT_MAX || stockNuevo > INT_MAX) {
         throw new BadRequestException(
@@ -129,7 +133,7 @@ export class InventoryService {
         id_usuario: idUsuario,
         tipo_movimiento: TipoMovimiento.ENTRADA,
         motivo: esCompra ? MotivoMovimiento.COMPRA : MotivoMovimiento.PRODUCCION,
-        cantidad: dto.cantidad,
+        cantidad: cantidadIngreso,
         stock_anterior: stockAnterior,
         stock_nuevo: stockNuevo,
         costo_unitario: costoUnitario,
