@@ -102,3 +102,29 @@ input.invalido, select.invalido { border-color: var(--error); background: var(--
 }
 .badge-ok { background: var(--ok-suave); color: var(--ok); }
 .badge-bajo { background: var(--error-suave); color: var(--error); }
+/* ==========================================
+   REGLAS PARA IMPRESIÓN TÉRMICA (HU-4.1)
+   ========================================== */
+@media print {
+  /* Ocultar todo el cuerpo de la app */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Hacer visible SOLO el ticket y sus hijos */
+  #ticket-print, #ticket-print * {
+    visibility: visible;
+  }
+  
+  /* Posicionar y limitar el tamaño para simular impresora térmica (80mm) */
+  #ticket-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm; /* Ancho estándar de impresora térmica */
+    max-width: 300px;
+    margin: 0;
+    padding: 10px;
+    font-size: 12px; /* Letra un poco más pequeña para que quepa */
+  }
+}

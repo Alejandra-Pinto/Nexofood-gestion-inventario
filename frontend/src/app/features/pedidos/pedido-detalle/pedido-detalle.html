@@ -1,0 +1,59 @@
+@if (pedido(); as p) {
+  <div class="pedido-container">
+    <header class="pedido-header">
+      <h2>Pedido #{{ p.id_pedido }}</h2>
+      <span class="badge" [ngClass]="p.estado_pedido.toLowerCase().replace('_', '-')">
+        {{ p.estado_pedido }}
+      </span>
+    </header>
+
+    <div class="pedido-info">
+      <p><strong>Mesa:</strong> {{ p.numero_mesa || 'Para llevar' }}</p>
+      <p><strong>Total:</strong> {{ p.total_calculado | currency:'COP' }}</p>
+    </div>
+
+    <div class="pedido-detalles">
+      <h3>Productos</h3>
+      <ul>
+        @for (detalle of p.detalles; track detalle.id_detalle) {
+          <li>
+            {{ detalle.cantidad }}x {{ detalle.item?.nombre }} 
+            @if (detalle.notas_especiales) {
+              <span class="notas">({{ detalle.notas_especiales }})</span>
+            }
+          </li>
+        }
+      </ul>
+    </div>
+
+    <div class="pedido-acciones">
+      @if (p.estado_pedido === 'PENDIENTE') {
+        <button (click)="cambiarEstado('EN_PREPARACION')" [disabled]="isLoading()" class="btn btn-primario">
+          {{ isLoading() ? 'Procesando...' : 'Confirmar y Enviar a Cocina' }}
+        </button>
+      }
+
+      @if (p.estado_pedido === 'EN_PREPARACION') {
+        <button (click)="cambiarEstado('LISTO')" [disabled]="isLoading()" class="btn btn-secundario">
+          {{ isLoading() ? 'Procesando...' : 'Marcar como Listo' }}
+        </button>
+      }
+
+      @if (p.estado_pedido === 'LISTO') {
+        <button (click)="cambiarEstado('ENTREGADO')" [disabled]="isLoading()" class="btn btn-secundario">
+          {{ isLoading() ? 'Procesando...' : 'Marcar como Entregado' }}
+        </button>
+      }
+
+      @if (p.estado_pedido === 'EN_PREPARACION' || p.estado_pedido === 'LISTO' || p.estado_pedido === 'ENTREGADO') {
+        <button (click)="mostrarTicket.set(true)" class="btn btn-secundario" style="margin-left: auto; border-color: #6B2020; color: #6B2020;">
+          🖨️ Reimprimir Comanda
+        </button>
+      }
+    </div>
+
+    <app-ticket-comanda [pedido]="p" [visible]="mostrarTicket()" (cerrar)="mostrarTicket.set(false)" />
+  </div>
+} @else {
+  <div class="loading">Cargando pedido...</div>
+}

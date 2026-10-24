@@ -1,6 +1,6 @@
 /**
  * Modelos de Pedidos (módulo Orders del backend)
- * HU-3.1 Registrar nuevo pedido · HU-3.5 Registrar método de pago
+ * HU-3.1, HU-3.4, HU-3.5, HU-4.1
  */
 import { ItemInventario } from './item-inventario.model';
 
@@ -38,12 +38,12 @@ export interface DetallePedido {
 export interface Pedido {
   id_pedido: number;
   id_mesero: number;
-  /** Mesa del pedido (1 a 8). null = para llevar / tomado en caja */
   numero_mesa: number | null;
   fecha_hora: string;
   estado_pedido: EstadoPedido;
   total_calculado: number;
   detalles: DetallePedido[];
+  mesero?: { nombre: string }; // Agregado para nuestro ticket
 }
 
 /** Lo que se envía al registrar un pedido (POST /orders) */
@@ -52,33 +52,21 @@ export interface CrearPedido {
   detalles: { id_item: number; cantidad: number }[];
 }
 
-// ---------- HU-3.1 Mesas (prototipo "Mis mesas") ----------
-
-/** LIBRE sin pedido · PENDIENTE enviado a caja · OCUPADA en cocina o entregado */
+// ---------- Mesas (prototipo "Mis mesas") ----------
 export type EstadoMesa = 'LIBRE' | 'PENDIENTE' | 'OCUPADA';
-
-/** Respuesta de GET /orders/mesas */
 export interface MesaResumen {
   numero: number;
   estado: EstadoMesa;
   id_pedido: number | null;
   total: number;
 }
-
 export const ETIQUETA_MESA: Record<EstadoMesa, string> = {
-  LIBRE: 'Libre',
-  PENDIENTE: 'Pendiente',
-  OCUPADA: 'Ocupada',
+  LIBRE: 'Libre', PENDIENTE: 'Pendiente', OCUPADA: 'Ocupada',
 };
-
-/** Cantidad máxima por producto (igual que en el backend) */
 export const CANTIDAD_MAXIMA = 99;
 
 // ---------- HU-3.5 Método de pago ----------
-
 export type MedioPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'NEQUI' | 'DAVIPLATA' | 'TARJETA';
-
-/** Medios de pago en el orden del prototipo */
 export const MEDIOS_PAGO: { valor: MedioPago; texto: string }[] = [
   { valor: 'EFECTIVO', texto: 'Efectivo' },
   { valor: 'TRANSFERENCIA', texto: 'Transferencia' },
@@ -86,21 +74,17 @@ export const MEDIOS_PAGO: { valor: MedioPago; texto: string }[] = [
   { valor: 'DAVIPLATA', texto: 'Daviplata' },
   { valor: 'TARJETA', texto: 'Tarjeta' },
 ];
-
-/** Lo que se envía al cobrar (POST /orders/:id/pago) */
 export interface RegistrarPago {
   medio_pago: MedioPago;
   monto_recibido?: number;
 }
-
-/** Respuesta del cobro */
 export interface ResultadoPago {
   pedido: Pedido;
   movimiento: { id_movimiento: number; monto: number; medio_pago: MedioPago; fecha_hora: string };
   cambio: number;
 }
 
-/** El backend (PostgreSQL) puede devolver números como texto: se convierten */
+/** El backend puede devolver números como texto: se convierten */
 export function normalizarPedido(p: Pedido): Pedido {
   return {
     ...p,

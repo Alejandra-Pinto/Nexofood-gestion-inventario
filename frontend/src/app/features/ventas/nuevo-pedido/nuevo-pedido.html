@@ -178,4 +178,12 @@
     </footer>
     </div>
   }
+  <!-- COMPONENTE PARA MOSTRAR LA COMANDA AL MESERO -->
+@if (pedidoCreado(); as p) {
+  <app-ticket-comanda 
+    [pedido]="p" 
+    [visible]="mostrarTicket()" 
+    (cerrar)="cerrarTicket()">
+  </app-ticket-comanda>
+}
 </div>

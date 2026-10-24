@@ -93,6 +93,14 @@ export const routes: Routes = [
             (m) => m.PermisosUsuarios,
           ),
       },
+      {
+        // HU-3.4 y HU-4.1 Detalle del pedido y generación de comanda
+        path: 'pedidos/:id',
+        loadComponent: () =>
+          import('./features/pedidos/pedido-detalle/pedido-detalle').then(
+            (m) => m.PedidoDetalleComponent,
+          ),
+      },
     ],
   },
 
