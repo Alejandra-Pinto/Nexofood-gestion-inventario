@@ -29,8 +29,6 @@ export class OrdersService {
   constructor(
     @InjectRepository(Pedido)
     private readonly pedidosRepo: Repository<Pedido>,
-    @InjectRepository(Comanda)
-    private readonly comandasRepo: Repository<Comanda>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -80,6 +78,14 @@ export class OrdersService {
       );
 
       await manager.save(detalles.map((d) => manager.create(DetallePedido, { ...d, id_pedido: pedido.id_pedido })));
+
+      // --- AQUÍ SE GENERA LA COMANDA AUTOMÁTICAMENTE AL CREAR EL PEDIDO ---
+      const nuevaComanda = manager.create(Comanda, {
+        id_pedido: pedido.id_pedido,
+      });
+      await manager.save(nuevaComanda);
+      // --------------------------------------------------------------------
+
       return pedido.id_pedido;
     }).catch((e: unknown) => {
       if (e instanceof QueryFailedError && (e as QueryFailedError & { code?: string }).code === '23505') {
@@ -166,9 +172,7 @@ export class OrdersService {
     return pedido;
   }
 
-  // =========================================================================
-  // NUESTRA MÁQUINA DE ESTADOS Y COMANDAS
-  // =========================================================================
+  // --- MÁQUINA DE ESTADOS (AHORA SIN GENERAR COMANDA, SOLO CAMBIA ESTADO) ---
   async cambiarEstado(id_pedido: number, dto: UpdateEstadoDto): Promise<Pedido> {
     await this.dataSource.transaction(async (manager) => {
       const pedido = await manager.findOne(Pedido, {
@@ -179,30 +183,19 @@ export class OrdersService {
       if (!pedido) throw new NotFoundException(`El pedido con id ${id_pedido} no existe`);
 
       this.validarTransicion(pedido.estado_pedido, dto.estado_pedido);
-
       pedido.estado_pedido = dto.estado_pedido;
       
-      if (dto.estado_pedido === EstadoPedido.EN_PREPARACION) {
-        const cantidadDetalles = await manager.count(DetallePedido, { where: { id_pedido } });
-        if (cantidadDetalles === 0) {
-          throw new BadRequestException('No se puede generar una comanda para un pedido sin productos.');
-        }
-
-        const nuevaComanda = manager.create(Comanda, { id_pedido: pedido.id_pedido });
-        await manager.save(nuevaComanda);
-      }
-
       await manager.save(pedido);
     });
 
-    return this.buscarPorId(id_pedido); // Retorno correcto
+    return this.buscarPorId(id_pedido);
   }
 
   private validarTransicion(estadoActual: EstadoPedido, nuevoEstado: EstadoPedido) {
     if (estadoActual === nuevoEstado) return;
 
     const transicionesValidas: Record<EstadoPedido, EstadoPedido[]> = {
-      [EstadoPedido.PENDIENTE]: [EstadoPedido.EN_PREPARACION, EstadoPedido.ANULADO],
+      [EstadoPedido.PENDIENTE]: [EstadoPedido.PAGADO, EstadoPedido.ANULADO],
       [EstadoPedido.EN_PREPARACION]: [EstadoPedido.LISTO, EstadoPedido.ANULADO],
       [EstadoPedido.LISTO]: [EstadoPedido.ENTREGADO],
       [EstadoPedido.ENTREGADO]: [EstadoPedido.PAGADO],

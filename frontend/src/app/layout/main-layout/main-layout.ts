@@ -29,7 +29,7 @@ export class MainLayout {
     { texto: 'Inicio', icono: 'M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z' },
     { texto: 'Ventas', ruta: '/ventas', permiso: 'ventas', icono: 'M3 4h2l2.4 11h10.2L20 7H6.2M9 20h.01M17 20h.01' },
     // --- BOTÓN DE PRUEBA SPRINT 2 (El nuestro) ---
-    { texto: 'Pedidos (Prueba)', ruta: '/pedidos/1', icono: 'M3 4h2l2.4 11h10.2L20 7H6.2M9 20h.01M17 20h.01' },
+    //{ texto: 'Pedidos (Prueba)', ruta: '/pedidos/1', icono: 'M3 4h2l2.4 11h10.2L20 7H6.2M9 20h.01M17 20h.01' },
     // ---------------------------------------------
     { texto: 'Productos', ruta: '/productos', permiso: 'productos', icono: 'M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8' },
     { texto: 'Inventario', ruta: '/inventario', permiso: 'inventario', icono: 'M12 3 2 8l10 5 10-5zM2 12.5l10 5 10-5M2 17l10 5 10-5' },

@@ -15,9 +15,6 @@
  *
  * Si la mesa ya tiene un pedido activo se muestra ese pedido (solo lectura);
  * agregarle productos corresponde a la HU-3.3 (modificar pedido).
- *
- * Nota HU-3.2 (Yezid): los pasos 2 y 3 del prototipo (pan, aderezos, combo y
- * adicionales) se agregan en la vista 'choripan' después de "Elegí tu chori".
  */
 import { CurrencyPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -34,14 +31,14 @@ import {
 } from '../../../core/services/borrador-pedido.service';
 import { Categoria, ItemInventario } from '../../../core/models/item-inventario.model';
 import { CANTIDAD_MAXIMA, ETIQUETA_ESTADO, Pedido } from '../../../core/models/pedido.model';
+// IMPORTAMOS NUESTRO COMPONENTE DE TICKET
+import { TicketComandaComponent } from '../../pedidos/ticket-comanda/ticket-comanda';
 
-/** Una sección de productos que se agregan tocando la fila (Bebidas, Adicionales...) */
 interface Seccion {
   categoria: Categoria;
   productos: ItemInventario[];
 }
 
-/** true si la categoría es la de choripanes (se eligen con "+ Nuevo choripán") */
 function esCategoriaChoripan(c: Categoria): boolean {
   return c.nombre
     .normalize('NFD')
@@ -52,7 +49,7 @@ function esCategoriaChoripan(c: Categoria): boolean {
 
 @Component({
   selector: 'app-nuevo-pedido',
-  imports: [CurrencyPipe, RouterLink],
+  imports: [CurrencyPipe, RouterLink, TicketComandaComponent], // <-- AGREGADO AQUÍ
   templateUrl: './nuevo-pedido.html',
   styleUrl: './nuevo-pedido.scss',
 })
@@ -68,43 +65,39 @@ export class NuevoPedido {
   protected readonly maximo = CANTIDAD_MAXIMA;
   protected readonly etiquetaEstado = ETIQUETA_ESTADO;
 
-  /** Número de mesa (null = para llevar) */
   protected readonly mesa: number | null = this.leerMesa();
   private readonly clave = this.mesa ? `mesa-${this.mesa}` : 'llevar';
 
   protected nombreUsuario = computed(() => this.auth.usuarioActual()?.nombre ?? 'Mesero');
 
-  /** Catálogo: solo productos activos (los insumos no se venden) */
   protected productos = signal<ItemInventario[]>([]);
   protected categorias = signal<Categoria[]>([]);
   protected cargando = signal(true);
   protected errorCarga = signal(false);
 
-  /** Pedido activo de la mesa (si ya se envió a caja) */
   protected pedidoActivo = signal<Pedido | null>(null);
 
-  /** Vista actual: el pedido o el paso "Elegí tu chori" */
   protected vista = signal<'pedido' | 'choripan'>('pedido');
   protected choriSel = signal<ItemInventario | null>(null);
   protected choriCantidad = signal(1);
 
-  /** Pedido en construcción (se guarda como borrador por mesa) */
   protected lineas = signal<LineaBorrador[]>(this.borradores.obtener(this.clave));
   protected enviando = signal(false);
   protected errorGeneral = signal<string | null>(null);
-  /** true cuando se intentó enviar sin productos (SCRUM-149) */
   protected intentoVacio = signal(false);
 
-  /** Categoría de choripanes (puede no existir) */
+  // --- NUEVAS SEÑALES PARA EL TICKET ---
+  protected mostrarTicket = signal<boolean>(false);
+  protected pedidoCreado = signal<Pedido | null>(null);
+  // -------------------------------------
+
   private categoriaChori = computed(() => this.categorias().find(esCategoriaChoripan) ?? null);
 
-  /** Productos que se eligen en "Elegí tu chori" */
   protected choripanes = computed(() => {
     const cat = this.categoriaChori();
     return cat ? this.productos().filter((p) => p.id_categoria === cat.id_categoria) : [];
   });
 
-  /** Demás categorías con productos: se muestran como listas (Bebidas, Adicionales...) */
   protected secciones = computed<Seccion[]>(() => {
     const idChori = this.categoriaChori()?.id_categoria;
     return this.categorias()
@@ -113,13 +106,11 @@ export class NuevoPedido {
       .filter((s) => s.productos.length > 0);
   });
 
-  /** Líneas de choripán del pedido actual (tarjetas grandes) */
   protected lineasChori = computed(() => {
     const idChori = this.categoriaChori()?.id_categoria;
     return this.lineas().filter((l) => l.producto.id_categoria === idChori);
   });
 
-  /** Resumen "2 Choripanes · 4 Bebidas" */
   protected resumen = computed(() => {
     const partes: string[] = [];
     const chori = this.lineasChori().reduce((s, l) => s + l.cantidad, 0);
@@ -146,7 +137,6 @@ export class NuevoPedido {
     return Number.isInteger(n) && n > 0 ? n : null;
   }
 
-  /** Carga productos, categorías y (si es mesa) su pedido activo */
   protected cargar(): void {
     this.cargando.set(true);
     this.errorCarga.set(false);
@@ -178,20 +168,14 @@ export class NuevoPedido {
     });
   }
 
-  // ------------------------------------------------------------------
-  // Cantidades (SCRUM-149: stock, máximo y enteros)
-  // ------------------------------------------------------------------
-
   protected cantidadEnPedido(id: number): number {
     return this.lineas().find((l) => l.producto.id_item === id)?.cantidad ?? 0;
   }
 
-  /** Máximo que se puede pedir: lo menor entre el stock y el límite por producto */
   protected limite(p: ItemInventario): number {
     return Math.min(p.cantidad_stock, this.maximo);
   }
 
-  /** Cambia la cantidad de un producto validando stock y máximo */
   protected cambiarCantidad(p: ItemInventario, cantidad: number): void {
     this.errorGeneral.set(null);
     this.intentoVacio.set(false);
@@ -218,15 +202,10 @@ export class NuevoPedido {
     this.borradores.guardar(this.clave, this.lineas());
   }
 
-  /** Toca una fila (bebida, adicional...): suma 1 */
   protected sumar(p: ItemInventario): void {
     if (p.cantidad_stock <= 0) return;
     this.cambiarCantidad(p, this.cantidadEnPedido(p.id_item) + 1);
   }
-
-  // ------------------------------------------------------------------
-  // Paso "Elegí tu chori"
-  // ------------------------------------------------------------------
 
   protected abrirChoripan(): void {
     this.choriSel.set(null);
@@ -252,7 +231,6 @@ export class NuevoPedido {
     this.choriCantidad.set(n);
   }
 
-  /** Agrega el choripán elegido al pedido y vuelve a la mesa */
   protected agregarChoripan(): void {
     const p = this.choriSel();
     if (!p) return;
@@ -260,21 +238,16 @@ export class NuevoPedido {
     this.vista.set('pedido');
   }
 
-  // ------------------------------------------------------------------
-  // Enviar a caja (SCRUM-148)
-  // ------------------------------------------------------------------
-
   protected vaciar(): void {
     this.lineas.set([]);
     this.borradores.limpiar(this.clave);
     this.errorGeneral.set(null);
   }
 
-  /** Registra el pedido en el backend: queda PENDIENTE con su ID único */
+  /** Registra el pedido en el backend: queda PENDIENTE con su ID único y comanda generada */
   protected enviar(): void {
     this.errorGeneral.set(null);
 
-    // SCRUM-149: pedido vacío
     if (this.lineas().length === 0) {
       this.intentoVacio.set(true);
       return;
@@ -291,23 +264,36 @@ export class NuevoPedido {
         this.enviando.set(false);
         this.lineas.set([]);
         this.borradores.limpiar(this.clave);
+        
+        // MOSTRAMOS EL TICKET EN LUGAR DE REDIRIGIR
+        this.pedidoCreado.set(pedido);
+        this.mostrarTicket.set(true);
+        
         this.toast.exito(
           this.mesa
-            ? `Pedido #${pedido.id_pedido} de la mesa ${this.mesa} enviado a caja`
-            : `Pedido #${pedido.id_pedido} registrado`,
+            ? `Pedido #${pedido.id_pedido} de la mesa ${this.mesa} enviado a caja.`
+            : `Pedido #${pedido.id_pedido} registrado.`,
         );
-        if (this.mesa) this.router.navigate(['/ventas/mesas']);
-        else this.cargar(); // refresca el stock mostrado
       },
       error: (e: HttpErrorResponse) => {
         this.enviando.set(false);
         this.errorGeneral.set(this.mensajeError(e));
-        if (e.status === 409) this.cargar(); // la mesa ya tenía pedido: se muestra
+        if (e.status === 409) this.cargar();
       },
     });
   }
 
-  /** Traduce el error HTTP a un mensaje para el usuario */
+  /** Se ejecuta al cerrar el ticket, para volver a la pantalla principal del mesero */
+  protected cerrarTicket(): void {
+    this.mostrarTicket.set(false);
+    this.pedidoCreado.set(null);
+    if (this.mesa) {
+      this.router.navigate(['/ventas/mesas']);
+    } else {
+      this.cargar(); // Si es para llevar, refresca el stock para un nuevo pedido
+    }
+  }
+
   private mensajeError(e: HttpErrorResponse): string {
     const m = e.error?.message;
     const texto = Array.isArray(m) ? m.join('. ') : m;
