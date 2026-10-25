@@ -132,10 +132,13 @@
                 </button>
               }
 
-              <!-- Reimprimir comanda -->
+              <!-- Ver / Reimprimir comanda -->
               @if (p.estado_pedido !== 'PENDIENTE' && p.estado_pedido !== 'ANULADO') {
                 <button type="button" (click)="mostrarTicket.set(true)" class="btn btn-secundario">
-                  🖨️ Reimprimir Comanda
+                  👁️ Ver Comanda
+                </button>
+                <button type="button" (click)="abrirConfirmacionReimpresion()" [disabled]="isPrinting()" class="btn btn-primario">
+                  {{ isPrinting() ? 'Enviando…' : '🖨️ Reimprimir Comanda' }}
                 </button>
               }
             </div>
@@ -303,8 +306,33 @@
       [visible]="mostrarTicket()"
       [titulo]="tituloTicket()"
       [itemsAdicionales]="itemsAdicionalesTicket()"
+      [imprimiendo]="isPrinting()"
       (cerrar)="mostrarTicket.set(false)"
+      (reimprimir)="abrirConfirmacionReimpresion()"
     />
+
+    <!-- Modal de confirmación de reimpresión (Electron / Impresora física) -->
+    @if (mostrarConfirmacion()) {
+      <div class="modal-confirm-overlay" (click)="cancelarConfirmacion()">
+        <div class="modal-confirm-card" (click)="$event.stopPropagation()">
+          <div class="modal-confirm-header">
+            <div class="icono-aviso">🖨️</div>
+            <h3>Reimprimir comanda</h3>
+          </div>
+          <p class="modal-confirm-body">
+            ¿Estás seguro de que deseas enviar una nueva copia física a la impresora térmica para el <strong>Pedido #{{ p.id_pedido }}</strong>?
+          </p>
+          <div class="modal-confirm-acciones">
+            <button type="button" class="btn btn-secundario" [disabled]="isPrinting()" (click)="cancelarConfirmacion()">
+              Cancelar
+            </button>
+            <button type="button" class="btn btn-primario" [disabled]="isPrinting()" (click)="ejecutarReimpresion()">
+              {{ isPrinting() ? 'Enviando…' : 'Sí, reimprimir' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
 
     <!-- ===================================================================== -->
     <!-- HU-3.6 MODAL DE CONFIRMACIÓN DE ANULACIÓN (SOLO ADMIN Y CAJERO)       -->

@@ -1,6 +1,13 @@
+
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Pedido } from '../../orders/entities/pedido.entity';
 import { DetallePedido } from '../../orders/entities/detalle-pedido.entity';
+
+export enum EstadoImpresionComanda {
+  PENDIENTE = 'PENDIENTE',
+  IMPRESA = 'IMPRESA',
+  ERROR = 'ERROR',
+}
 
 @Entity({ name: 'comandas', synchronize: false })
 export class Comanda {
@@ -14,11 +21,16 @@ export class Comanda {
   @JoinColumn({ name: 'id_pedido' })
   pedido?: Pedido;
 
+  @Column({
+    type: 'varchar',
+    length: 20,
+    name: 'estado_impresion',
+    default: EstadoImpresionComanda.PENDIENTE,
+  })
+  estado_impresion: EstadoImpresionComanda;
+
   @Column({ type: 'timestamptz', name: 'fecha_impresion', default: () => 'NOW()' })
   fecha_impresion: Date;
-
-  @Column({ type: 'varchar', length: 50, name: 'estado_impresion', default: 'PENDIENTE' })
-  estado_impresion: string;
 
   @OneToMany(() => DetallePedido, (d) => d.comanda)
   detalles?: DetallePedido[];

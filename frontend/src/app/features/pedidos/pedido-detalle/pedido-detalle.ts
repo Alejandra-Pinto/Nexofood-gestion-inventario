@@ -1,3 +1,4 @@
+
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -6,6 +7,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { PedidosService } from '../../../core/services/pedidos.service';
 import { InventarioService } from '../../../core/services/inventario.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { KitchenService } from '../../../core/services/kitchen.service';
 import { ToastService } from '../../../core/services/toast.service';
 import {
   CANTIDAD_MAXIMA,
@@ -40,17 +42,22 @@ export interface LineaEdicion {
 export class PedidoDetalleComponent implements OnInit {
   private pedidosService = inject(PedidosService);
   private inventarioService = inject(InventarioService);
-  private toastService = inject(ToastService);
   private authService = inject(AuthService);
+  private kitchenService = inject(KitchenService);
+  private toastService = inject(ToastService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
   public readonly etiquetaEstado = ETIQUETA_ESTADO;
   public readonly maximo = CANTIDAD_MAXIMA;
 
+
   public pedido = signal<Pedido | null>(null);
   public isLoading = signal<boolean>(false);
+  public isPrinting = signal<boolean>(false);
+
   public mostrarTicket = signal<boolean>(false);
+  public mostrarConfirmacion = signal<boolean>(false);
   public tituloTicket = signal<string>('COMANDA DE COCINA');
   public itemsAdicionalesTicket = signal<ItemTicketAdicional[]>([]);
 
@@ -77,35 +84,48 @@ export class PedidoDetalleComponent implements OnInit {
   public puedeModificar = computed(() => {
     const p = this.pedido();
     if (!p) return false;
+
     const rolAutorizado = this.esAdmin() || this.esMesero();
-    const estadoModificable = p.estado_pedido === 'PENDIENTE' || p.estado_pedido === 'EN_PREPARACION';
+    const estadoModificable =
+      p.estado_pedido === 'PENDIENTE' ||
+      p.estado_pedido === 'EN_PREPARACION';
+
     return rolAutorizado && estadoModificable;
   });
 
   public puedeAnular = computed(() => {
     const p = this.pedido();
     if (!p) return false;
+
     const rolAutorizado = this.esAdmin() || this.esCajero();
-    const estadoAnulable = p.estado_pedido !== 'ANULADO' && p.estado_pedido !== 'PAGADO';
+    const estadoAnulable =
+      p.estado_pedido !== 'ANULADO' &&
+      p.estado_pedido !== 'PAGADO';
+
     return rolAutorizado && estadoAnulable;
   });
 
-  public totalEdicion = computed(() => {
-    return this.lineasEdicion().reduce((sum, l) => sum + l.cantidad * l.precio_unitario, 0);
-  });
+  public totalEdicion = computed(() =>
+    this.lineasEdicion().reduce(
+      (sum, linea) => sum + linea.cantidad * linea.precio_unitario,
+      0,
+    ),
+  );
 
   public productosFiltrados = computed(() => {
     const q = this.busquedaCatalogo().trim().toLowerCase();
-    return this.catalogoProductos().filter((p) => {
-      if (!p.estado_activo) return false;
+
+    return this.catalogoProductos().filter((producto) => {
+      if (!producto.estado_activo) return false;
       if (!q) return true;
-      return p.nombre.toLowerCase().includes(q);
+      return producto.nombre.toLowerCase().includes(q);
     });
   });
 
   ngOnInit() {
     this.route.paramMap.subscribe((params) => {
       const id = Number(params.get('id'));
+
       if (id) {
         this.cargarPedido(id);
       }
@@ -394,6 +414,37 @@ export class PedidoDetalleComponent implements OnInit {
         const mensaje = err.error?.message || 'Error al cambiar el estado.';
         this.toastService.error(mensaje);
       },
+    });
+  }
+
+  abrirConfirmacionReimpresion() {
+    this.mostrarConfirmacion.set(true);
+  }
+
+  cancelarConfirmacion() {
+    this.mostrarConfirmacion.set(false);
+  }
+
+  /**
+   * Ejecuta la solicitud de reimpresión silenciosa en el backend una vez confirmada.
+   */
+  ejecutarReimpresion() {
+    const p = this.pedido();
+    if (!p) return;
+
+    this.mostrarConfirmacion.set(false);
+    this.isPrinting.set(true);
+
+    this.kitchenService.solicitarImpresion(p.id_pedido).subscribe({
+      next: () => {
+        this.isPrinting.set(false);
+        this.toastService.exito(`Comanda #${p.id_pedido} enviada a la impresora térmica.`);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isPrinting.set(false);
+        const mensaje = err.error?.message || 'No se pudo enviar la comanda a la impresora.';
+        this.toastService.error(mensaje);
+      }
     });
   }
 }

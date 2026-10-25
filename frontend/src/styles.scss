@@ -21,6 +21,8 @@
   --error-suave: #fef2f2;
   --error-borde: #f5c2c2;
   --radio: 14px;
+  /* Variable configurable para impresora termica (48mm para rollo de 58mm; 72mm para rollo de 80mm) */
+  --ancho-ticket: 72mm;
 }
 
 * { box-sizing: border-box; }
@@ -121,10 +123,12 @@ input.invalido, select.invalido { border-color: var(--error); background: var(--
     position: absolute;
     left: 0;
     top: 0;
-    width: 80mm; /* Ancho estándar de impresora térmica */
-    max-width: 300px;
+    width: var(--ancho-ticket, 72mm);
+    max-width: var(--ancho-ticket, 72mm);
     margin: 0;
     padding: 10px;
     font-size: 12px; /* Letra un poco más pequeña para que quepa */
   }
 }
+
+

@@ -21,15 +21,19 @@ export class TicketComandaComponent {
   @Input() visible: boolean = false;
   @Input() titulo: string = 'COMANDA DE COCINA';
   @Input() itemsAdicionales?: ItemTicketAdicional[];
+  @Input() imprimiendo: boolean = false;
   
   // Evento para avisarle al padre que se debe cerrar
   @Output() cerrar = new EventEmitter<void>();
 
-  imprimir() {
-    window.print(); 
+  // Evento para solicitar la reimpresión silenciosa a través de Electron
+  @Output() reimprimir = new EventEmitter<void>();
+
+  solicitarReimpresion() {
+    this.reimprimir.emit();
   }
 
   cerrarModal() {
-    this.cerrar.emit(); // Avisa al padre
+    this.cerrar.emit();
   }
 }

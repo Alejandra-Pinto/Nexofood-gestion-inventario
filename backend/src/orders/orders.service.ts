@@ -16,7 +16,7 @@ import { ESTADOS_PEDIDO_ACTIVO, MesaResumen, TOTAL_MESAS } from './mesas';
 import { RegistrarPagoDto } from './dto/registrar-pago.dto';
 import { MedioPago, MovimientoFinanciero, TipoMovimientoFinanciero } from '../finance/entities/movimiento-financiero.entity';
 import { UpdateEstadoDto } from './dto/update-estado.dto';
-import { Comanda } from '../kitchen/entities/comanda.entity';
+import { Comanda, EstadoImpresionComanda } from '../kitchen/entities/comanda.entity';
 import { RolUsuario } from '../users/entities/user.entity';
 
 export interface ResultadoPago {
@@ -83,7 +83,7 @@ export class OrdersService {
       // Comanda inicial generada con el pedido
       const nuevaComanda = manager.create(Comanda, {
         id_pedido: pedido.id_pedido,
-        estado_impresion: 'PENDIENTE',
+        estado_impresion: EstadoImpresionComanda.PENDIENTE,
       });
       const comandaGuardada = await manager.save(nuevaComanda);
 
@@ -122,6 +122,7 @@ export class OrdersService {
         numero,
         estado: pedido.estado_pedido === EstadoPedido.PENDIENTE ? 'PENDIENTE' : 'OCUPADA',
         id_pedido: pedido.id_pedido,
+        estado_impresion: EstadoImpresionComanda.PENDIENTE,
         total: Number(pedido.total_calculado),
       };
     });
@@ -365,7 +366,7 @@ export class OrdersService {
           const comandaAdicion = await manager.save(
             manager.create(Comanda, {
               id_pedido: pedido.id_pedido,
-              estado_impresion: 'PENDIENTE',
+              estado_impresion: EstadoImpresionComanda.PENDIENTE,
             }),
           );
 
