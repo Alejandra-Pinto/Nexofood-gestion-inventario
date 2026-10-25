@@ -4,14 +4,14 @@
     <h1>Productos</h1>
     <p class="subtitulo">Registro y consulta de productos e insumos del inventario.</p>
   </div>
-  @if (!mostrarForm()) {
+  @if (esAdmin() && !mostrarForm()) {
     <button class="btn btn-primario" (click)="mostrarForm.set(true)">+ Nuevo producto</button>
   }
 </header>
 
 <div class="pagina">
-  <!-- Formulario de registro (se abre con "+ Nuevo producto") -->
-  @if (mostrarForm()) {
+  <!-- Formulario de registro (exclusivo para Administrador) -->
+  @if (esAdmin() && mostrarForm()) {
     <app-item-form (creado)="agregar($event)" (cancelado)="mostrarForm.set(false)" />
   }
 
@@ -56,7 +56,7 @@
         </span>
         <strong>Aún no hay productos</strong>
         <p>Registra tu primer producto o insumo<br />para empezar a controlar el stock.</p>
-        @if (!mostrarForm()) {
+        @if (esAdmin() && !mostrarForm()) {
           <button class="btn btn-primario" (click)="mostrarForm.set(true)">+ Nuevo producto</button>
         }
       </div>

@@ -1,70 +1,317 @@
-@if (pedido(); as p) {
-  <div class="pedido-container">
-    <header class="pedido-header">
-      <h2>Pedido #{{ p.id_pedido }}</h2>
-      <span class="badge" [ngClass]="p.estado_pedido.toLowerCase().replace('_', '-')">
-        {{ p.estado_pedido }}
-      </span>
-    </header>
+@if (isLoading()) {
+  <div class="pantalla-cargando">
+    <p class="muted centro">Cargando pedido…</p>
+  </div>
+} @else if (pedido(); as p) {
+  <div class="pedido-pagina">
+    <!-- Barra superior de navegación -->
+    <nav class="barra-volver">
+      <a routerLink="/ventas/mesas" class="link-volver">‹ Volver a Mis mesas</a>
+    </nav>
 
-    <div class="pedido-info">
-      <p><strong>Mesa:</strong> {{ p.numero_mesa || 'Para llevar' }}</p>
-      <p><strong>Total:</strong> {{ p.total_calculado | currency:'COP' }}</p>
-    </div>
+    <!-- Tarjeta Principal del Pedido -->
+    <div class="pedido-card">
+      <header class="pedido-header">
+        <div>
+          <div class="pedido-titulo">
+            <h1>Pedido #{{ p.id_pedido }}</h1>
+            <span class="badge" [ngClass]="'badge-' + p.estado_pedido.toLowerCase().replace('_', '-')">
+              {{ etiquetaEstado[p.estado_pedido] }}
+            </span>
+          </div>
+          <p class="pedido-subtitulo">
+            {{ p.numero_mesa ? 'Mesa ' + p.numero_mesa : 'Para llevar / Caja' }} ·
+            Atendido por {{ p.mesero?.nombre_completo || p.mesero?.nombre || 'Mesero' }}
+          </p>
+        </div>
 
-    <div class="pedido-detalles">
-      <h3>Productos</h3>
-      <ul>
-        @for (detalle of p.detalles; track detalle.id_detalle) {
-          <li>
-            {{ detalle.cantidad }}x {{ detalle.item?.nombre }} 
-            @if (detalle.notas_especiales) {
-              <span class="notas">({{ detalle.notas_especiales }})</span>
+        <div class="pedido-total-box">
+          <span class="total-label">Total del pedido</span>
+          <strong class="total-valor">
+            {{ (modoEdicion() ? totalEdicion() : p.total_calculado) | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}
+          </strong>
+        </div>
+      </header>
+
+      <!-- Banner de Pedido Anulado con información de auditoría (HU-3.6) -->
+      @if (p.estado_pedido === 'ANULADO') {
+        <div class="alerta alerta-anulado" role="alert">
+          <div class="alerta-anulado-header">
+            <strong>⚠ Este pedido fue ANULADO</strong>
+            @if (p.fecha_anulacion) {
+              <small>{{ p.fecha_anulacion | date: 'dd/MM/yyyy HH:mm' }}</small>
             }
-          </li>
-        }
-      </ul>
+          </div>
+          <p class="motivo-txt">
+            <strong>Motivo:</strong> {{ p.motivo_anulacion || 'Sin motivo registrado' }}
+          </p>
+          @if (p.usuario_anulacion) {
+            <small class="usuario-anula">
+              Anulado por: {{ p.usuario_anulacion.nombre_completo || p.usuario_anulacion.credencial }}
+            </small>
+          }
+        </div>
+      }
+
+      <!-- Mensaje cuando el pedido ya está finalizado -->
+      @if (p.estado_pedido === 'ENTREGADO' || p.estado_pedido === 'PAGADO') {
+        <div class="alerta alerta-info">
+          Este pedido se encuentra en estado <strong>{{ etiquetaEstado[p.estado_pedido] }}</strong> y ya no puede ser modificado.
+        </div>
+      }
+
+      <!-- =================================================================== -->
+      <!-- VISTA NORMAL: LISTA DE PRODUCTOS -->
+      <!-- =================================================================== -->
+      @if (!modoEdicion()) {
+        <section class="seccion-detalles">
+          <div class="seccion-header">
+            <h2>Productos solicitados</h2>
+            <span class="contador-items">{{ p.detalles.length }} {{ p.detalles.length === 1 ? 'producto' : 'productos' }}</span>
+          </div>
+
+          <div class="tabla-wrap">
+            <table class="tabla-productos">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th class="num">Cant.</th>
+                  <th class="num">Precio unitario</th>
+                  <th class="num">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (d of p.detalles; track d.id_detalle) {
+                  <tr>
+                    <td>
+                      <div class="prod-nombre">{{ d.item?.nombre ?? 'Producto #' + d.id_item }}</div>
+                      @if (d.notas_especiales) {
+                        <div class="prod-nota">Nota: {{ d.notas_especiales }}</div>
+                      }
+                      @if (d.promocion_aplicada) {
+                        <div class="prod-promo">Promo: {{ d.promocion_aplicada }}</div>
+                      }
+                      @if (d.id_comanda) {
+                        <div class="prod-comanda">Comanda #{{ d.id_comanda }}</div>
+                      }
+                    </td>
+                    <td class="num"><strong>x{{ d.cantidad }}</strong></td>
+                    <td class="num muted">{{ d.precio_unitario | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</td>
+                    <td class="num bold">{{ d.cantidad * d.precio_unitario | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Barra de Acciones del Pedido -->
+          <footer class="acciones-footer">
+            <div class="grupo-acciones-principales">
+              @if (p.estado_pedido === 'PENDIENTE') {
+                <button type="button" (click)="cambiarEstado('EN_PREPARACION')" [disabled]="isLoading()" class="btn btn-primario">
+                  {{ isLoading() ? 'Procesando…' : '👨‍🍳 Confirmar y Enviar a Cocina' }}
+                </button>
+              }
+
+              @if (p.estado_pedido === 'EN_PREPARACION') {
+                <button type="button" (click)="cambiarEstado('LISTO')" [disabled]="isLoading()" class="btn btn-primario">
+                  {{ isLoading() ? 'Procesando…' : '✔ Marcar como Listo' }}
+                </button>
+              }
+
+              @if (p.estado_pedido === 'LISTO') {
+                <button type="button" (click)="cambiarEstado('ENTREGADO')" [disabled]="isLoading()" class="btn btn-primario">
+                  {{ isLoading() ? 'Procesando…' : '📦 Marcar como Entregado' }}
+                </button>
+              }
+
+              <!-- HU-3.3 Acción de Modificar -->
+              @if (puedeModificar()) {
+                <button type="button" class="btn btn-secundario" (click)="iniciarEdicion()">
+                  ✏️ {{ p.estado_pedido === 'EN_PREPARACION' ? 'Adicionar productos' : 'Modificar pedido' }}
+                </button>
+              }
+
+              <!-- Ver / Reimprimir comanda -->
+              @if (p.estado_pedido !== 'PENDIENTE' && p.estado_pedido !== 'ANULADO') {
+                <button type="button" (click)="mostrarTicket.set(true)" class="btn btn-secundario">
+                  👁️ Ver Comanda
+                </button>
+                <button type="button" (click)="abrirConfirmacionReimpresion()" [disabled]="isPrinting()" class="btn btn-primario">
+                  {{ isPrinting() ? 'Enviando…' : '🖨️ Reimprimir Comanda' }}
+                </button>
+              }
+            </div>
+
+            <!-- HU-3.6 Acción de Anular (Solo Administrador y Cajero) -->
+            @if (puedeAnular()) {
+              <div class="grupo-acciones-destructivas">
+                <button type="button" class="btn btn-peligro" (click)="abrirModalAnulacion()">
+                  🚫 Anular Pedido
+                </button>
+              </div>
+            }
+          </footer>
+        </section>
+
+      } @else {
+        <!-- ================================================================= -->
+        <!-- HU-3.3 VISTA DE EDICIÓN: MODIFICAR PRODUCTOS Y ADICIONAR          -->
+        <!-- ================================================================= -->
+        <section class="seccion-edicion">
+          <div class="edicion-banner">
+            <div>
+              <h3>Modificando Pedido #{{ p.id_pedido }}</h3>
+              <p class="muted">
+                {{ p.estado_pedido === 'EN_PREPARACION'
+                  ? 'En preparación: Puede adicionar nuevos productos o aumentar cantidades. Los productos ya enviados a cocina no pueden ser reducidos ni eliminados.'
+                  : 'Ajuste las cantidades, notas o elimine productos según sea necesario.'
+                }}
+              </p>
+            </div>
+            <div class="edicion-total">
+              <small>Total recalculado</small>
+              <strong>{{ totalEdicion() | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+            </div>
+          </div>
+
+          <!-- Tabla de productos en edición -->
+          <div class="tabla-wrap">
+            <table class="tabla-edicion">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th class="centro">Cantidad</th>
+                  <th class="num">Precio</th>
+                  <th class="num">Subtotal</th>
+                  <th class="centro">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (linea of lineasEdicion(); track linea.id_item) {
+                  <tr [class.fila-bloqueada]="linea.enviadoCocina">
+                    <td>
+                      <div class="bold">{{ linea.nombre }}</div>
+                      @if (linea.enviadoCocina) {
+                        <span class="badge badge-cocina">En cocina (mín. {{ linea.cantidadOriginal }})</span>
+                      }
+                      <input
+                        type="text"
+                        class="campo-nota"
+                        placeholder="Nota especial (ej. Sin cebolla, término medio…)"
+                        [ngModel]="linea.notas_especiales"
+                        (ngModelChange)="linea.notas_especiales = $event"
+                      />
+                    </td>
+                    <td class="centro">
+                      <div class="control-cantidad">
+                        <button
+                          type="button"
+                          class="btn-circulo"
+                          [disabled]="p.estado_pedido === 'EN_PREPARACION' && linea.enviadoCocina && linea.cantidad <= linea.cantidadOriginal"
+                          (click)="cambiarCantidadLinea(linea, -1)"
+                        >
+                          −
+                        </button>
+                        <span class="cant-num">{{ linea.cantidad }}</span>
+                        <button
+                          type="button"
+                          class="btn-circulo"
+                          [disabled]="linea.cantidad >= linea.cantidad_stock"
+                          (click)="cambiarCantidadLinea(linea, 1)"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <small class="muted">{{ linea.cantidad_stock }} disponibles</small>
+                    </td>
+                    <td class="num">{{ linea.precio_unitario | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</td>
+                    <td class="num bold">{{ linea.cantidad * linea.precio_unitario | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</td>
+                    <td class="centro">
+                      @if (p.estado_pedido === 'PENDIENTE' || !linea.enviadoCocina) {
+                        <button type="button" class="btn-eliminar" title="Eliminar producto" (click)="eliminarLinea(linea)">
+                          🗑
+                        </button>
+                      } @else {
+                        <span class="muted" title="Ya enviado a cocina">—</span>
+                      }
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="centro muted">No hay productos en el pedido. Agregue al menos uno desde el catálogo abajo.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Selector de productos del catálogo para adicionar -->
+          <div class="adicionar-catalogo">
+            <h4>Adicionar productos del catálogo</h4>
+            <div class="buscador-wrap">
+              <input
+                type="search"
+                class="buscar-input"
+                placeholder="Buscar producto por nombre para adicionar…"
+                [ngModel]="busquedaCatalogo()"
+                (ngModelChange)="busquedaCatalogo.set($event)"
+              />
+            </div>
+
+            <div class="grid-productos-catalogo">
+              @for (prod of productosFiltrados(); track prod.id_item) {
+                <div class="item-catalogo-card" [class.agotado]="prod.cantidad_stock <= 0">
+                  <div class="item-info">
+                    <strong>{{ prod.nombre }}</strong>
+                    <div class="item-meta">
+                      <span>{{ prod.precio_venta | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+                      <small class="muted">{{ prod.cantidad_stock }} en stock</small>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-secundario"
+                    [disabled]="prod.cantidad_stock <= 0"
+                    (click)="adicionarProducto(prod)"
+                  >
+                    + Agregar
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Botones de guardar / cancelar edición -->
+          <div class="acciones-edicion-footer">
+            <button type="button" class="btn btn-secundario" [disabled]="guardandoEdicion()" (click)="cancelarEdicion()">
+              Cancelar edición
+            </button>
+            <button
+              type="button"
+              class="btn btn-primario"
+              [disabled]="guardandoEdicion() || lineasEdicion().length === 0"
+              (click)="guardarModificacion()"
+            >
+              {{ guardandoEdicion() ? 'Guardando cambios…' : '💾 Guardar Cambios' }}
+            </button>
+          </div>
+        </section>
+      }
     </div>
 
-    <div class="pedido-acciones">
-      @if (p.estado_pedido === 'PENDIENTE') {
-        <button (click)="cambiarEstado('EN_PREPARACION')" [disabled]="isLoading()" class="btn btn-primario">
-          {{ isLoading() ? 'Procesando...' : 'Confirmar y Enviar a Cocina' }}
-        </button>
-      }
-
-      @if (p.estado_pedido === 'EN_PREPARACION') {
-        <button (click)="cambiarEstado('LISTO')" [disabled]="isLoading()" class="btn btn-secundario">
-          {{ isLoading() ? 'Procesando...' : 'Marcar como Listo' }}
-        </button>
-      }
-
-      @if (p.estado_pedido === 'LISTO') {
-        <button (click)="cambiarEstado('ENTREGADO')" [disabled]="isLoading()" class="btn btn-secundario">
-          {{ isLoading() ? 'Procesando...' : 'Marcar como Entregado' }}
-        </button>
-      }
-
-      @if (p.estado_pedido === 'EN_PREPARACION' || p.estado_pedido === 'LISTO' || p.estado_pedido === 'ENTREGADO') {
-        <button (click)="mostrarTicket.set(true)" class="btn btn-secundario" style="margin-left: auto; border-color: #6b1f22; color: #6b1f22;">
-          👁️ Ver Comanda
-        </button>
-        <button (click)="abrirConfirmacionReimpresion()" [disabled]="isPrinting()" class="btn btn-primario" style="background: #6b1f22;">
-          {{ isPrinting() ? 'Enviando...' : '🖨️ Reimprimir Comanda' }}
-        </button>
-      }
-    </div>
-
-    <!-- Modal con el ticket de cocina -->
-    <app-ticket-comanda 
-      [pedido]="p" 
-      [visible]="mostrarTicket()" 
+    <!-- Modal de Comanda Térmica -->
+    <app-ticket-comanda
+      [pedido]="p"
+      [visible]="mostrarTicket()"
+      [titulo]="tituloTicket()"
+      [itemsAdicionales]="itemsAdicionalesTicket()"
       [imprimiendo]="isPrinting()"
-      (cerrar)="mostrarTicket.set(false)" 
+      (cerrar)="mostrarTicket.set(false)"
       (reimprimir)="abrirConfirmacionReimpresion()"
     />
 
-    <!-- Modal de confirmación con la paleta de colores de NexoFood / Chori Company -->
+    <!-- Modal de confirmación de reimpresión (Electron / Impresora física) -->
     @if (mostrarConfirmacion()) {
       <div class="modal-confirm-overlay" (click)="cancelarConfirmacion()">
         <div class="modal-confirm-card" (click)="$event.stopPropagation()">
@@ -80,13 +327,66 @@
               Cancelar
             </button>
             <button type="button" class="btn btn-primario" [disabled]="isPrinting()" (click)="ejecutarReimpresion()">
-              {{ isPrinting() ? 'Enviando...' : 'Sí, reimprimir' }}
+              {{ isPrinting() ? 'Enviando…' : 'Sí, reimprimir' }}
             </button>
           </div>
         </div>
       </div>
     }
+
+    <!-- ===================================================================== -->
+    <!-- HU-3.6 MODAL DE CONFIRMACIÓN DE ANULACIÓN (SOLO ADMIN Y CAJERO)       -->
+    <!-- ===================================================================== -->
+    @if (mostrarModalAnular()) {
+      <div class="modal-overlay">
+        <div class="modal-contenido modal-anular" role="dialog" aria-labelledby="titulo-anular">
+          <header class="modal-header">
+            <h3 id="titulo-anular">¿Anular Pedido #{{ p.id_pedido }}?</h3>
+            <button type="button" class="btn-cerrar-modal" [disabled]="anulando()" (click)="cerrarModalAnulacion()">×</button>
+          </header>
+
+          <div class="modal-cuerpo">
+            <p class="alerta-destructiva">
+              ⚠ Esta operación cambiará el estado del pedido a <strong>ANULADO</strong> y liberará la mesa asociada.
+              Esta acción no se puede deshacer.
+            </p>
+
+            <div class="campo">
+              <label for="motivo-anulacion">Motivo de la anulación <span class="obligatorio">*</span></label>
+              <textarea
+                id="motivo-anulacion"
+                rows="3"
+                placeholder="Describa la razón por la que se anula el pedido (mínimo 5 caracteres)…"
+                [ngModel]="motivoAnulacion()"
+                (ngModelChange)="motivoAnulacion.set($event); errorMotivo.set(null)"
+                [disabled]="anulando()"
+              ></textarea>
+              @if (errorMotivo()) {
+                <small class="error-txt">{{ errorMotivo() }}</small>
+              }
+            </div>
+          </div>
+
+          <footer class="modal-footer">
+            <button type="button" class="btn btn-secundario" [disabled]="anulando()" (click)="cerrarModalAnulacion()">
+              Cancelar
+            </button>
+            <button
+              type="button"
+              class="btn btn-peligro"
+              [disabled]="anulando() || !motivoAnulacion().trim()"
+              (click)="confirmarAnulacion()"
+            >
+              {{ anulando() ? 'Anulando pedido…' : 'Confirmar Anulación' }}
+            </button>
+          </footer>
+        </div>
+      </div>
+    }
   </div>
 } @else {
-  <div class="loading">Cargando pedido...</div>
+  <div class="pantalla-cargando">
+    <p class="muted centro">No se encontró el pedido o fue eliminado.</p>
+    <a routerLink="/ventas/mesas" class="btn btn-secundario">Ir a Mesas</a>
+  </div>
 }

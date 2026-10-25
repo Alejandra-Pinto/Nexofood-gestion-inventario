@@ -3,7 +3,8 @@ import { Injectable, inject } from '@angular/core';
 import { map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
-  CrearPedido, EstadoPedido, MesaResumen, normalizarPedido,
+  AnularPedido,
+  CrearPedido, EstadoPedido, MesaResumen, ModificarPedido, normalizarPedido,
   Pedido, RegistrarPago, ResultadoPago,
 } from '../models/pedido.model';
 
@@ -37,7 +38,17 @@ export class PedidosService {
     );
   }
 
-  // --- NUESTRO MÉTODO (HU-3.4) ---
+  // --- HU-3.3 MODIFICAR PEDIDO ---
+  modificar(id: number, dto: ModificarPedido) {
+    return this.http.patch<Pedido>(`${this.api}/${id}`, dto).pipe(map(normalizarPedido));
+  }
+
+  // --- HU-3.6 ANULAR PEDIDO ---
+  anular(id: number, dto: AnularPedido) {
+    return this.http.post<Pedido>(`${this.api}/${id}/anular`, dto).pipe(map(normalizarPedido));
+  }
+
+  // --- MÁQUINA DE ESTADOS (HU-3.4) ---
   cambiarEstado(id: number, nuevoEstado: EstadoPedido) {
     return this.http.patch<Pedido>(`${this.api}/${id}/estado`, {
       estado_pedido: nuevoEstado,

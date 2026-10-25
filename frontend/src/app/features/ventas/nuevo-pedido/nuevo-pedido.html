@@ -35,8 +35,11 @@
             </li>
           }
         </ul>
-        <div class="alerta alerta-info">
-          Esta mesa ya tiene un pedido enviado a caja. Para agregar productos use "Modificar pedido".
+        <div class="alerta alerta-info" style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
+          <span>Esta mesa ya tiene un pedido activo ({{ etiquetaEstado[p.estado_pedido] }}). Para modificar productos o gestionar el pedido:</span>
+          <a [routerLink]="['/pedidos', p.id_pedido]" class="btn btn-primario" style="align-self: flex-start; text-decoration: none;">
+            Ver / Modificar Pedido #{{ p.id_pedido }}
+          </a>
         </div>
       } @else {
         <!-- Pedido en construcción -->

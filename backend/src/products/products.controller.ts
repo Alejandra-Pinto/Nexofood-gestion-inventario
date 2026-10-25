@@ -13,13 +13,19 @@
  *
  * Implementar creación de ítem e inicialización de stock
  */
-import { Body, Controller, Get, Param, ParseEnumPipe, ParseIntPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseEnumPipe, ParseIntPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateItemDto } from './dto/create-item.dto';
 import { TipoItem } from './entities/item-inventario.entity';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolUsuario } from '../users/entities/user.entity';
 
 // @Controller() sin prefijo para poder exponer /products y /categories
 @Controller()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(RolUsuario.ADMINISTRADOR, RolUsuario.CAJERO, RolUsuario.MESERO)
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
@@ -43,9 +49,10 @@ export class ProductsController {
   /**
    * POST /products  -> HU-2.1 registrar producto o insumo
    * El body se valida automáticamente con CreateItemDto (ver main.ts -> ValidationPipe).
-   * Responde 201 con el ítem creado.
+   * Solo el Administrador puede crear productos e insumos.
    */
   @Post('products')
+  @Roles(RolUsuario.ADMINISTRADOR)
   create(@Body() dto: CreateItemDto) {
     return this.productsService.create(dto);
   }

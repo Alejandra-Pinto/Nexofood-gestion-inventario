@@ -61,6 +61,10 @@ export class MisMesas {
   }
 
   protected abrir(m: MesaResumen): void {
-    this.router.navigate(['/ventas/mesa', m.numero]);
+    if (m.id_pedido) {
+      this.router.navigate(['/pedidos', m.id_pedido]);
+    } else {
+      this.router.navigate(['/ventas/mesa', m.numero]);
+    }
   }
 }

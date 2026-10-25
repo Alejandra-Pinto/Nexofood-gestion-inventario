@@ -1,8 +1,13 @@
 .encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
   padding: 22px 32px;
   background: var(--superficie);
   border-bottom: 1px solid var(--borde);
   h1 { font-size: 1.5rem; }
+  .btn { text-decoration: none; white-space: nowrap; }
 }
 .subtitulo { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
 .pagina { display: flex; flex-direction: column; gap: 20px; padding: 24px 32px; }

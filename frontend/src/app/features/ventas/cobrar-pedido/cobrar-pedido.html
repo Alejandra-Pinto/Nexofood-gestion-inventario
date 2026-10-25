@@ -69,7 +69,12 @@
       </div>
     } @else {
       @let p = seleccionado()!;
-      <h2>Pedido #{{ p.id_pedido }} · {{ p.numero_mesa ? 'Mesa ' + p.numero_mesa : 'Para llevar' }}</h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
+        <h2 style="margin: 0;">Pedido #{{ p.id_pedido }} · {{ p.numero_mesa ? 'Mesa ' + p.numero_mesa : 'Para llevar' }}</h2>
+        <a [routerLink]="['/pedidos', p.id_pedido]" class="btn btn-secundario btn-sm" style="text-decoration: none; font-size: 13px;">
+          Ver / Modificar / Anular pedido ↗
+        </a>
+      </div>
 
       <!-- Resumen del pedido -->
       <ul class="detalle">

@@ -46,6 +46,19 @@ export class Pedido {
   @Column({ type: 'integer', name: 'total_calculado', default: 0 })
   total_calculado: number;
 
+  @Column({ type: 'text', name: 'motivo_anulacion', nullable: true })
+  motivo_anulacion?: string | null;
+
+  @Column({ type: 'integer', name: 'id_usuario_anulacion', nullable: true })
+  id_usuario_anulacion?: number | null;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'id_usuario_anulacion' })
+  usuario_anulacion?: User;
+
+  @Column({ type: 'timestamptz', name: 'fecha_anulacion', nullable: true })
+  fecha_anulacion?: Date | null;
+
   @OneToMany(() => DetallePedido, (d) => d.pedido)
   detalles: DetallePedido[];
 }

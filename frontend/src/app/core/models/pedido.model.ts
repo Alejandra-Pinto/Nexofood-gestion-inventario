@@ -31,6 +31,7 @@ export interface DetallePedido {
   precio_unitario: number;
   notas_especiales: string | null;
   promocion_aplicada: string | null;
+  id_comanda?: number | null;
   item?: ItemInventario;
 }
 
@@ -43,13 +44,34 @@ export interface Pedido {
   estado_pedido: EstadoPedido;
   total_calculado: number;
   detalles: DetallePedido[];
-  mesero?: { nombre: string }; // Agregado para nuestro ticket
+  mesero?: { nombre?: string; nombre_completo?: string };
+  motivo_anulacion?: string | null;
+  id_usuario_anulacion?: number | null;
+  usuario_anulacion?: { nombre_completo?: string; credencial?: string };
+  fecha_anulacion?: string | null;
 }
 
 /** Lo que se envía al registrar un pedido (POST /orders) */
 export interface CrearPedido {
   numero_mesa?: number;
   detalles: { id_item: number; cantidad: number }[];
+}
+
+/** HU-3.3: Modificar pedido existente */
+export interface ModificarDetallePedido {
+  id_item: number;
+  cantidad: number;
+  notas_especiales?: string;
+  promocion_aplicada?: string;
+}
+
+export interface ModificarPedido {
+  detalles: ModificarDetallePedido[];
+}
+
+/** HU-3.6: Anular pedido */
+export interface AnularPedido {
+  motivo: string;
 }
 
 // ---------- Mesas (prototipo "Mis mesas") ----------
