@@ -4,6 +4,7 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { ItemInventario } from '../../products/entities/item-inventario.entity';
 import { Pedido } from './pedido.entity';
+import { Comanda } from '../../kitchen/entities/comanda.entity';
 
 // CORREGIDO: La tabla en Supabase se llama 'detalles_pedido'
 @Entity({ name: 'detalles_pedido', synchronize: false })
@@ -36,4 +37,11 @@ export class DetallePedido {
 
   @Column({ type: 'varchar', length: 100, name: 'promocion_aplicada', nullable: true })
   promocion_aplicada: string | null;
+
+  @Column({ type: 'integer', name: 'id_comanda', nullable: true })
+  id_comanda?: number | null;
+
+  @ManyToOne(() => Comanda, { nullable: true })
+  @JoinColumn({ name: 'id_comanda' })
+  comanda?: Comanda;
 }

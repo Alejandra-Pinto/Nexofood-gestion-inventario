@@ -17,6 +17,8 @@ import { ItemForm } from '../item-form/item-form';
 import { StockBadge } from '../../../shared/components/stock-badge/stock-badge';
 import { nivelStock } from '../../../core/models/item-inventario.model';
 
+import { AuthService } from '../../../core/services/auth.service';
+
 /** Opciones del filtro por tipo ('' = todos) */
 type FiltroTipo = TipoItem | '';
 
@@ -28,6 +30,10 @@ type FiltroTipo = TipoItem | '';
 })
 export class ItemsLista {
   private service = inject(InventarioService);
+  private auth = inject(AuthService);
+
+  // Permisos: solo el Administrador puede registrar o editar ítems
+  protected readonly esAdmin = computed(() => this.auth.usuarioActual()?.rol === 'Administrador');
 
   // Datos traídos del backend
   protected items = signal<ItemInventario[]>([]);

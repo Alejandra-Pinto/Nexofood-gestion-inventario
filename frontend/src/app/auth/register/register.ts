@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractContro
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-register',
@@ -16,6 +17,7 @@ export class RegisterComponent {
   private fb = inject(FormBuilder);
   private http = inject(HttpClient);
   private router = inject(Router);
+  private auth = inject(AuthService);
   // Angular sin zone.js: hay que avisar que la vista cambió tras la respuesta HTTP
   private cdr = inject(ChangeDetectorRef);
 
@@ -52,7 +54,11 @@ export class RegisterComponent {
   }
 
   goBack() {
-    this.router.navigate(['/login']);
+    if (this.auth.estaAutenticado()) {
+      this.router.navigate(['/usuarios']);
+    } else {
+      this.router.navigate(['/login']);
+    }
   }
 
   onSubmit() {

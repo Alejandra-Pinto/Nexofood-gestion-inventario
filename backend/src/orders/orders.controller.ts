@@ -10,7 +10,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
-  Patch, // <-- Agregado para nuestro endpoint
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -19,7 +19,9 @@ import { OrdersService, ResultadoPago } from './orders.service';
 import { MesaResumen } from './mesas';
 import { RegistrarPagoDto } from './dto/registrar-pago.dto';
 import { CreatePedidoDto } from './dto/create-pedido.dto';
-import { UpdateEstadoDto } from './dto/update-estado.dto'; // <-- Nuestro DTO
+import { UpdateEstadoDto } from './dto/update-estado.dto';
+import { ModificarPedidoDto } from './dto/modificar-pedido.dto';
+import { AnularPedidoDto } from './dto/anular-pedido.dto';
 import { EstadoPedido, Pedido } from './entities/pedido.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -71,7 +73,33 @@ export class OrdersController {
   }
 
   // =========================================================================
-  // NUESTRA MÁQUINA DE ESTADOS (HU-3.4)
+  // HU-3.3 MODIFICAR PEDIDO (MESERO Y ADMINISTRADOR)
+  // =========================================================================
+  @Patch(':id')
+  @Roles(RolUsuario.ADMINISTRADOR, RolUsuario.MESERO)
+  modificar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ModificarPedidoDto,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ): Promise<Pedido> {
+    return this.ordersService.modificar(id, dto, usuario.id_usuario, usuario.rol as RolUsuario);
+  }
+
+  // =========================================================================
+  // HU-3.6 ANULAR PEDIDO (SOLO ADMINISTRADOR Y CAJERO)
+  // =========================================================================
+  @Post(':id/anular')
+  @Roles(RolUsuario.ADMINISTRADOR, RolUsuario.CAJERO)
+  anular(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AnularPedidoDto,
+    @CurrentUser() usuario: UsuarioAutenticado,
+  ): Promise<Pedido> {
+    return this.ordersService.anular(id, dto, usuario.id_usuario);
+  }
+
+  // =========================================================================
+  // MÁQUINA DE ESTADOS (HU-3.4)
   // =========================================================================
   @Patch(':id/estado')
   cambiarEstado(

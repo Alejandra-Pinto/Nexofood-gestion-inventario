@@ -18,10 +18,13 @@ import {
   Usuario,
 } from '../../../core/models/usuario.model';
 
+import { RouterLink } from '@angular/router';
+
 const MSJ_NO_EXISTE = 'El usuario seleccionado no existe o no está disponible. No se realizaron cambios.';
 
 @Component({
   selector: 'app-permisos-usuarios',
+  imports: [RouterLink],
   templateUrl: './permisos-usuarios.html',
   styleUrl: './permisos-usuarios.scss',
 })

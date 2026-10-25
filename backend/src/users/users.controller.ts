@@ -12,6 +12,8 @@ import { RolUsuario } from './entities/user.entity';
 import type { UsuarioAutenticado } from '../auth/strategies/jwt.strategy';
 
 @Controller('users')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(RolUsuario.ADMINISTRADOR)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -22,16 +24,12 @@ export class UsersController {
 
   /** GET /users -> lista para la pantalla de permisos (solo Administrador) */
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(RolUsuario.ADMINISTRADOR)
   findAll() {
     return this.usersService.findAll();
   }
 
   /** PATCH /users/:id/permisos -> HU-1.4 (solo Administrador) */
   @Patch(':id/permisos')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(RolUsuario.ADMINISTRADOR)
   updatePermisos(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePermisosDto,

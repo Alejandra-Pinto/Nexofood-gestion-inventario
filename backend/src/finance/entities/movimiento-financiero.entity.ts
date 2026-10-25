@@ -24,8 +24,8 @@ export enum MedioPago {
   TARJETA = 'TARJETA',
 }
 
-// synchronize: false -> la tabla se crea con backend/database/006_movimiento_financiero.sql
-@Entity({ name: 'movimiento_financiero', synchronize: false })
+// synchronize: false -> la tabla es movimientos_financieros
+@Entity({ name: 'movimientos_financieros', synchronize: false })
 export class MovimientoFinanciero {
   @PrimaryGeneratedColumn({ name: 'id_movimiento' })
   id_movimiento: number;

@@ -8,6 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, QueryFailedError, Repository } from 'typeorm';
 import { ItemInventario, TipoItem } from '../products/entities/item-inventario.entity';
 import { CANTIDAD_MAXIMA, CreatePedidoDto } from './dto/create-pedido.dto';
+import { ModificarPedidoDto } from './dto/modificar-pedido.dto';
+import { AnularPedidoDto } from './dto/anular-pedido.dto';
 import { DetallePedido } from './entities/detalle-pedido.entity';
 import { EstadoPedido, Pedido } from './entities/pedido.entity';
 import { ESTADOS_PEDIDO_ACTIVO, MesaResumen, TOTAL_MESAS } from './mesas';
@@ -15,6 +17,7 @@ import { RegistrarPagoDto } from './dto/registrar-pago.dto';
 import { MedioPago, MovimientoFinanciero, TipoMovimientoFinanciero } from '../finance/entities/movimiento-financiero.entity';
 import { UpdateEstadoDto } from './dto/update-estado.dto';
 import { Comanda } from '../kitchen/entities/comanda.entity';
+import { RolUsuario } from '../users/entities/user.entity';
 
 export interface ResultadoPago {
   pedido: Pedido;
@@ -77,14 +80,22 @@ export class OrdersService {
         }),
       );
 
-      await manager.save(detalles.map((d) => manager.create(DetallePedido, { ...d, id_pedido: pedido.id_pedido })));
-
-      // --- AQUÍ SE GENERA LA COMANDA AUTOMÁTICAMENTE AL CREAR EL PEDIDO ---
+      // Comanda inicial generada con el pedido
       const nuevaComanda = manager.create(Comanda, {
         id_pedido: pedido.id_pedido,
+        estado_impresion: 'PENDIENTE',
       });
-      await manager.save(nuevaComanda);
-      // --------------------------------------------------------------------
+      const comandaGuardada = await manager.save(nuevaComanda);
+
+      await manager.save(
+        detalles.map((d) =>
+          manager.create(DetallePedido, {
+            ...d,
+            id_pedido: pedido.id_pedido,
+            id_comanda: comandaGuardada.id_comanda,
+          }),
+        ),
+      );
 
       return pedido.id_pedido;
     }).catch((e: unknown) => {
@@ -157,7 +168,7 @@ export class OrdersService {
   listar(estado?: EstadoPedido): Promise<Pedido[]> {
     return this.pedidosRepo.find({
       where: estado ? { estado_pedido: estado } : {},
-      relations: { detalles: { item: true } },
+      relations: { detalles: { item: true }, mesero: true, usuario_anulacion: true },
       order: { fecha_hora: 'DESC' },
       take: 100,
     });
@@ -166,13 +177,278 @@ export class OrdersService {
   async buscarPorId(id: number): Promise<Pedido> {
     const pedido = await this.pedidosRepo.findOne({
       where: { id_pedido: id },
-      relations: { detalles: { item: true }, mesero: true }, 
+      relations: {
+        detalles: { item: true },
+        mesero: true,
+        usuario_anulacion: true,
+      },
     });
     if (!pedido) throw new NotFoundException(`El pedido #${id} no existe`);
     return pedido;
   }
 
-  // --- MÁQUINA DE ESTADOS (AHORA SIN GENERAR COMANDA, SOLO CAMBIA ESTADO) ---
+  // =========================================================================
+  // HU-3.3 MODIFICACIÓN DE PEDIDO EXISTENTE
+  // =========================================================================
+  async modificar(
+    idPedido: number,
+    dto: ModificarPedidoDto,
+    _idUsuario: number,
+    _rolUsuario: RolUsuario,
+  ): Promise<Pedido> {
+    if (!dto?.detalles?.length) {
+      throw new BadRequestException('El pedido debe tener al menos un producto');
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      const pedido = await manager.findOne(Pedido, {
+        where: { id_pedido: idPedido },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!pedido) {
+        throw new NotFoundException(`El pedido #${idPedido} no existe`);
+      }
+
+      pedido.detalles = await manager.find(DetallePedido, {
+        where: { id_pedido: idPedido },
+        relations: { item: true },
+        order: { id_detalle: 'ASC' },
+      });
+
+      if (pedido.estado_pedido === EstadoPedido.PAGADO || pedido.estado_pedido === EstadoPedido.ENTREGADO) {
+        throw new BadRequestException(
+          `El pedido #${idPedido} se encuentra en estado ${pedido.estado_pedido} y ya no puede modificarse.`,
+        );
+      }
+
+      if (pedido.estado_pedido === EstadoPedido.ANULADO) {
+        throw new BadRequestException(`El pedido #${idPedido} está anulado y no admite modificaciones.`);
+      }
+
+      if (pedido.estado_pedido === EstadoPedido.LISTO) {
+        throw new BadRequestException(`El pedido #${idPedido} está listo para entrega y no puede modificarse.`);
+      }
+
+      // Validar y agrupar detalles solicitados
+      const lineasSolicitadas = new Map<number, { cantidad: number; notas_especiales?: string; promocion_aplicada?: string }>();
+      for (const d of dto.detalles) {
+        if (!Number.isInteger(d.cantidad) || d.cantidad <= 0) {
+          throw new BadRequestException('La cantidad debe ser un número entero mayor a 0');
+        }
+        const actual = lineasSolicitadas.get(d.id_item);
+        const nuevaCant = (actual?.cantidad ?? 0) + d.cantidad;
+        if (nuevaCant > CANTIDAD_MAXIMA) {
+          throw new BadRequestException(`La cantidad máxima por producto es ${CANTIDAD_MAXIMA}`);
+        }
+        lineasSolicitadas.set(d.id_item, {
+          cantidad: nuevaCant,
+          notas_especiales: d.notas_especiales ?? actual?.notas_especiales,
+          promocion_aplicada: d.promocion_aplicada ?? actual?.promocion_aplicada,
+        });
+      }
+
+      const idsItems = Array.from(lineasSolicitadas.keys());
+      const productos = await manager.find(ItemInventario, {
+        where: { id_item: In(idsItems) },
+        lock: { mode: 'pessimistic_read' },
+      });
+
+      for (const [idItem, l] of lineasSolicitadas) {
+        const prod = productos.find((p) => p.id_item === idItem);
+        if (!prod) throw new NotFoundException(`El producto con id ${idItem} no existe`);
+        if (prod.tipo_item !== TipoItem.PRODUCTO) {
+          throw new BadRequestException(`"${prod.nombre}" es un insumo y no se puede vender en un pedido`);
+        }
+        if (!prod.estado_activo) {
+          throw new BadRequestException(`"${prod.nombre}" no está disponible`);
+        }
+        if (prod.cantidad_stock < l.cantidad) {
+          throw new BadRequestException(
+            `Stock insuficiente para "${prod.nombre}". Disponible: ${prod.cantidad_stock}, solicitado: ${l.cantidad}`,
+          );
+        }
+      }
+
+      if (pedido.estado_pedido === EstadoPedido.PENDIENTE) {
+        // En PENDIENTE: modificación completa (agregar, editar cantidades/notas, eliminar)
+        const idsAEliminar = pedido.detalles
+          .filter((d) => !lineasSolicitadas.has(d.id_item))
+          .map((d) => d.id_detalle);
+
+        if (idsAEliminar.length > 0) {
+          await manager.delete(DetallePedido, { id_detalle: In(idsAEliminar) });
+        }
+
+        let totalCalculado = 0;
+
+        for (const [idItem, l] of lineasSolicitadas) {
+          const prod = productos.find((p) => p.id_item === idItem)!;
+          const detalleExistente = pedido.detalles.find((d) => d.id_item === idItem);
+          const precioUnitario = detalleExistente ? detalleExistente.precio_unitario : prod.precio_venta;
+          totalCalculado += l.cantidad * precioUnitario;
+
+          if (detalleExistente) {
+            detalleExistente.cantidad = l.cantidad;
+            detalleExistente.notas_especiales = l.notas_especiales?.trim() || null;
+            detalleExistente.promocion_aplicada = l.promocion_aplicada?.trim() || null;
+            await manager.save(detalleExistente);
+          } else {
+            const nuevoDetalle = manager.create(DetallePedido, {
+              id_pedido: pedido.id_pedido,
+              id_item: idItem,
+              cantidad: l.cantidad,
+              precio_unitario: precioUnitario,
+              notas_especiales: l.notas_especiales?.trim() || null,
+              promocion_aplicada: l.promocion_aplicada?.trim() || null,
+            });
+            await manager.save(nuevoDetalle);
+          }
+        }
+
+        if (totalCalculado > INT_MAX) {
+          throw new BadRequestException('El total del pedido supera el máximo permitido');
+        }
+
+        pedido.total_calculado = totalCalculado;
+        await manager.save(pedido);
+
+      } else if (pedido.estado_pedido === EstadoPedido.EN_PREPARACION) {
+        // En EN_PREPARACION: solo adición de productos o aumento de cantidad.
+        // No se permite eliminar ni reducir ítems ya enviados a cocina.
+        const existenciasPorItem = new Map<number, number>();
+        for (const d of pedido.detalles) {
+          existenciasPorItem.set(d.id_item, (existenciasPorItem.get(d.id_item) ?? 0) + Number(d.cantidad));
+        }
+
+        for (const [idItem, cantidadExistente] of existenciasPorItem) {
+          const nuevaLinea = lineasSolicitadas.get(idItem);
+          if (!nuevaLinea || nuevaLinea.cantidad < cantidadExistente) {
+            const prod = productos.find((p) => p.id_item === idItem);
+            throw new BadRequestException(
+              `El pedido está En preparación. No se pueden eliminar ni reducir productos ya enviados a cocina ("${prod?.nombre ?? idItem}").`,
+            );
+          }
+        }
+
+        const adicionesParaComanda: { id_item: number; cantidad: number; precio_unitario: number; notas?: string; promo?: string }[] = [];
+        let totalCalculado = 0;
+
+        for (const [idItem, l] of lineasSolicitadas) {
+          const prod = productos.find((p) => p.id_item === idItem)!;
+          const cantidadExistente = existenciasPorItem.get(idItem) ?? 0;
+          const cantidadAdicional = l.cantidad - cantidadExistente;
+
+          totalCalculado += l.cantidad * prod.precio_venta;
+
+          if (cantidadAdicional > 0) {
+            adicionesParaComanda.push({
+              id_item: idItem,
+              cantidad: cantidadAdicional,
+              precio_unitario: prod.precio_venta,
+              notas: l.notas_especiales,
+              promo: l.promocion_aplicada,
+            });
+          }
+        }
+
+        if (totalCalculado > INT_MAX) {
+          throw new BadRequestException('El total del pedido supera el máximo permitido');
+        }
+
+        pedido.total_calculado = totalCalculado;
+        await manager.save(pedido);
+
+        // Si hay productos recién agregados o cantidades incrementadas,
+        // generar comanda de adición para cocina con solo los ítems adicionales
+        if (adicionesParaComanda.length > 0) {
+          const comandaAdicion = await manager.save(
+            manager.create(Comanda, {
+              id_pedido: pedido.id_pedido,
+              estado_impresion: 'PENDIENTE',
+            }),
+          );
+
+          for (const adic of adicionesParaComanda) {
+            const nuevoDetalle = manager.create(DetallePedido, {
+              id_pedido: pedido.id_pedido,
+              id_item: adic.id_item,
+              cantidad: adic.cantidad,
+              precio_unitario: adic.precio_unitario,
+              notas_especiales: adic.notas?.trim() || null,
+              promocion_aplicada: adic.promo?.trim() || null,
+              id_comanda: comandaAdicion.id_comanda,
+            });
+            await manager.save(nuevoDetalle);
+          }
+        }
+      }
+    });
+
+    return this.buscarPorId(idPedido);
+  }
+
+  // =========================================================================
+  // HU-3.6 ANULACIÓN / CANCELACIÓN DE PEDIDO
+  // =========================================================================
+  async anular(
+    idPedido: number,
+    dto: AnularPedidoDto,
+    idUsuario: number,
+  ): Promise<Pedido> {
+    const motivoLimpio = dto.motivo?.trim();
+    if (!motivoLimpio) {
+      throw new BadRequestException('El motivo de anulación es obligatorio y no puede consistir únicamente de espacios.');
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      const pedido = await manager.findOne(Pedido, {
+        where: { id_pedido: idPedido },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!pedido) {
+        throw new NotFoundException(`El pedido #${idPedido} no existe`);
+      }
+
+      if (pedido.estado_pedido === EstadoPedido.ANULADO) {
+        throw new BadRequestException(`El pedido #${idPedido} ya se encuentra anulado.`);
+      }
+
+      if (pedido.estado_pedido === EstadoPedido.PAGADO) {
+        throw new BadRequestException(
+          `El pedido #${idPedido} ya fue pagado. La anulación ordinaria está bloqueada para preservar la integridad de los movimientos financieros.`,
+        );
+      }
+
+      const pagoExistente = await manager.findOne(MovimientoFinanciero, {
+        where: { id_pedido: idPedido, tipo_movimiento: TipoMovimientoFinanciero.INGRESO },
+      });
+      if (pagoExistente) {
+        throw new BadRequestException(
+          `El pedido #${idPedido} tiene movimientos de pago registrados y no admite anulación ordinaria.`,
+        );
+      }
+
+      const ahora = new Date();
+      pedido.estado_pedido = EstadoPedido.ANULADO;
+      pedido.motivo_anulacion = motivoLimpio;
+      pedido.id_usuario_anulacion = idUsuario;
+      pedido.fecha_anulacion = ahora;
+      await manager.save(pedido);
+
+      await manager.query(
+        `INSERT INTO pedidos_anulaciones (id_pedido, id_usuario, motivo, fecha_hora)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (id_pedido) DO NOTHING`,
+        [idPedido, idUsuario, motivoLimpio, ahora],
+      );
+    });
+
+    return this.buscarPorId(idPedido);
+  }
+
+  // --- MÁQUINA DE ESTADOS ---
   async cambiarEstado(id_pedido: number, dto: UpdateEstadoDto): Promise<Pedido> {
     await this.dataSource.transaction(async (manager) => {
       const pedido = await manager.findOne(Pedido, {
@@ -195,9 +471,9 @@ export class OrdersService {
     if (estadoActual === nuevoEstado) return;
 
     const transicionesValidas: Record<EstadoPedido, EstadoPedido[]> = {
-      [EstadoPedido.PENDIENTE]: [EstadoPedido.PAGADO, EstadoPedido.ANULADO],
+      [EstadoPedido.PENDIENTE]: [EstadoPedido.EN_PREPARACION, EstadoPedido.PAGADO, EstadoPedido.ANULADO],
       [EstadoPedido.EN_PREPARACION]: [EstadoPedido.LISTO, EstadoPedido.ANULADO],
-      [EstadoPedido.LISTO]: [EstadoPedido.ENTREGADO],
+      [EstadoPedido.LISTO]: [EstadoPedido.ENTREGADO, EstadoPedido.ANULADO],
       [EstadoPedido.ENTREGADO]: [EstadoPedido.PAGADO],
       [EstadoPedido.PAGADO]: [], 
       [EstadoPedido.ANULADO]: [], 

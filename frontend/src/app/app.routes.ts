@@ -1,11 +1,12 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './auth/login/login';
 import { RegisterComponent } from './auth/register/register';
-import { authGuard, guestGuard } from './core/guards/auth.guard';
+import { adminGuard, authGuard, guestGuard, permisoGuard, rolGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent, canActivate: [guestGuard] },
-  { path: 'register', component: RegisterComponent, canActivate: [guestGuard] },
+  // HU-1.1 y Sección 5.2: Registro exclusivo para Administrador autenticado
+  { path: 'register', component: RegisterComponent, canActivate: [adminGuard] },
 
   // Pantallas internas: usan el diseño con menú lateral.
   {
@@ -17,7 +18,7 @@ export const routes: Routes = [
       { path: '', redirectTo: 'productos', pathMatch: 'full' },
 
       {
-        // HU-2.1 Registrar insumos y productos en inventario
+        // HU-2.1 Catálogo de productos e insumos (consulta permitida a roles autorizados)
         path: 'productos',
         loadComponent: () =>
           import('./features/productos/items-lista/items-lista').then(
@@ -25,9 +26,9 @@ export const routes: Routes = [
           ),
       },
       {
-        // Módulo Inventario: /inventario abre Ingresos; el menú lateral queda
-        // activo en cualquiera de sus pantallas.
+        // Módulo Inventario: solo usuarios con permiso o Administrador
         path: 'inventario',
+        canActivate: [permisoGuard('inventario')],
         children: [
           { path: '', redirectTo: 'ingresos', pathMatch: 'full' },
           {
@@ -49,8 +50,9 @@ export const routes: Routes = [
         ],
       },
       {
-        // Módulo Ventas: /ventas abre "Mis mesas"
+        // Módulo Ventas: solo usuarios con permiso ventas o Administrador
         path: 'ventas',
+        canActivate: [permisoGuard('ventas')],
         children: [
           { path: '', redirectTo: 'mesas', pathMatch: 'full' },
           {
@@ -76,8 +78,9 @@ export const routes: Routes = [
               ),
           },
           {
-            // HU-3.5 Registrar método de pago
+            // HU-3.5 Registrar método de pago (solo Cajero o Administrador)
             path: 'cobrar',
+            canActivate: [rolGuard(['Administrador', 'Cajero'])],
             loadComponent: () =>
               import('./features/ventas/cobrar-pedido/cobrar-pedido').then(
                 (m) => m.CobrarPedido,
@@ -86,15 +89,16 @@ export const routes: Routes = [
         ],
       },
       {
-        // HU-1.4 Modificar permisos de usuarios
+        // HU-1.4 Modificar permisos de usuarios (exclusivo Administrador)
         path: 'usuarios',
+        canActivate: [adminGuard],
         loadComponent: () =>
           import('./features/usuarios/permisos-usuarios/permisos-usuarios').then(
             (m) => m.PermisosUsuarios,
           ),
       },
       {
-        // HU-3.4 y HU-4.1 Detalle del pedido y generación de comanda
+        // HU-3.3, HU-3.4, HU-3.6 Detalle, modificación y anulación del pedido
         path: 'pedidos/:id',
         loadComponent: () =>
           import('./features/pedidos/pedido-detalle/pedido-detalle').then(
