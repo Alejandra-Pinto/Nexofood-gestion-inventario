@@ -27,8 +27,10 @@
     </div>
     
     <div class="acciones no-print">
-      <button class="btn-cerrar" (click)="cerrarModal()">Cerrar</button>
-      <button class="btn-imprimir" (click)="imprimir()">Imprimir Comanda</button>
+      <button class="btn-cerrar" [disabled]="imprimiendo" (click)="cerrarModal()">Cerrar</button>
+      <button class="btn-imprimir" [disabled]="imprimiendo" (click)="solicitarReimpresion()">
+        {{ imprimiendo ? 'Enviando a impresora...' : 'Imprimir Comanda' }}
+      </button>
     </div>
   </div>
 }

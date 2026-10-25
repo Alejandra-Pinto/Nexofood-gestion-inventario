@@ -12,15 +12,19 @@ import { Pedido } from '../../../core/models/pedido.model';
 export class TicketComandaComponent {
   @Input() pedido!: Pedido;
   @Input() visible: boolean = false;
+  @Input() imprimiendo: boolean = false;
   
   // Evento para avisarle al padre que se debe cerrar
   @Output() cerrar = new EventEmitter<void>();
 
-  imprimir() {
-    window.print(); 
+  // Evento para solicitar la reimpresión silenciosa a través de Electron
+  @Output() reimprimir = new EventEmitter<void>();
+
+  solicitarReimpresion() {
+    this.reimprimir.emit();
   }
 
   cerrarModal() {
-    this.cerrar.emit(); // Avisa al padre
+    this.cerrar.emit();
   }
 }
