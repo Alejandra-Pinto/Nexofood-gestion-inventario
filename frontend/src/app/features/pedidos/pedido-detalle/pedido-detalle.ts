@@ -1,8 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ActivatedRoute } from '@angular/router'; // <-- IMPORTANTE
+import { ActivatedRoute } from '@angular/router';
 import { PedidosService } from '../../../core/services/pedidos.service';
+import { KitchenService } from '../../../core/services/kitchen.service';
 import { Pedido, EstadoPedido } from '../../../core/models/pedido.model';
 import { ToastService } from '../../../core/services/toast.service';
 import { TicketComandaComponent } from '../ticket-comanda/ticket-comanda';
@@ -16,15 +17,17 @@ import { TicketComandaComponent } from '../ticket-comanda/ticket-comanda';
 })
 export class PedidoDetalleComponent implements OnInit {
   private pedidosService = inject(PedidosService);
+  private kitchenService = inject(KitchenService);
   private toastService = inject(ToastService);
-  private route = inject(ActivatedRoute); // <-- Inyectamos la ruta
+  private route = inject(ActivatedRoute);
 
   public pedido = signal<Pedido | null>(null);
   public isLoading = signal<boolean>(false);
+  public isPrinting = signal<boolean>(false);
   public mostrarTicket = signal<boolean>(false);
+  public mostrarConfirmacion = signal<boolean>(false);
 
   ngOnInit() {
-    // Leemos el ID dinámicamente de la URL
     this.route.paramMap.subscribe(params => {
       const id = Number(params.get('id'));
       if (id) {
@@ -62,6 +65,37 @@ export class PedidoDetalleComponent implements OnInit {
       error: (err: HttpErrorResponse) => {
         this.isLoading.set(false); 
         const mensaje = err.error?.message || 'Error al cambiar el estado';
+        this.toastService.error(mensaje);
+      }
+    });
+  }
+
+  abrirConfirmacionReimpresion() {
+    this.mostrarConfirmacion.set(true);
+  }
+
+  cancelarConfirmacion() {
+    this.mostrarConfirmacion.set(false);
+  }
+
+  /**
+   * Ejecuta la solicitud de reimpresión silenciosa en el backend una vez confirmada.
+   */
+  ejecutarReimpresion() {
+    const p = this.pedido();
+    if (!p) return;
+
+    this.mostrarConfirmacion.set(false);
+    this.isPrinting.set(true);
+
+    this.kitchenService.solicitarImpresion(p.id_pedido).subscribe({
+      next: () => {
+        this.isPrinting.set(false);
+        this.toastService.exito(`Comanda #${p.id_pedido} enviada a la impresora térmica.`);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.isPrinting.set(false);
+        const mensaje = err.error?.message || 'No se pudo enviar la comanda a la impresora.';
         this.toastService.error(mensaje);
       }
     });
