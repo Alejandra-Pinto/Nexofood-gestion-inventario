@@ -1,0 +1,13 @@
+{
+  "name": "nexofood-printer",
+  "version": "1.0.0",
+  "description": "Agente de impresión silenciosa de comandas para Chori Company (NexoFood)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^33.0.0"
+  }
+}
+
