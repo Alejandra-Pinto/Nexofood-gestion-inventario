@@ -1,0 +1,6 @@
+{
+  "URL_BACKEND": "http://localhost:3000",
+  "NOMBRE_IMPRESORA": "",
+  "ANCHO_TICKET": "72mm",
+  "INTERVALO_POLLING_MS": 4000
+}
