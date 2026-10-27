@@ -505,7 +505,7 @@ describe('IngresoForm', () => {
   // ======================================================================
   describe('errores del backend', () => {
     /** Envía un ingreso válido y hace que el servidor responda con el error indicado */
-    const enviarYFallar = async (cuerpo: unknown, status: number, statusText: string) => {
+    const enviarYFallar = async (cuerpo: any, status: number, statusText: string) => {
       const ctx = await crear();
       llenarCompra(ctx.cmp);
       ctx.cmp.registrar();

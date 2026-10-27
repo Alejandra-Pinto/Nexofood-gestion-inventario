@@ -7,6 +7,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { ItemsLista } from './items-lista';
 import { ItemInventario } from '../../../core/models/item-inventario.model';
 import { environment } from '../../../../environments/environment';
@@ -21,7 +22,7 @@ describe('ItemsLista', () => {
     { id_item: 2, id_categoria: 2, nombre: 'Chorizo artesanal', tipo_item: 'INSUMO', cantidad_stock: 3, stock_minimo: 10, costo_fabricacion: 3000, precio_venta: 0, estado_activo: true },
   ];
 
-  /** Crea la pantalla y responde las peticiones de ítems y categorías */
+  /** Crea la pantalla y responde las peticiones iniciales (GET /products y GET /categories) */
   const crear = async (lista: ItemInventario[]) => {
     const fixture = TestBed.createComponent(ItemsLista);
     http.expectOne(`${api}/products`).flush(lista);
@@ -34,15 +35,19 @@ describe('ItemsLista', () => {
     return { fixture, cmp: fixture.componentInstance as any, html: fixture.nativeElement as HTMLElement };
   };
 
-  beforeEach(() => {
-    TestBed.configureTestingModule({
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
       imports: [ItemsLista],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
-    });
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    }).compileComponents();
+
+    // Se obtiene después de configurar el módulo (nunca antes)
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http?.verify();
+  });
 
   it('muestra el estado vacío cuando no hay productos', async () => {
     const { html } = await crear([]);

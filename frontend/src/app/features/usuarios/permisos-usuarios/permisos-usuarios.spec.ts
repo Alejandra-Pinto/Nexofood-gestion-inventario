@@ -5,6 +5,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { PermisosUsuarios } from './permisos-usuarios';
 import { ToastService } from '../../../core/services/toast.service';
 import { Usuario } from '../../../core/models/usuario.model';
@@ -26,9 +27,16 @@ describe('PermisosUsuarios', () => {
     },
   ];
 
+  /** Atiende el GET /users que el componente lanza al construirse */
+  const responderUsuarios = (lista: Usuario[] = usuarios) => {
+    const req = http.expectOne(`${api}/users`);
+    expect(req.request.method).toBe('GET');
+    req.flush(lista);
+  };
+
   const crear = async () => {
     const fixture = TestBed.createComponent(PermisosUsuarios);
-    http.expectOne(`${api}/users`).flush(usuarios);
+    responderUsuarios();
     await fixture.whenStable();
     fixture.detectChanges();
     return { fixture, cmp: fixture.componentInstance as any, html: fixture.nativeElement as HTMLElement };
@@ -37,16 +45,21 @@ describe('PermisosUsuarios', () => {
   const hayToast = (tipo: string, texto: string) =>
     toast.toasts().some((t) => t.tipo === tipo && t.mensaje.includes(texto));
 
-  beforeEach(() => {
-    TestBed.configureTestingModule({
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
       imports: [PermisosUsuarios],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
-    });
+      // provideRouter: el template usa routerLink ("+ Nuevo usuario")
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    }).compileComponents();
+
+    // Se obtienen después de configurar el módulo (nunca antes)
     http = TestBed.inject(HttpTestingController);
     toast = TestBed.inject(ToastService);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http?.verify();
+  });
 
   it('muestra una fila por usuario con sus funcionalidades', async () => {
     const { html } = await crear();
@@ -111,7 +124,7 @@ describe('PermisosUsuarios', () => {
       { message: 'El usuario seleccionado no existe o no está disponible' },
       { status: 404, statusText: 'Not Found' },
     );
-    http.expectOne(`${api}/users`).flush([usuarios[0]]);
+    responderUsuarios([usuarios[0]]); // recarga de la lista tras el 404
 
     expect(hayToast('error', 'no existe o no está disponible')).toBe(true);
     expect(hayToast('exito', '')).toBe(false);
