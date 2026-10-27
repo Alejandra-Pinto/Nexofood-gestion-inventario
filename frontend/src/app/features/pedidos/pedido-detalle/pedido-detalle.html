@@ -53,10 +53,37 @@
         </div>
       }
 
-      <!-- Mensaje cuando el pedido ya está finalizado -->
-      @if (p.estado_pedido === 'ENTREGADO' || p.estado_pedido === 'PAGADO') {
-        <div class="alerta alerta-info">
-          Este pedido se encuentra en estado <strong>{{ etiquetaEstado[p.estado_pedido] }}</strong> y ya no puede ser modificado.
+      <!-- HU-4.3 · SCRUM-183: pedido finalizado (el anulado tiene su propio aviso) -->
+      @if (motivoBloqueo() && p.estado_pedido !== 'ANULADO') {
+        <div class="alerta alerta-info" id="motivo-bloqueo" role="note" data-test="bloqueo">
+          🔒 {{ motivoBloqueo() }}
+        </div>
+      }
+
+      <!-- HU-4.3 · SCRUM-182: aviso "Pedido modificado" (prototipo 14) -->
+      @if (avisoModificacion(); as aviso) {
+        <div class="aviso-modificado" role="status" data-test="aviso-modificado">
+          <span class="aviso-punto" aria-hidden="true"></span>
+          <div class="aviso-cuerpo">
+            <strong>Pedido modificado</strong>
+            <p>
+              {{ aviso.texto }} a las {{ aviso.fecha | date: 'HH:mm' }}.
+              @if (aviso.requiereReimpresion) {
+                @if (aviso.conError) {
+                  La impresión de la comanda v{{ aviso.version }} falló: vuelve a imprimirla para que cocina reciba la versión actualizada.
+                } @else {
+                  Vuelve a imprimir la comanda para que cocina reciba la versión actualizada.
+                }
+              } @else {
+                Cocina ya recibió la comanda v{{ aviso.version }}.
+              }
+            </p>
+            @if (aviso.requiereReimpresion && !pedidoFinalizado()) {
+              <button type="button" class="btn btn-sm btn-primario" [disabled]="isPrinting()" (click)="abrirConfirmacionReimpresion()">
+                🖨️ Imprimir comanda v{{ aviso.version }}
+              </button>
+            }
+          </div>
         </div>
       }
 
@@ -131,14 +158,20 @@
               <!-- HU-3.3 Acción de Modificar -->
               @if (puedeModificar()) {
                 <button type="button" class="btn btn-secundario" (click)="iniciarEdicion()">
-                  ✏️ {{ p.estado_pedido === 'EN_PREPARACION' ? 'Adicionar productos' : 'Modificar pedido' }}
+                  ✏️ {{ p.estado_pedido === 'EN_PREPARACION' ? 'Modificar / adicionar productos' : 'Modificar pedido' }}
+                </button>
+              } @else if (rolPuedeModificar() && pedidoFinalizado() && p.estado_pedido !== 'ANULADO') {
+                <!-- HU-4.3 · SCRUM-183: control visible pero deshabilitado, con el motivo -->
+                <button type="button" class="btn btn-secundario" disabled data-test="modificar-bloqueado"
+                  aria-describedby="motivo-bloqueo" [title]="motivoBloqueo()">
+                  🔒 Modificar pedido
                 </button>
               }
 
               <!-- Ver / Reimprimir comanda -->
               @if (p.estado_pedido !== 'PENDIENTE' && p.estado_pedido !== 'ANULADO') {
-                <button type="button" (click)="mostrarTicket.set(true)" class="btn btn-secundario">
-                  👁️ Ver Comanda
+                <button type="button" (click)="tituloTicket.set('COMANDA DE COCINA'); itemsAdicionalesTicket.set([]); mostrarTicket.set(true)" class="btn btn-secundario">
+                  👁️ Ver Comanda{{ versionComanda() ? ' v' + versionComanda() : '' }}
                 </button>
                 <button type="button" (click)="abrirConfirmacionReimpresion()" [disabled]="isPrinting()" class="btn btn-primario">
                   {{ isPrinting() ? 'Enviando…' : '🖨️ Reimprimir Comanda' }}
@@ -155,6 +188,28 @@
               </div>
             }
           </footer>
+
+          <!-- HU-4.3 · Historial de impresión (prototipo 14) -->
+          @if (resumenComandas(); as r) {
+            <section class="historial-impresion" data-test="historial">
+              <div class="historial-header">
+                <h3>HISTORIAL DE IMPRESIÓN</h3>
+                <button type="button" class="link-actualizar" (click)="cargarResumenComandas(p.id_pedido)" aria-label="Actualizar historial">↻ Actualizar</button>
+              </div>
+              <ul>
+                @for (h of historialImpresion(); track h.id_impresion) {
+                  <li [class.error]="h.resultado === 'ERROR'">
+                    {{ h.fecha_hora | date: 'HH:mm:ss' }} · {{ h.tipo === 'COMANDA' ? 'Comanda v' + (h.version ?? 1) : 'Comprobante' }} · {{ h.resultado }}
+                  </li>
+                } @empty {
+                  <li class="muted">Aún no hay impresiones registradas.</li>
+                }
+                @if (r.requiere_reimpresion && r.estado_impresion_actual === 'PENDIENTE') {
+                  <li class="pendiente">Comanda v{{ r.version_actual }} · en cola de impresión</li>
+                }
+              </ul>
+            </section>
+          }
         </section>
 
       } @else {
@@ -178,25 +233,6 @@
             </div>
           </div>
 
-          <!-- HU-3.2: productos con adicionales/combo se conservan sin cambios -->
-          @if (lineasConfiguradas().length > 0) {
-            <div class="configurados">
-              <p class="configurados-titulo">Productos con adicionales o combo (se conservan sin cambios)</p>
-              <ul>
-                @for (d of lineasConfiguradas(); track d.id_detalle) {
-                  <li>
-                    <span>
-                      <strong>{{ d.cantidad }}x {{ d.item?.nombre ?? 'Producto #' + d.id_item }}</strong>
-                      @for (a of d.adicionales; track a.id_adicional) { · + {{ a.nombre_adicional }} }
-                      @if (d.promocion_aplicada) { · + {{ d.promocion_aplicada }} }
-                    </span>
-                    <span>{{ d.cantidad * d.precio_unitario | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
-                  </li>
-                }
-              </ul>
-            </div>
-          }
-
           <!-- Tabla de productos en edición -->
           <div class="tabla-wrap">
             <table class="tabla-edicion">
@@ -210,10 +246,16 @@
                 </tr>
               </thead>
               <tbody>
-                @for (linea of lineasEdicion(); track linea.id_item) {
-                  <tr [class.fila-bloqueada]="linea.enviadoCocina">
+                @for (linea of lineasEdicion(); track linea.clave) {
+                  <tr [class.fila-bloqueada]="linea.enviadoCocina" [attr.data-clave]="linea.clave">
                     <td>
                       <div class="bold">{{ linea.nombre }}</div>
+                      <!-- HU-3.2: adicionales y combo de la línea (se conservan al editar) -->
+                      @if (linea.extras.length) {
+                        <div class="extras-linea">
+                          @for (e of linea.extras; track $index) { <span class="extra-tag">{{ e }}</span> }
+                        </div>
+                      }
                       @if (linea.enviadoCocina) {
                         <span class="badge badge-cocina">En cocina (mín. {{ linea.cantidadOriginal }})</span>
                       }
@@ -239,7 +281,8 @@
                         <button
                           type="button"
                           class="btn-circulo"
-                          [disabled]="linea.cantidad >= linea.cantidad_stock"
+                          [disabled]="!puedeSumar(linea)"
+                          [attr.aria-label]="'Sumar una unidad de ' + linea.nombre"
                           (click)="cambiarCantidadLinea(linea, 1)"
                         >
                           +
@@ -329,6 +372,9 @@
       [titulo]="tituloTicket()"
       [itemsAdicionales]="itemsAdicionalesTicket()"
       [imprimiendo]="isPrinting()"
+      [version]="versionComanda()"
+      [fechaImpresion]="fechaImpresionComanda()"
+      [cambios]="cambiosComanda()"
       (cerrar)="mostrarTicket.set(false)"
       (reimprimir)="abrirConfirmacionReimpresion()"
     />
@@ -339,7 +385,7 @@
         <div class="modal-confirm-card" (click)="$event.stopPropagation()">
           <div class="modal-confirm-header">
             <div class="icono-aviso">🖨️</div>
-            <h3>Reimprimir comanda</h3>
+            <h3>Imprimir comanda{{ versionComanda() ? ' v' + versionComanda() : '' }}</h3>
           </div>
           <p class="modal-confirm-body">
             ¿Estás seguro de que deseas enviar una nueva copia física a la impresora térmica para el <strong>Pedido #{{ p.id_pedido }}</strong>?

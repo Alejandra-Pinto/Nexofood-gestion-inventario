@@ -164,17 +164,6 @@
 .prod-promo { font-size: 0.75rem; color: #2563eb; margin-top: 2px; }
 /* HU-3.2: adicionales de la línea ("+ Chimi Rojo") */
 .prod-adicional { font-size: 0.75rem; color: #8a6d12; margin-top: 2px; }
-.configurados {
-  margin: 12px 0;
-  padding: 12px 14px;
-  border: 1px dashed #e7d9a6;
-  border-radius: 12px;
-  background: #fdf8e6;
-  font-size: 0.85rem;
-  ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-  li { display: flex; justify-content: space-between; gap: 12px; }
-}
-.configurados-titulo { margin: 0; font-weight: 700; color: #8a6d12; font-size: 0.8rem; }
 .prod-comanda { font-size: 0.72rem; color: var(--muted, #6b7280); margin-top: 2px; }
 
 .acciones-footer {
@@ -472,4 +461,73 @@
     opacity: 1;
     transform: scale(1);
   }
+}
+
+/* =====================================================================
+   HU-4.3 · Comanda versionada (prototipo 14)
+   ===================================================================== */
+
+/* Aviso amarillo "Pedido modificado" */
+.aviso-modificado {
+  display: flex;
+  gap: 10px;
+  margin: 14px 0;
+  padding: 14px 16px;
+  border: 1px solid #f3e1a6;
+  border-radius: 12px;
+  background: #fdf8e6;
+  color: #8a6d12;
+  font-size: 0.88rem;
+  strong { display: block; color: #8a6d12; }
+  p { margin: 4px 0 0; line-height: 1.45; }
+  .btn { margin-top: 10px; }
+}
+.aviso-punto {
+  width: 7px;
+  height: 7px;
+  margin-top: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--dorado, #c9a227);
+}
+.aviso-cuerpo { min-width: 0; }
+
+/* Historial de impresión */
+.historial-impresion {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--borde, #e5e7eb);
+  border-radius: 12px;
+  background: var(--superficie, #fff);
+  ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  li { font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+  li.error { color: var(--error, #b91c1c); }
+  li.pendiente { color: #8a6d12; font-style: italic; }
+}
+.historial-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  h3 { margin: 0; font-size: 0.72rem; letter-spacing: 0.05em; color: var(--muted, #6b7280); }
+}
+.link-actualizar {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--primario, #6b1f22);
+  cursor: pointer;
+}
+
+/* HU-3.2 · adicionales y combo de una línea en edición */
+.extras-linea { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 6px; }
+.extra-tag {
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: #fdf8e6;
+  color: #8a6d12;
+  font-size: 0.72rem;
+  font-weight: 600;
 }

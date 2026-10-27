@@ -23,6 +23,14 @@ export class TicketComandaComponent {
   @Input() titulo: string = 'COMANDA DE COCINA';
   @Input() itemsAdicionales?: ItemTicketAdicional[];
   @Input() imprimiendo: boolean = false;
+
+  // HU-4.3 · Prototipo 14: "Impreso 12:45:22 · v2" y cambios de la versión
+  /** Versión vigente de la comanda (null = sin versión registrada) */
+  @Input() version: number | null = null;
+  /** Hora de impresión de esa versión (si aún no se imprime: hora del pedido) */
+  @Input() fechaImpresion: string | null = null;
+  /** Textos de los cambios de esa versión ("Se agregó 1x Cerveza") */
+  @Input() cambios: string[] = [];
   
   // Evento para avisarle al padre que se debe cerrar
   @Output() cerrar = new EventEmitter<void>();
