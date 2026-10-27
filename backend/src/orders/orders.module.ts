@@ -7,6 +7,9 @@ import { DetallePedido } from './entities/detalle-pedido.entity'; // Ruta del co
 import { MovimientoFinanciero } from '../finance/entities/movimiento-financiero.entity';
 import { ItemInventario } from '../products/entities/item-inventario.entity';
 import { Comanda } from '../kitchen/entities/comanda.entity'; // Nuestra entidad
+import { Adicional } from './entities/adicional.entity';
+import { Promocion } from './entities/promocion.entity';
+import { PedidoItemAdicional } from './entities/pedido-item-adicional.entity';
 
 @Module({
   imports: [
@@ -15,7 +18,11 @@ import { Comanda } from '../kitchen/entities/comanda.entity'; // Nuestra entidad
       DetallePedido, 
       ItemInventario, 
       MovimientoFinanciero,
-      Comanda // <-- Agregamos la comanda
+      Comanda, // <-- Agregamos la comanda
+      // HU-3.2 adicionales, promociones y combos
+      Adicional,
+      Promocion,
+      PedidoItemAdicional,
     ])
   ],
   controllers: [OrdersController],

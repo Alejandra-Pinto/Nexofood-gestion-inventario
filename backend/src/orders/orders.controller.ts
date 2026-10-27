@@ -8,6 +8,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
@@ -15,10 +17,11 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { OrdersService, ResultadoPago } from './orders.service';
+import { OpcionesPedido, OrdersService, ResultadoCotizacion, ResultadoPago } from './orders.service';
 import { MesaResumen } from './mesas';
 import { RegistrarPagoDto } from './dto/registrar-pago.dto';
 import { CreatePedidoDto } from './dto/create-pedido.dto';
+import { CotizarPedidoDto } from './dto/cotizar-pedido.dto';
 import { UpdateEstadoDto } from './dto/update-estado.dto';
 import { ModificarPedidoDto } from './dto/modificar-pedido.dto';
 import { AnularPedidoDto } from './dto/anular-pedido.dto';
@@ -47,6 +50,29 @@ export class OrdersController {
   @Get('mesas')
   mesas(): Promise<MesaResumen[]> {
     return this.ordersService.mesas();
+  }
+
+  // =========================================================================
+  // HU-3.2 ADICIONALES, PROMOCIONES, COMBOS Y NOTAS (MESERO y ADMINISTRADOR)
+  // Van antes de GET ':id' para que "opciones" no se lea como un id.
+  // =========================================================================
+
+  /** Catálogo del wizard: adicionales con stock de su insumo y promociones vigentes */
+  @Get('opciones')
+  @Roles(RolUsuario.ADMINISTRADOR, RolUsuario.CAJERO, RolUsuario.MESERO)
+  opciones(): Promise<OpcionesPedido> {
+    return this.ordersService.opciones();
+  }
+
+  /**
+   * Precio de las líneas (con adicionales y promoción) sin guardar nada.
+   * 400 STOCK_INSUFICIENTE · 422 PROMOCION_NO_VIGENTE
+   */
+  @Post('cotizar')
+  @HttpCode(HttpStatus.OK)
+  @Roles(RolUsuario.ADMINISTRADOR, RolUsuario.CAJERO, RolUsuario.MESERO)
+  cotizar(@Body() dto: CotizarPedidoDto): Promise<ResultadoCotizacion> {
+    return this.ordersService.cotizar(dto);
   }
 
   @Get()

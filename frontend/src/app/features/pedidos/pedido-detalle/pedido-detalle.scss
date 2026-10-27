@@ -162,6 +162,19 @@
 .prod-nombre { font-weight: 600; color: var(--texto, #1f2430); }
 .prod-nota { font-size: 0.78rem; color: #d97706; margin-top: 2px; }
 .prod-promo { font-size: 0.75rem; color: #2563eb; margin-top: 2px; }
+/* HU-3.2: adicionales de la línea ("+ Chimi Rojo") */
+.prod-adicional { font-size: 0.75rem; color: #8a6d12; margin-top: 2px; }
+.configurados {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px dashed #e7d9a6;
+  border-radius: 12px;
+  background: #fdf8e6;
+  font-size: 0.85rem;
+  ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  li { display: flex; justify-content: space-between; gap: 12px; }
+}
+.configurados-titulo { margin: 0; font-weight: 700; color: #8a6d12; font-size: 0.8rem; }
 .prod-comanda { font-size: 0.72rem; color: var(--muted, #6b7280); margin-top: 2px; }
 
 .acciones-footer {

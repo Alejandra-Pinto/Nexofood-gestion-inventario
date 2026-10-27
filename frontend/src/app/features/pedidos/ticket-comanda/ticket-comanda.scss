@@ -45,6 +45,20 @@
     font-style: italic;
     color: #222222;
   }
+  /* HU-3.2: líneas de la comanda */
+  .linea-producto {
+    margin: 6px 0 2px;
+    font-weight: bold;
+    word-break: break-word;
+  }
+  .linea-adicional {
+    margin: 1px 0 1px 12px;
+    font-size: 12px;
+  }
+  .linea-nota {
+    margin: 2px 0 2px 12px;
+    font-weight: bold;
+  }
   hr {
     border: none;
     border-top: 1px dashed #000000;

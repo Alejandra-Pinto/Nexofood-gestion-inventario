@@ -5,7 +5,7 @@ import { environment } from '../../../environments/environment';
 import {
   AnularPedido,
   CrearPedido, EstadoPedido, MesaResumen, ModificarPedido, normalizarPedido,
-  Pedido, RegistrarPago, ResultadoPago,
+  OpcionesPedido, Pedido, RegistrarPago, ResultadoCotizacion, ResultadoPago,
 } from '../models/pedido.model';
 
 @Injectable({ providedIn: 'root' })
@@ -19,6 +19,35 @@ export class PedidosService {
 
   mesas() {
     return this.http.get<MesaResumen[]>(`${this.api}/mesas`);
+  }
+
+  // --- HU-3.2 ADICIONALES, PROMOCIONES, COMBOS Y NOTAS ---
+
+  /** Catálogo del wizard: adicionales (con stock de su insumo) y promociones vigentes */
+  opciones() {
+    return this.http.get<OpcionesPedido>(`${this.api}/opciones`).pipe(
+      map((o) => ({
+        adicionales: (o.adicionales ?? []).map((a) => ({
+          ...a,
+          precio_adicional: Number(a.precio_adicional),
+          cantidad_insumo: Number(a.cantidad_insumo),
+          stock_disponible: a.stock_disponible === null ? null : Number(a.stock_disponible),
+        })),
+        promociones: (o.promociones ?? []).map((p) => ({
+          ...p,
+          precio_final: p.precio_final === null ? null : Number(p.precio_final),
+          recargo: Number(p.recargo),
+          porcentaje_descuento: Number(p.porcentaje_descuento),
+          cantidad_insumo: Number(p.cantidad_insumo),
+          stock_disponible: p.stock_disponible === null ? null : Number(p.stock_disponible),
+        })),
+      })),
+    );
+  }
+
+  /** Precio y validación (stock / promoción vigente) de las líneas, sin guardar */
+  cotizar(dto: Pick<CrearPedido, 'detalles'>) {
+    return this.http.post<ResultadoCotizacion>(`${this.api}/cotizar`, dto);
   }
 
   obtener(id: number) {

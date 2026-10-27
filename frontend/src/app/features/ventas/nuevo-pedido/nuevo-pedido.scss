@@ -297,10 +297,221 @@
 .alerta { margin-top: 12px; }
 .alerta-info { background: #eef4ff; color: #1e3a8a; border: 1px solid #c7d7fe; }
 
+/* Pedido activo (solo lectura) */
+.activo-info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  .btn { align-self: flex-start; text-decoration: none; }
+}
+.detalle-config {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin-top: 2px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  .nota { color: #b45309; font-style: italic; }
+}
+
+/* =====================================================================
+   HU-3.2 · Wizard "Nuevo choripán" (prototipos step-1, step-2, step-3)
+   ===================================================================== */
+
+/* Progreso: PASO n DE 3 · 33% Completado */
+.progreso {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 14px 32px 0;
+}
+.progreso-texto {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--texto);
+}
+.progreso-barras {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+  span {
+    height: 5px;
+    border-radius: 99px;
+    background: #e2e5ea;
+    transition: background 0.2s ease;
+    &.llena { background: var(--dorado); }
+  }
+}
+.dorado { color: var(--dorado); }
+
+/* Tarjeta de choripán configurado en el pedido */
+.config { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag {
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: #fdf8e6;
+  color: #8a6d12;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.tag-combo { background: var(--primario-suave); color: var(--primario); }
+.nota-linea { font-size: 0.75rem; color: #b45309; font-style: italic; }
+
+/* Paso 2: tarjetas de pan con imagen arriba */
+.panes { display: grid; gap: 14px; }
+.pan {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  background: var(--superficie);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  &.seleccionada { border-color: var(--dorado); box-shadow: 0 0 0 1px var(--dorado); }
+  &.sin-stock { opacity: 0.65; }
+}
+.pan-foto {
+  height: 120px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #d9a25f, #7a4a1f);
+  color: #fff;
+  font-size: 2.4rem;
+  font-weight: 700;
+}
+.pan-info { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px 14px; small { font-size: 0.78rem; } }
+.pan-titulo { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.badge-sel {
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: #fdf8e6;
+  color: #8a6d12;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge-agotado {
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: var(--error-suave);
+  color: var(--error);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+/* Paso 3: chips de aderezo y notas rápidas */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.chip-opcion {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 99px;
+  background: var(--superficie);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--texto);
+  cursor: pointer;
+  &.activa { background: var(--dorado); border-color: var(--dorado); color: #fff; }
+  &.sin-stock:not(.activa) { opacity: 0.6; text-decoration: line-through; }
+}
+.chip-nota.activa { background: var(--primario); border-color: var(--primario); }
+
+.subtitulo {
+  margin: 20px 0 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--texto);
+}
+
+/* Formato: toggle Individual / Combo */
+.formato {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  button {
+    flex: 1;
+    padding: 10px 8px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--texto);
+    cursor: pointer;
+    &.activo { background: var(--dorado); color: #fff; }
+  }
+}
+
+/* Adicionales con checkbox (+$1.500) */
+.extras { display: flex; flex-direction: column; gap: 8px; }
+.extra {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  cursor: pointer;
+  input { width: 18px; height: 18px; margin: 0; accent-color: var(--dorado); }
+  &.activo { border-color: var(--dorado); box-shadow: 0 0 0 1px var(--dorado); }
+  &.sin-stock:not(.activo) { opacity: 0.65; }
+}
+.extra-nombre { flex: 1; font-weight: 600; font-size: 0.88rem; }
+
+/* Notas para cocina */
+.nota-libre {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.88rem;
+  resize: vertical;
+}
+.preview-nota { margin: 6px 0 0; font-size: 0.78rem; color: var(--muted); }
+.nota-cocina {
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 700;
+  color: var(--texto);
+}
+
+/* Pie del wizard: resumen y subtotal en vivo */
+.resumen-config {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+@media (min-width: 1100px) {
+  .panes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 /* Tablet y celular: una sola columna y el total fijo en la parte de abajo */
 @media (max-width: 900px) {
   .contenedor { grid-template-columns: 1fr; gap: 0; padding: 16px 16px 0; }
   .barra { padding: 14px 16px; }
+  .progreso { padding: 12px 16px 0; }
   .pie {
     position: sticky;
     top: auto;
