@@ -30,7 +30,14 @@ import {
 import { ItemInventario } from '../../../core/models/item-inventario.model';
 import { ItemTicketAdicional, TicketComandaComponent } from '../ticket-comanda/ticket-comanda';
 import {
+  AdicionalLinea,
+  EditarAdicionales,
+  ProductoLinea,
+  ResultadoAdicionales,
+} from '../editar-adicionales/editar-adicionales';
+import {
   ConsumidorInsumo,
+  LineaConsumo,
   esLineaConfigurada,
   faltanteStock,
 } from '../../../core/utils/configuracion-linea';
@@ -49,6 +56,17 @@ export interface LineaEdicion {
   extras: string[];
   /** Insumos que consumen sus adicionales/combo (para validar stock al aumentar) */
   consumidores: ConsumidorInsumo[];
+  /** Adicionales que tiene la línea (para abrir el modal con su estado actual) */
+  seleccion: AdicionalLinea[];
+  /** Combo/promoción actual de la línea (null = Individual) */
+  promocionNombre: string | null;
+  /** Combo elegido en el modal: número, null = Individual, undefined = sin cambios */
+  id_promocion?: number | null;
+  /** Se cambiaron sus adicionales o su formato en el modal */
+  configCambiada: boolean;
+  /** Precio de venta y categoría del producto (para recalcular el precio) */
+  precio_venta: number;
+  id_categoria: number | null;
   id_detalle?: number;
   id_item: number;
   nombre: string;
@@ -64,7 +82,7 @@ export interface LineaEdicion {
 @Component({
   selector: 'app-pedido-detalle',
   standalone: true,
-  imports: [CommonModule, FormsModule, CurrencyPipe, DatePipe, RouterLink, TicketComandaComponent],
+  imports: [CommonModule, FormsModule, CurrencyPipe, DatePipe, RouterLink, TicketComandaComponent, EditarAdicionales],
   templateUrl: './pedido-detalle.html',
   styleUrl: './pedido-detalle.scss',
 })
@@ -96,6 +114,16 @@ export class PedidoDetalleComponent implements OnInit {
   public guardandoEdicion = signal<boolean>(false);
   public catalogoProductos = signal<ItemInventario[]>([]);
   public busquedaCatalogo = signal<string>('');
+
+  // Editar adicionales/formato de una línea existente
+  /** Catálogo de adicionales y combos vigentes (se carga al entrar a edición) */
+  public opcionesPedido = signal<OpcionesPedido | null>(null);
+  /** Línea cuyo modal "Adicionales y formato" está abierto */
+  public lineaAdicionales = signal<LineaEdicion | null>(null);
+  /** Datos fijos del modal mientras está abierto (evita recrearlos en cada detección) */
+  public productoModal = signal<ProductoLinea | null>(null);
+  public otrasLineasModal = signal<LineaConsumo[]>([]);
+  private secuenciaNuevas = 0;
 
   // HU-4.3 Versiones de la comanda e historial de impresión
   public resumenComandas = signal<ResumenComandas | null>(null);
@@ -293,6 +321,11 @@ export class PedidoDetalleComponent implements OnInit {
           configurada: false,
           extras: [],
           consumidores: [],
+          seleccion: [],
+          promocionNombre: null,
+          configCambiada: false,
+          precio_venta: Number(d.item?.precio_venta ?? d.precio_unitario),
+          id_categoria: d.item?.id_categoria ?? null,
           id_item: d.id_item,
           nombre: d.item?.nombre ?? `Producto #${d.id_item}`,
           cantidad: d.cantidad,
@@ -316,7 +349,10 @@ export class PedidoDetalleComponent implements OnInit {
     this.pedidosService
       .opciones()
       .pipe(catchError(() => of<OpcionesPedido>({ adicionales: [], promociones: [] })))
-      .subscribe((o) => this.asignarConsumidores(o));
+      .subscribe((o) => {
+        this.opcionesPedido.set(o);
+        this.asignarConsumidores(o);
+      });
 
     // Cargar catálogo de productos para adicionar nuevos
     this.inventarioService.listar('PRODUCTO').subscribe({
@@ -341,6 +377,15 @@ export class PedidoDetalleComponent implements OnInit {
         ...(d.promocion_aplicada ? [`+ ${d.promocion_aplicada}`] : []),
       ],
       consumidores: [],
+      seleccion: (d.adicionales ?? []).map((a) => ({
+        id_adicional: a.id_adicional,
+        cantidad: a.cantidad,
+        nombre: a.nombre_adicional ?? 'Adicional',
+      })),
+      promocionNombre: d.promocion_aplicada ?? null,
+      configCambiada: false,
+      precio_venta: Number(d.item?.precio_venta ?? d.precio_unitario),
+      id_categoria: d.item?.id_categoria ?? null,
       id_detalle: d.id_detalle,
       id_item: d.id_item,
       nombre: d.item?.nombre ?? `Producto #${d.id_item}`,
@@ -360,7 +405,7 @@ export class PedidoDetalleComponent implements OnInit {
     const detalles = this.pedido()?.detalles ?? [];
     this.lineasEdicion.update((ls) =>
       ls.map((l) => {
-        if (!l.configurada) return l;
+        if (!l.configurada || l.configCambiada) return l;
         const d = detalles.find((x) => x.id_detalle === l.id_detalle);
         const consumidores: ConsumidorInsumo[] = [];
         for (const a of d?.adicionales ?? []) {
@@ -386,8 +431,93 @@ export class PedidoDetalleComponent implements OnInit {
     return this.unidadesProducto(linea.id_item) < linea.cantidad_stock && linea.cantidad < this.maximo;
   }
 
+  // ---------------------------------------------------------------------------
+  // Adicionales y formato de una línea existente
+  // ---------------------------------------------------------------------------
+
+  /** ¿Hay adicionales o combos que apliquen a este producto? */
+  tieneOpciones(linea: LineaEdicion): boolean {
+    const o = this.opcionesPedido();
+    if (!o) return false;
+    const aplica = (x: { id_categoria: number | null }) =>
+      x.id_categoria === null || linea.id_categoria === null || x.id_categoria === linea.id_categoria;
+    return o.adicionales.some(aplica) || o.promociones.some(aplica) || linea.configurada;
+  }
+
+  /** Abre el modal con los adicionales y el formato que la línea tiene hoy */
+  abrirAdicionales(linea: LineaEdicion) {
+    if (!this.opcionesPedido()) return;
+    this.productoModal.set({ nombre: linea.nombre, precio_venta: linea.precio_venta, id_categoria: linea.id_categoria });
+    this.otrasLineasModal.set(
+      this.lineasEdicion()
+        .filter((l) => l.clave !== linea.clave && l.configurada)
+        .map((l) => ({ cantidad: l.cantidad, consumidores: l.consumidores })),
+    );
+    this.lineaAdicionales.set(linea);
+  }
+
+  cerrarAdicionales() {
+    this.lineaAdicionales.set(null);
+  }
+
+  /**
+   * Aplica lo elegido en el modal: la fila cambia sus adicionales, su formato y su
+   * precio unitario; el subtotal y el total del pedido se recalculan (Signals).
+   * Una fila simple que recibe adicionales pasa a ser una línea nueva con adicionales.
+   */
+  aplicarAdicionales(r: ResultadoAdicionales) {
+    const linea = this.lineaAdicionales();
+    this.lineaAdicionales.set(null);
+    if (!linea) return;
+
+    const formato = r.mantenerPromocion ? linea.promocionNombre : (r.promocion?.nombre ?? null);
+    const seleccion: AdicionalLinea[] = r.adicionales.map((a) => ({
+      id_adicional: a.id_adicional,
+      cantidad: a.cantidad,
+      nombre: a.nombre,
+    }));
+    const configurada = seleccion.length > 0 || !!formato;
+
+    const igual =
+      formato === linea.promocionNombre &&
+      seleccion.length === linea.seleccion.length &&
+      seleccion.every((s) => linea.seleccion.some((x) => x.id_adicional === s.id_adicional && x.cantidad === s.cantidad));
+    if (igual) return;
+
+    // Fila simple sin nada elegido: no hay nada que cambiar
+    if (linea.id_detalle === undefined && !linea.configurada && !configurada) return;
+
+    const consumidores: ConsumidorInsumo[] = [
+      ...r.adicionales.filter((a) => a.consumidor).map((a) => a.consumidor!),
+      ...(r.promocion ? [{ ...r.promocion, cantidad: 1 }] : []),
+    ];
+
+    const actualizada: LineaEdicion = {
+      ...linea,
+      configurada,
+      seleccion,
+      promocionNombre: formato,
+      id_promocion: r.mantenerPromocion ? undefined : (r.promocion?.id_promocion ?? null),
+      configCambiada: linea.id_detalle !== undefined,
+      precio_unitario: r.precioUnitario,
+      consumidores,
+      extras: [
+        ...seleccion.map((a) => `+ ${a.nombre}${a.cantidad > 1 ? ' x' + a.cantidad : ''}`),
+        ...(formato ? [`+ ${formato}`] : []),
+      ],
+      // Una fila simple que recibe adicionales se envía como línea nueva
+      ...(linea.id_detalle === undefined && !linea.clave.startsWith('nuevo:')
+        ? { clave: `nuevo:${++this.secuenciaNuevas}` }
+        : {}),
+    };
+
+    this.lineasEdicion.update((ls) => ls.map((l) => (l.clave === linea.clave ? actualizada : l)));
+    this.toastService.exito(`Adicionales de "${linea.nombre}" actualizados.`);
+  }
+
   cancelarEdicion() {
     this.modoEdicion.set(false);
+    this.lineaAdicionales.set(null);
     this.lineasEdicion.set([]);
   }
 
@@ -468,6 +598,11 @@ export class PedidoDetalleComponent implements OnInit {
         configurada: false,
         extras: [],
         consumidores: [],
+        seleccion: [],
+        promocionNombre: null,
+        configCambiada: false,
+        precio_venta: prod.precio_venta,
+        id_categoria: prod.id_categoria ?? null,
         id_item: prod.id_item,
         nombre: prod.nombre,
         cantidad: 1,
@@ -497,13 +632,28 @@ export class PedidoDetalleComponent implements OnInit {
 
     // Las líneas con adicionales/combo viajan con su id_detalle para conservar
     // sus adicionales; la promoción NO se reenvía (es la que ya tiene la línea).
+    // - Líneas existentes con adicionales/combo: viajan con su id_detalle.
+    // - Si se cambiaron sus adicionales o formato: lista completa de adicionales
+    //   e id_promocion (null = Individual; se omite si conserva su combo actual).
+    // - Líneas nuevas con adicionales (sin id_detalle): se crean en el backend.
     const dto: ModificarPedido = {
-      detalles: lineas.map((l) => ({
-        ...(l.configurada ? { id_detalle: l.id_detalle } : {}),
-        id_item: l.id_item,
-        cantidad: l.cantidad,
-        notas_especiales: l.notas_especiales?.trim() || undefined,
-      })),
+      detalles: lineas.map((l) => {
+        const enviarConfig = l.configCambiada || (l.id_detalle === undefined && l.configurada);
+        return {
+          ...(l.id_detalle !== undefined ? { id_detalle: l.id_detalle } : {}),
+          id_item: l.id_item,
+          cantidad: l.cantidad,
+          notas_especiales: l.notas_especiales?.trim() || undefined,
+          ...(enviarConfig
+            ? {
+                adicionales: l.seleccion.map((a) =>
+                  a.cantidad > 1 ? { id_adicional: a.id_adicional, cantidad: a.cantidad } : { id_adicional: a.id_adicional },
+                ),
+                ...(l.id_promocion !== undefined ? { id_promocion: l.id_promocion } : {}),
+              }
+            : {}),
+        };
+      }),
     };
 
     const versionAnterior = this.versionComanda() ?? 0;

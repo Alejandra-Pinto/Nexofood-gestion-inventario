@@ -7,8 +7,17 @@ export type EstadoImpresion = 'PENDIENTE' | 'IMPRESA' | 'ERROR' | 'REEMPLAZADA';
 
 /** HU-4.3 · SCRUM-182: un cambio del pedido respecto a la versión anterior */
 export interface CambioComanda {
-  tipo: 'AGREGADO' | 'QUITADO' | 'CANTIDAD_AUMENTADA' | 'CANTIDAD_REDUCIDA' | 'NOTA';
+  tipo:
+    | 'AGREGADO'
+    | 'QUITADO'
+    | 'CANTIDAD_AUMENTADA'
+    | 'CANTIDAD_REDUCIDA'
+    | 'NOTA'
+    | 'ADICIONAL_AGREGADO'
+    | 'ADICIONAL_QUITADO'
+    | 'FORMATO';
   id_item: number;
+  id_detalle?: number;
   producto: string;
   cantidad?: number;
   antes?: number | string | null;

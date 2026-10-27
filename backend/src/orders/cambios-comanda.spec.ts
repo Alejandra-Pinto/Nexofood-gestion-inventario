@@ -87,6 +87,7 @@ describe('cambios-comanda (HU-4.3)', () => {
       expect(resumirLineaConfigurada(linea)).toEqual({
         clave: 'det:5', id_detalle: 5, id_item: 1, cantidad: 1, nota: null, configurada: true,
         producto: 'choripan clasico (+ Orégano, + Combo con papa)',
+        nombre: 'choripan clasico', adicionales: ['Orégano'], formato: 'Combo con papa',
       });
     });
 
@@ -103,6 +104,34 @@ describe('cambios-comanda (HU-4.3)', () => {
       expect(cambios).toHaveLength(1);
       expect(cambios[0]).toMatchObject({ texto: 'Se agregó 1x choripan clasico (ahora 2)' });
       expect(cambios[0].id_detalle).toBeUndefined();
+    });
+  });
+
+  describe('cambios de adicionales y formato en la misma línea', () => {
+    const linea = { id_detalle: 5, id_item: 1, cantidad: 1, notas_especiales: null, item: { nombre: 'Choripán Pampero' }, promocion_aplicada: null as string | null, adicionales: [{ nombre_adicional: 'Chimi Rojo', cantidad: 1 }] };
+
+    it('adicional agregado y quitado', () => {
+      const antes = resumirLineaConfigurada(linea);
+      const despues = resumirLineaConfigurada({ ...linea, adicionales: [{ nombre_adicional: 'Queso fundido', cantidad: 1 }] });
+      expect(calcularCambios([antes], [despues]).map((c) => [c.tipo, c.texto])).toEqual([
+        ['ADICIONAL_AGREGADO', 'Se agregó adicional + Queso fundido en Choripán Pampero'],
+        ['ADICIONAL_QUITADO', 'Se quitó adicional + Chimi Rojo en Choripán Pampero'],
+      ]);
+    });
+
+    it('cambio de formato Individual -> Combo y Combo -> Individual', () => {
+      const individual = resumirLineaConfigurada(linea);
+      const combo = resumirLineaConfigurada({ ...linea, promocion_aplicada: 'Combo con papa' });
+      expect(calcularCambios([individual], [combo])[0]).toMatchObject({
+        tipo: 'FORMATO', id_detalle: 5, antes: 'Individual', despues: 'Combo con papa',
+        texto: 'Se cambió a formato Combo con papa en Choripán Pampero',
+      });
+      expect(calcularCambios([combo], [individual])[0].texto).toBe('Se cambió a formato Individual en Choripán Pampero');
+    });
+
+    it('la misma configuración no genera cambios', () => {
+      const l = resumirLineaConfigurada(linea);
+      expect(calcularCambios([l], [{ ...l }])).toEqual([]);
     });
   });
 });

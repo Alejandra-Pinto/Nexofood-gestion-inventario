@@ -11,7 +11,11 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { CANTIDAD_MAXIMA } from './create-pedido.dto';
+import {
+  AdicionalSeleccionadoDto,
+  CANTIDAD_MAXIMA,
+  MAX_ADICIONALES_LINEA,
+} from './create-pedido.dto';
 
 export class ModificarDetallePedidoDto {
   /**
@@ -38,6 +42,31 @@ export class ModificarDetallePedidoDto {
   @IsString({ message: 'Las notas especiales deben ser texto' })
   @MaxLength(255, { message: 'Las notas especiales admiten máximo 255 caracteres' })
   notas_especiales?: string;
+
+  /**
+   * Adicionales de la línea (lista COMPLETA, reemplaza la anterior).
+   *   - Con id_detalle: se reconfigura esa línea (se quitan los desmarcados y
+   *     se agregan los nuevos en pedido_item_adicional).
+   *   - Sin id_detalle: se crea una línea nueva con esos adicionales.
+   *   - Si no se envía: la línea conserva sus adicionales.
+   */
+  @IsOptional()
+  @IsArray({ message: 'Los adicionales deben enviarse como una lista' })
+  @ArrayMaxSize(MAX_ADICIONALES_LINEA, {
+    message: `Un producto admite máximo ${MAX_ADICIONALES_LINEA} adicionales`,
+  })
+  @ValidateNested({ each: true })
+  @Type(() => AdicionalSeleccionadoDto)
+  adicionales?: AdicionalSeleccionadoDto[];
+
+  /**
+   * Formato de la línea: id de la promoción/combo, o null para "Individual".
+   * Si no se envía, la línea conserva su formato actual.
+   */
+  @IsOptional()
+  @IsInt({ message: 'El id de la promoción debe ser un número entero' })
+  @Min(1, { message: 'El id de la promoción no es válido' })
+  id_promocion?: number | null;
 
   @IsOptional()
   @IsString({ message: 'La promoción debe ser texto' })

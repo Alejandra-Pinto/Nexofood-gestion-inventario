@@ -161,6 +161,10 @@ export interface ModificarDetallePedido {
   /** Línea con adicionales/combo: se edita esa línea (sus adicionales se conservan) */
   id_detalle?: number;
   id_item: number;
+  /** Lista COMPLETA de adicionales (reemplaza la anterior). Si no se envía, se conservan */
+  adicionales?: { id_adicional: number; cantidad?: number }[];
+  /** Formato: id del combo/promoción, null = Individual. Si no se envía, se conserva */
+  id_promocion?: number | null;
   cantidad: number;
   notas_especiales?: string;
   promocion_aplicada?: string;

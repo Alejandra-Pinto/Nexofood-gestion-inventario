@@ -321,4 +321,137 @@ describe('PedidoDetalleComponent', () => {
       expect(filas.find((l) => l.clave === 'det:5')!.cantidad).toBe(1);
     });
   });
+
+  // ===========================================================================
+  // Editar adicionales y formato de una línea que ya está en el pedido
+  // ===========================================================================
+  describe('Editar adicionales / formato de una línea existente', () => {
+    /** 1x choripan clasico + Orégano + Combo con papa ($13.000) y 1x Cerveza */
+    const pedidoConCombo = (): Pedido => {
+      const p = pedido('EN_PREPARACION');
+      p.detalles = [
+        {
+          id_detalle: 5, id_pedido: 24, id_item: 1, cantidad: 1, precio_unitario: 13000, notas_especiales: null,
+          promocion_aplicada: 'Combo con papa', id_comanda: 1, item: item(1, 'choripan clasico', 10000),
+          adicionales: [{ id_pedido_item_adicional: 70, id_adicional: 3, cantidad: 1, precio_unitario: 0, nombre_adicional: 'Orégano' }],
+        },
+        p.detalles[1],
+      ];
+      return p;
+    };
+
+    const opcionesCompletas: OpcionesPedido = {
+      adicionales: [
+        { id_adicional: 3, nombre: 'Orégano', tipo: 'PAN', descripcion: null, precio_adicional: 0, id_categoria: null, id_insumo: 100, insumo: 'Pan de orégano', cantidad_insumo: 1, stock_disponible: 40, disponible: true },
+        { id_adicional: 4, nombre: 'Queso fundido', tipo: 'EXTRA', descripcion: null, precio_adicional: 2500, id_categoria: null, id_insumo: 103, insumo: 'Queso', cantidad_insumo: 1, stock_disponible: 20, disponible: true },
+      ],
+      promociones: [
+        { id_promocion: 1, nombre: 'Combo con papa', descripcion: null, tipo: 'COMBO', precio_final: null, recargo: 3000, porcentaje_descuento: 0, id_categoria: null, id_insumo: 102, insumo: 'Papas', cantidad_insumo: 1, stock_disponible: 50, disponible: true, vigente_hasta: '2027-10-27T00:00:00Z' },
+      ],
+    };
+
+    const sinVersion = () => resumen({ version_actual: 1, ultima_modificacion: null, requiere_reimpresion: false });
+    const boton = (clave: string) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(`[data-test="editar-adicionales-${clave}"]`);
+    const modal = () => (fixture.nativeElement as HTMLElement).querySelector('app-editar-adicionales') as HTMLElement | null;
+    const linea = (clave: string) => component.lineasEdicion().find((l) => l.clave === clave)!;
+
+    it('cada fila tiene "Adicionales / formato" y el modal abre con lo que la línea tiene hoy', async () => {
+      await cargar(pedidoConCombo(), sinVersion());
+      entrarAEdicion(opcionesCompletas);
+
+      expect(boton('det:5')).toBeTruthy();
+      expect(boton('item:9')).toBeTruthy();
+
+      boton('det:5')!.click();
+      fixture.detectChanges();
+
+      expect(modal()).toBeTruthy();
+      const orégano = Array.from(modal()!.querySelectorAll('.chip-opcion')).find((b) => b.textContent?.includes('Orégano'))!;
+      expect(orégano.classList).toContain('activa');
+      const comboBtn = Array.from(modal()!.querySelectorAll('.formato button')).find((b) => b.textContent?.includes('Combo con papa'))!;
+      expect(comboBtn.classList).toContain('activo');
+    });
+
+    it('agregar + Queso fundido actualiza el precio de la fila y el total, y se envía con id_detalle', async () => {
+      await cargar(pedidoConCombo(), sinVersion());
+      entrarAEdicion(opcionesCompletas);
+      boton('det:5')!.click();
+      fixture.detectChanges();
+
+      const queso = Array.from(modal()!.querySelectorAll('.extra')).find((l) => l.textContent?.includes('Queso fundido'))!;
+      (queso.querySelector('input') as HTMLInputElement).click();
+      fixture.detectChanges();
+      (modal()!.querySelector('[data-test="aplicar-adicionales"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      expect(modal()).toBeNull();
+      // base 10.000 + combo 3.000 + Orégano 0 + Queso 2.500
+      expect(linea('det:5').precio_unitario).toBe(15500);
+      expect(linea('det:5').extras).toEqual(['+ Orégano', '+ Queso fundido', '+ Combo con papa']);
+      expect(component.totalEdicion()).toBe(15500 + 5000);
+      expect(texto()).toContain('Configuración modificada');
+
+      component.guardarModificacion();
+      const patch = httpMock.expectOne(`${api}/orders/24`);
+      expect(patch.request.body.detalles).toContainEqual({
+        id_detalle: 5, id_item: 1, cantidad: 1, notas_especiales: undefined,
+        adicionales: [{ id_adicional: 3 }, { id_adicional: 4 }], id_promocion: 1,
+      });
+      patch.flush(pedidoConCombo());
+      httpMock.expectOne(`${api}/kitchen/pedidos/24/comandas`).flush(resumen());
+    });
+
+    it('cambiar a Individual y quitar el pan envía la lista vacía e id_promocion null', async () => {
+      await cargar(pedidoConCombo(), sinVersion());
+      entrarAEdicion(opcionesCompletas);
+      component.abrirAdicionales(linea('det:5'));
+      component.aplicarAdicionales({ adicionales: [], promocion: null, mantenerPromocion: false, precioUnitario: 10000 });
+
+      expect(linea('det:5').precio_unitario).toBe(10000);
+      expect(component.totalEdicion()).toBe(10000 + 5000);
+
+      component.guardarModificacion();
+      const patch = httpMock.expectOne(`${api}/orders/24`);
+      expect(patch.request.body.detalles).toContainEqual({
+        id_detalle: 5, id_item: 1, cantidad: 1, notas_especiales: undefined, adicionales: [], id_promocion: null,
+      });
+      patch.flush(pedidoConCombo());
+      httpMock.expectOne(`${api}/kitchen/pedidos/24/comandas`).flush(resumen());
+    });
+
+    it('si no se cambió nada, la línea no se marca ni se reenvía su configuración', async () => {
+      await cargar(pedidoConCombo(), sinVersion());
+      entrarAEdicion(opcionesCompletas);
+      component.abrirAdicionales(linea('det:5'));
+      component.aplicarAdicionales({
+        adicionales: [{ id_adicional: 3, cantidad: 1, nombre: 'Orégano', precio: 0, consumidor: null }],
+        promocion: opcionesCompletas.promociones[0], mantenerPromocion: false, precioUnitario: 13000,
+      });
+      expect(linea('det:5').configCambiada).toBe(false);
+    });
+
+    it('a un producto simple se le pueden agregar adicionales: pasa a ser una línea nueva', async () => {
+      await cargar(pedidoConCombo(), sinVersion());
+      entrarAEdicion(opcionesCompletas);
+      component.adicionarProducto(item(1, 'choripan clasico', 10000)); // fila simple item:1
+      component.abrirAdicionales(linea('item:1'));
+      component.aplicarAdicionales({
+        adicionales: [{ id_adicional: 4, cantidad: 1, nombre: 'Queso fundido', precio: 2500, consumidor: null }],
+        promocion: null, mantenerPromocion: false, precioUnitario: 12500,
+      });
+
+      const nueva = component.lineasEdicion().find((l) => l.clave.startsWith('nuevo:'))!;
+      expect(nueva).toMatchObject({ configurada: true, precio_unitario: 12500, extras: ['+ Queso fundido'] });
+      expect(component.lineasEdicion().some((l) => l.clave === 'item:1')).toBe(false);
+
+      component.guardarModificacion();
+      const patch = httpMock.expectOne(`${api}/orders/24`);
+      expect(patch.request.body.detalles).toContainEqual({
+        id_item: 1, cantidad: 1, notas_especiales: undefined, adicionales: [{ id_adicional: 4 }], id_promocion: null,
+      });
+      patch.flush(pedidoConCombo());
+      httpMock.expectOne(`${api}/kitchen/pedidos/24/comandas`).flush(resumen());
+    });
+  });
 });
