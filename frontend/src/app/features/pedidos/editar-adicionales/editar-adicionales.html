@@ -1,0 +1,106 @@
+<!-- Editar adicionales y formato de una línea existente del pedido -->
+<div class="modal-overlay" (click)="cerrar.emit()">
+  <div class="modal-adicionales" role="dialog" aria-modal="true" aria-labelledby="titulo-adicionales"
+    (click)="$event.stopPropagation()">
+    <header class="modal-header">
+      <div>
+        <h3 id="titulo-adicionales">Adicionales y formato</h3>
+        <p class="muted">{{ producto().nombre }} · x{{ cantidad() }}</p>
+      </div>
+      <button type="button" class="btn-cerrar" aria-label="Cerrar" (click)="cerrar.emit()">×</button>
+    </header>
+
+    <div class="modal-cuerpo">
+      @if (panes().length > 0) {
+        <h4>PAN</h4>
+        <div class="chips" role="group" aria-label="Pan">
+          @for (a of panes(); track a.id_adicional) {
+            <button type="button" class="chip-opcion" [class.activa]="panSel()?.id_adicional === a.id_adicional"
+              [class.sin-stock]="!a.disponible" [attr.aria-pressed]="panSel()?.id_adicional === a.id_adicional"
+              (click)="elegirPan(a)">
+              {{ a.nombre }}
+              @if (panSel()?.id_adicional === a.id_adicional) { <span aria-hidden="true">✓</span> }
+            </button>
+          }
+        </div>
+      }
+
+      @if (aderezos().length > 0) {
+        <h4>ADEREZO</h4>
+        <div class="chips" role="group" aria-label="Aderezo">
+          @for (a of aderezos(); track a.id_adicional) {
+            <button type="button" class="chip-opcion" [class.activa]="aderezoSel()?.id_adicional === a.id_adicional"
+              [class.sin-stock]="!a.disponible" [attr.aria-pressed]="aderezoSel()?.id_adicional === a.id_adicional"
+              (click)="elegirAderezo(a)">
+              {{ a.nombre }}
+              @if (aderezoSel()?.id_adicional === a.id_adicional) { <span aria-hidden="true">✓</span> }
+            </button>
+          }
+        </div>
+      }
+
+      <h4>FORMATO</h4>
+      <div class="formato" role="group" aria-label="Formato">
+        <button type="button" [class.activo]="formatoIndividualActivo()" [attr.aria-pressed]="formatoIndividualActivo()"
+          (click)="elegirFormato(null)">
+          Individual {{ precioFormato(null) | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}
+        </button>
+        @for (pr of promociones(); track pr.id_promocion) {
+          <button type="button" [class.activo]="!mantenerPromo() && promoSel()?.id_promocion === pr.id_promocion"
+            [attr.aria-pressed]="!mantenerPromo() && promoSel()?.id_promocion === pr.id_promocion" (click)="elegirFormato(pr)">
+            {{ pr.nombre }} {{ precioFormato(pr) | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}
+          </button>
+        }
+        @if (promoActualNoVigente(); as actual) {
+          <button type="button" [class.activo]="mantenerPromo()" [attr.aria-pressed]="mantenerPromo()"
+            (click)="conservarFormatoActual()">
+            {{ actual }} (actual)
+          </button>
+        }
+      </div>
+      @if (promoActualNoVigente()) {
+        <p class="ayuda">"{{ promoActualNoVigente() }}" ya no está vigente: puedes conservarlo, pero si lo cambias no podrás volver a elegirlo.</p>
+      }
+
+      @if (extras().length > 0) {
+        <h4>ADICIONALES</h4>
+        <div class="extras">
+          @for (e of extras(); track e.id_adicional) {
+            <label class="extra" [class.activo]="extraMarcado(e)" [class.sin-stock]="!e.disponible">
+              <input type="checkbox" [checked]="extraMarcado(e)" (change)="alternarExtra(e)" />
+              <span class="extra-nombre">{{ e.nombre }}</span>
+              <strong class="dorado">+{{ e.precio_adicional | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+            </label>
+          }
+        </div>
+      }
+
+      @if (noDisponibles().length > 0) {
+        <h4>YA NO DISPONIBLES</h4>
+        <ul class="no-disponibles">
+          @for (a of noDisponibles(); track a.id_adicional) {
+            <li>
+              <span>+ {{ a.nombre }}</span>
+              <button type="button" class="link" (click)="quitarNoDisponible(a.id_adicional)">Quitar</button>
+            </li>
+          }
+        </ul>
+      }
+
+      @if (alertaStock(); as f) {
+        <app-alerta-stock [faltante]="f" [puedeRegistrarIngreso]="puedeRegistrarIngreso()" (quitar)="quitarSinStock()" />
+      }
+    </div>
+
+    <footer class="modal-footer">
+      <div class="precio">
+        <span class="muted">{{ precioUnitario() | currency: 'COP' : 'symbol-narrow' : '1.0-0' }} c/u</span>
+        <strong data-test="subtotal-adicionales">Subtotal {{ subtotal() | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+      </div>
+      <div class="acciones">
+        <button type="button" class="btn btn-secundario" (click)="cerrar.emit()">Cancelar</button>
+        <button type="button" class="btn btn-primario" data-test="aplicar-adicionales" (click)="confirmar()">Aplicar cambios</button>
+      </div>
+    </footer>
+  </div>
+</div>

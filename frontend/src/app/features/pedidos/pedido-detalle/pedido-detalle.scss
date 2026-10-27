@@ -531,3 +531,28 @@
   font-size: 0.72rem;
   font-weight: 600;
 }
+
+/* Editar adicionales / formato de una línea */
+.link-adicionales {
+  display: inline-block;
+  margin: 2px 0 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--primario, #6b1f22);
+  cursor: pointer;
+  &:hover { text-decoration: underline; }
+}
+.badge-config-cambiada {
+  display: inline-block;
+  margin: 0 0 6px 8px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: #eef4ff;
+  color: #1e3a8a;
+  font-size: 0.7rem;
+  font-weight: 600;
+}

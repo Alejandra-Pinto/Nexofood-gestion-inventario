@@ -256,6 +256,16 @@
                           @for (e of linea.extras; track $index) { <span class="extra-tag">{{ e }}</span> }
                         </div>
                       }
+                      <!-- Editar adicionales y formato de esta línea -->
+                      @if (tieneOpciones(linea)) {
+                        <button type="button" class="link-adicionales" [attr.data-test]="'editar-adicionales-' + linea.clave"
+                          (click)="abrirAdicionales(linea)">
+                          ⚙ Adicionales / formato
+                        </button>
+                      }
+                      @if (linea.configCambiada || linea.clave.startsWith('nuevo:')) {
+                        <span class="badge-config-cambiada">Configuración modificada</span>
+                      }
                       @if (linea.enviadoCocina) {
                         <span class="badge badge-cocina">En cocina (mín. {{ linea.cantidadOriginal }})</span>
                       }
@@ -364,6 +374,20 @@
         </section>
       }
     </div>
+
+    <!-- Modal "Adicionales y formato" de una línea en edición -->
+    @if (lineaAdicionales(); as l) {
+      <app-editar-adicionales
+        [producto]="productoModal()!"
+        [opciones]="opcionesPedido()!"
+        [seleccionInicial]="l.seleccion"
+        [promocionInicial]="l.promocionNombre"
+        [cantidad]="l.cantidad"
+        [otrasLineas]="otrasLineasModal()"
+        (aplicar)="aplicarAdicionales($event)"
+        (cerrar)="cerrarAdicionales()"
+      />
+    }
 
     <!-- Modal de Comanda Térmica -->
     <app-ticket-comanda

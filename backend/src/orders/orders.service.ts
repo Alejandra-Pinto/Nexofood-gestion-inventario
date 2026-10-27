@@ -24,7 +24,13 @@ import { EstadoPedido, Pedido } from './entities/pedido.entity';
 import { Adicional, TipoAdicional } from './entities/adicional.entity';
 import { Promocion, TipoPromocion } from './entities/promocion.entity';
 import { PedidoItemAdicional } from './entities/pedido-item-adicional.entity';
-import { CambioComanda, calcularCambios, resumirLineaConfigurada, resumirLineas } from './cambios-comanda';
+import {
+  CambioComanda,
+  calcularCambios,
+  etiquetaLineaConfigurada,
+  resumirLineaConfigurada,
+  resumirLineas,
+} from './cambios-comanda';
 import {
   calcularPrecioUnitario,
   calcularSubtotal,
@@ -686,13 +692,16 @@ export class OrdersService {
    * Modifica el pedido. Todas las líneas son editables:
    *   - Líneas simples: se agrupan por producto (cantidad total + nota).
    *   - Líneas con adicionales, combo o promoción (HU-3.2): se identifican por
-   *     id_detalle; se cambia su cantidad y su nota SIN tocar sus registros de
-   *     pedido_item_adicional y conservando su precio unitario congelado
-   *     (precio base o del combo + Σ adicionales). Subtotal = precio_unitario × cantidad.
+   *     id_detalle. Se cambia su cantidad, su nota y, si se envían
+   *     `adicionales` / `id_promocion`, su configuración: se sincroniza
+   *     pedido_item_adicional (se borran los desmarcados y se insertan los
+   *     nuevos) y se recalcula el precio unitario con el catálogo actual.
+   *   - Líneas nuevas con adicionales o combo (sin id_detalle): se crean como
+   *     en "Nuevo choripán".
    *
-   *   PENDIENTE      -> agregar, quitar, cambiar cantidades y notas.
-   *   EN_PREPARACION -> agregar, aumentar cantidades y cambiar notas
-   *                     (no se reduce ni quita lo ya enviado a cocina).
+   *   PENDIENTE      -> agregar, quitar, cambiar cantidades, notas y adicionales.
+   *   EN_PREPARACION -> agregar, aumentar, cambiar notas y adicionales/formato
+   *                     (no se reducen las unidades ya enviadas a cocina).
    * HU-4.3: si hubo cambios, se genera la comanda vN+1 (PENDIENTE) con el pedido
    * completo y la lista de cambios; la versión anterior sin imprimir queda REEMPLAZADA.
    */
@@ -727,9 +736,22 @@ export class OrdersService {
       const editables = todosLosDetalles.filter((d) => !esLineaConfigurada(d));
       const antes = [...resumirLineas(editables), ...configuradas.map((d) => resumirLineaConfigurada(d))];
 
-      // 1. Separar lo solicitado: líneas configuradas (por id_detalle) y simples (por producto)
+      // -----------------------------------------------------------------------
+      // 1. Clasificar lo solicitado
+      // -----------------------------------------------------------------------
+      type Seleccion = { id_adicional: number; cantidad: number };
       const solicitadas = new Map<number, { cantidad: number; nota: string | null }>();
-      const configSolicitadas = new Map<number, { cantidad: number; nota: string | null }>();
+      const configSolicitadas = new Map<
+        number,
+        { cantidad: number; nota: string | null; adicionales?: Seleccion[]; id_promocion?: number | null }
+      >();
+      const nuevasSolicitadas: {
+        id_item: number;
+        cantidad: number;
+        nota: string | null;
+        adicionales: Seleccion[];
+        id_promocion: number | null;
+      }[] = [];
 
       for (const d of dto.detalles) {
         if (!Number.isInteger(d.cantidad) || d.cantidad <= 0) {
@@ -742,6 +764,10 @@ export class OrdersService {
         if (nota && nota.length > MAX_NOTA) {
           throw new BadRequestException(`Las notas especiales admiten máximo ${MAX_NOTA} caracteres`);
         }
+        const traeConfig = d.adicionales !== undefined || d.id_promocion !== undefined;
+        if (d.id_promocion !== undefined && d.id_promocion !== null && (!Number.isInteger(d.id_promocion) || d.id_promocion <= 0)) {
+          throw new BadRequestException('El id de la promoción no es válido');
+        }
 
         if (d.id_detalle !== undefined && d.id_detalle !== null) {
           const fila = todosLosDetalles.find((x) => x.id_detalle === d.id_detalle);
@@ -750,13 +776,34 @@ export class OrdersService {
             throw new BadRequestException(`La línea #${d.id_detalle} no corresponde al producto ${d.id_item}`);
           }
           if (esLineaConfigurada(fila)) {
-            // HU-3.2: la promoción de la línea es la que ya tiene (no se cambia por texto)
             if (configSolicitadas.has(d.id_detalle)) {
               throw new BadRequestException(`La línea #${d.id_detalle} viene repetida`);
             }
-            configSolicitadas.set(d.id_detalle, { cantidad: d.cantidad, nota });
+            configSolicitadas.set(d.id_detalle, {
+              cantidad: d.cantidad,
+              nota,
+              ...(d.adicionales !== undefined ? { adicionales: this.unificarAdicionales(d.adicionales) } : {}),
+              ...(d.id_promocion !== undefined ? { id_promocion: d.id_promocion } : {}),
+            });
             continue;
           }
+          if (traeConfig) {
+            throw new BadRequestException(
+              `La línea #${d.id_detalle} no tiene adicionales: para agregárselos envíela como línea nueva (sin id_detalle)`,
+            );
+          }
+        }
+
+        // Línea nueva con adicionales o combo
+        if ((d.adicionales?.length ?? 0) > 0 || (d.id_promocion ?? null) !== null) {
+          nuevasSolicitadas.push({
+            id_item: d.id_item,
+            cantidad: d.cantidad,
+            nota,
+            adicionales: this.unificarAdicionales(d.adicionales),
+            id_promocion: d.id_promocion ?? null,
+          });
+          continue;
         }
 
         if (d.promocion_aplicada?.trim()) {
@@ -772,17 +819,135 @@ export class OrdersService {
         solicitadas.set(d.id_item, { cantidad, nota: nota ?? actual?.nota ?? null });
       }
 
-      // Líneas configuradas que siguen en el pedido y las que aumentan
-      const configFinales = configuradas
-        .filter((f) => configSolicitadas.has(f.id_detalle))
-        .map((f) => ({ fila: f, ...configSolicitadas.get(f.id_detalle)! }));
-      const configAumentadas = configFinales.filter((c) => c.cantidad > Number(c.fila.cantidad));
+      // -----------------------------------------------------------------------
+      // 2. Catálogo de adicionales y promociones involucrados
+      // -----------------------------------------------------------------------
+      const seleccionActual = (f: DetallePedido): Seleccion[] =>
+        (f.adicionales ?? []).map((a) => ({ id_adicional: a.id_adicional, cantidad: Number(a.cantidad ?? 1) }));
 
-      // 2. En preparación no se reduce ni se quita lo que ya está en cocina
+      const idsAdicionales = new Set<number>();
+      const idsPromociones = new Set<number>();
+      const nombresPromo = new Set<string>();
+      for (const f of configuradas) {
+        const req = configSolicitadas.get(f.id_detalle);
+        if (!req) continue;
+        for (const a of req.adicionales ?? seleccionActual(f)) idsAdicionales.add(a.id_adicional);
+        if (typeof req.id_promocion === 'number') idsPromociones.add(req.id_promocion);
+        if (f.promocion_aplicada) nombresPromo.add(f.promocion_aplicada);
+      }
+      for (const n of nuevasSolicitadas) {
+        for (const a of n.adicionales) idsAdicionales.add(a.id_adicional);
+        if (n.id_promocion !== null) idsPromociones.add(n.id_promocion);
+      }
+
+      const adicionalesCatalogo = idsAdicionales.size
+        ? await manager.find(Adicional, { where: { id_adicional: In([...idsAdicionales]) } })
+        : [];
+      const promosPorId = idsPromociones.size
+        ? await manager.find(Promocion, { where: { id_promocion: In([...idsPromociones]) } })
+        : [];
+      const promosPorNombre = nombresPromo.size
+        ? await manager.find(Promocion, { where: { nombre: In([...nombresPromo]) } })
+        : [];
+      const buscarPromo = (id: number) => {
+        const p = promosPorId.find((x) => x.id_promocion === id);
+        if (!p) throw new NotFoundException(`La promoción con id ${id} no existe`);
+        return p;
+      };
+
+      // Estado final de cada línea configurada (existente o nueva)
+      interface ConfigFinal {
+        fila?: DetallePedido;
+        id_item: number;
+        cantidad: number;
+        nota: string | null;
+        seleccion: Seleccion[];
+        promo: Promocion | null;
+        /** Nombre de la promoción (se conserva aunque ya no esté en el catálogo) */
+        promoNombre: string | null;
+        adicionalesNuevos: Set<number>;
+        promoCambia: boolean;
+        configCambia: boolean;
+        sube: boolean;
+        nueva: boolean;
+      }
+      const mismaSeleccion = (a: Seleccion[], b: Seleccion[]) =>
+        a.length === b.length &&
+        a.every((x) => b.some((y) => y.id_adicional === x.id_adicional && y.cantidad === x.cantidad));
+
+      const configFinales: ConfigFinal[] = [];
+      for (const f of configuradas) {
+        const req = configSolicitadas.get(f.id_detalle);
+        if (!req) continue;
+        const actual = seleccionActual(f);
+        const seleccion = req.adicionales ?? actual;
+        const promoActual = promosPorNombre.find((p) => p.nombre === f.promocion_aplicada) ?? null;
+        let promo = promoActual;
+        let promoNombre = f.promocion_aplicada ?? null;
+        let promoCambia = false;
+        if (req.id_promocion === null) {
+          promoCambia = !!f.promocion_aplicada;
+          promo = null;
+          promoNombre = null;
+        } else if (typeof req.id_promocion === 'number') {
+          promo = buscarPromo(req.id_promocion);
+          promoCambia = promo.nombre !== f.promocion_aplicada;
+          promoNombre = promo.nombre;
+        }
+        configFinales.push({
+          fila: f,
+          id_item: f.id_item,
+          cantidad: req.cantidad,
+          nota: req.nota,
+          seleccion,
+          promo,
+          promoNombre,
+          adicionalesNuevos: new Set(
+            seleccion.filter((s) => !actual.some((a) => a.id_adicional === s.id_adicional)).map((s) => s.id_adicional),
+          ),
+          promoCambia,
+          configCambia: promoCambia || !mismaSeleccion(seleccion, actual),
+          sube: req.cantidad > Number(f.cantidad),
+          nueva: false,
+        });
+      }
+      for (const n of nuevasSolicitadas) {
+        const promo = n.id_promocion !== null ? buscarPromo(n.id_promocion) : null;
+        configFinales.push({
+          id_item: n.id_item,
+          cantidad: n.cantidad,
+          nota: n.nota,
+          seleccion: n.adicionales,
+          promo,
+          promoNombre: promo?.nombre ?? null,
+          adicionalesNuevos: new Set(n.adicionales.map((a) => a.id_adicional)),
+          promoCambia: promo !== null,
+          configCambia: true,
+          sube: true,
+          nueva: true,
+        });
+      }
+
+      // -----------------------------------------------------------------------
+      // 3. En preparación no se reduce lo que ya está en cocina
+      // -----------------------------------------------------------------------
       if (pedido.estado_pedido === EstadoPedido.EN_PREPARACION) {
-        for (const a of antes) {
-          const nueva = a.configurada ? configSolicitadas.get(a.id_detalle!) : solicitadas.get(a.id_item);
-          if (!nueva || nueva.cantidad < a.cantidad) {
+        for (const f of configuradas) {
+          const req = configSolicitadas.get(f.id_detalle);
+          if (!req || req.cantidad < Number(f.cantidad)) {
+            throw new BadRequestException(
+              `El pedido está En preparación. No se pueden eliminar ni reducir productos ya enviados a cocina ("${etiquetaLineaConfigurada(f)}").`,
+            );
+          }
+        }
+        // Líneas simples: las unidades del producto pueden pasar a una línea con
+        // adicionales (reconfigurar), pero el total del producto no puede bajar
+        for (const a of resumirLineas(editables)) {
+          const simples = solicitadas.get(a.id_item)?.cantidad ?? 0;
+          const comoNuevas = nuevasSolicitadas
+            .filter((n) => n.id_item === a.id_item)
+            .reduce((s, n) => s + n.cantidad, 0);
+          if (simples + comoNuevas < a.cantidad) {
             throw new BadRequestException(
               `El pedido está En preparación. No se pueden eliminar ni reducir productos ya enviados a cocina ("${a.producto}").`,
             );
@@ -790,50 +955,18 @@ export class OrdersService {
         }
       }
 
-      // 3. Insumos de adicionales y combos de las líneas configuradas que aumentan
-      const adicionalesCatalogo = configAumentadas.length
-        ? await manager.find(Adicional, {
-            where: {
-              id_adicional: In([
-                ...new Set(configFinales.flatMap((c) => (c.fila.adicionales ?? []).map((a) => a.id_adicional))),
-              ]),
-            },
-          })
-        : [];
-      const nombresPromo = [
-        ...new Set(configFinales.map((c) => c.fila.promocion_aplicada).filter((n): n is string => !!n)),
-      ];
-      const promosCatalogo =
-        configAumentadas.length && nombresPromo.length
-          ? await manager.find(Promocion, { where: { nombre: In(nombresPromo) } })
-          : [];
-
-      // Requerimiento de cada insumo por TODAS las líneas configuradas con su nueva cantidad
-      const requerido = new Map<number, { requerido: number; usos: Set<string> }>();
-      const insumosAumentados = new Set<number>();
-      for (const c of configFinales) {
-        const sube = c.cantidad > Number(c.fila.cantidad);
-        const sumar = (idInsumo: number | null | undefined, cantidad: number, uso: string) => {
-          if (idInsumo === null || idInsumo === undefined) return;
-          const r = requerido.get(idInsumo) ?? { requerido: 0, usos: new Set<string>() };
-          r.requerido += cantidad;
-          r.usos.add(uso);
-          requerido.set(idInsumo, r);
-          if (sube) insumosAumentados.add(idInsumo);
-        };
-        for (const a of c.fila.adicionales ?? []) {
-          const cat = adicionalesCatalogo.find((x) => x.id_adicional === a.id_adicional);
-          if (cat) sumar(cat.id_insumo, Number(cat.cantidad_insumo) * Number(a.cantidad ?? 1) * c.cantidad, cat.nombre);
-        }
-        const promo = promosCatalogo.find((p) => p.nombre === c.fila.promocion_aplicada);
-        if (promo) sumar(promo.id_insumo, Number(promo.cantidad_insumo) * c.cantidad, promo.nombre);
-      }
-
-      // 4. Productos (simples y de líneas configuradas) e insumos en una consulta
+      // -----------------------------------------------------------------------
+      // 4. Productos e insumos (una sola consulta, bloqueados)
+      // -----------------------------------------------------------------------
+      const idsInsumos = [
+        ...adicionalesCatalogo.map((a) => a.id_insumo),
+        ...promosPorId.map((p) => p.id_insumo),
+        ...promosPorNombre.map((p) => p.id_insumo),
+      ].filter((id): id is number => typeof id === 'number');
       const productos = await manager.find(ItemInventario, {
         where: {
           id_item: In([
-            ...new Set([...solicitadas.keys(), ...configFinales.map((c) => c.fila.id_item), ...insumosAumentados]),
+            ...new Set([...solicitadas.keys(), ...configFinales.map((c) => c.id_item), ...idsInsumos]),
           ]),
         },
         lock: { mode: 'pessimistic_read' },
@@ -847,10 +980,18 @@ export class OrdersService {
         }
         if (!prod.estado_activo) throw new BadRequestException(`"${prod.nombre}" no está disponible`);
       }
-      for (const c of configAumentadas) {
-        const prod = productos.find((p) => p.id_item === c.fila.id_item);
-        if (!prod || !prod.estado_activo) {
-          throw new BadRequestException(`"${c.fila.item?.nombre ?? c.fila.id_item}" no está disponible`);
+
+      // Validar y poner precio a las líneas configuradas que cambian o son nuevas
+      const ahora = new Date();
+      const precios = new Map<ConfigFinal, { precio: number; adicionales: AdicionalLinea[] }>();
+      for (const c of configFinales) {
+        const prod = productos.find((p) => p.id_item === c.id_item);
+        if (!prod) throw new NotFoundException(`El producto con id ${c.id_item} no existe`);
+        if ((c.nueva || c.sube || c.configCambia) && (!prod.estado_activo || prod.tipo_item !== TipoItem.PRODUCTO)) {
+          throw new BadRequestException(`"${prod.nombre}" no está disponible`);
+        }
+        if (c.configCambia) {
+          precios.set(c, this.configurarLinea(prod, c.seleccion, c.promo, adicionalesCatalogo, c.adicionalesNuevos, c.promoCambia, ahora));
         }
       }
 
@@ -863,14 +1004,13 @@ export class OrdersService {
       const unidadesAntes = unidades(antes);
       const unidadesDespues = unidades([
         ...[...solicitadas].map(([id_item, l]) => ({ id_item, cantidad: l.cantidad })),
-        ...configFinales.map((c) => ({ id_item: c.fila.id_item, cantidad: c.cantidad })),
+        ...configFinales.map((c) => ({ id_item: c.id_item, cantidad: c.cantidad })),
       ]);
       for (const [idItem, total] of unidadesDespues) {
         const prod = productos.find((p) => p.id_item === idItem);
         if (!prod) continue;
-        const esSimple = solicitadas.has(idItem);
         const aumenta = total > (unidadesAntes.get(idItem) ?? 0);
-        if ((esSimple || aumenta) && Number(prod.cantidad_stock) < total) {
+        if ((solicitadas.has(idItem) || aumenta) && Number(prod.cantidad_stock) < total) {
           throw new BadRequestException({
             statusCode: 400,
             error: 'Bad Request',
@@ -884,8 +1024,27 @@ export class OrdersService {
         }
       }
 
-      // Stock de insumos de adicionales/combos (solo si alguna de sus líneas aumenta)
-      for (const idInsumo of insumosAumentados) {
+      // Stock de insumos: lo que piden TODAS las líneas configuradas; se valida
+      // el insumo si alguna línea que lo usa es nueva, aumenta o cambió su configuración
+      const requerido = new Map<number, { requerido: number; usos: Set<string> }>();
+      const insumosAValidar = new Set<number>();
+      for (const c of configFinales) {
+        const validar = c.nueva || c.sube || c.configCambia;
+        const sumar = (idInsumo: number | null | undefined, cantidad: number, uso: string) => {
+          if (idInsumo === null || idInsumo === undefined) return;
+          const r = requerido.get(idInsumo) ?? { requerido: 0, usos: new Set<string>() };
+          r.requerido += cantidad;
+          r.usos.add(uso);
+          requerido.set(idInsumo, r);
+          if (validar) insumosAValidar.add(idInsumo);
+        };
+        for (const sel of c.seleccion) {
+          const cat = adicionalesCatalogo.find((x) => x.id_adicional === sel.id_adicional);
+          if (cat) sumar(cat.id_insumo, Number(cat.cantidad_insumo) * sel.cantidad * c.cantidad, cat.nombre);
+        }
+        if (c.promo) sumar(c.promo.id_insumo, Number(c.promo.cantidad_insumo) * c.cantidad, c.promo.nombre);
+      }
+      for (const idInsumo of insumosAValidar) {
         const r = requerido.get(idInsumo)!;
         const insumo = productos.find((p) => p.id_item === idInsumo);
         const disponible = insumo?.estado_activo ? Number(insumo.cantidad_stock) : 0;
@@ -902,12 +1061,30 @@ export class OrdersService {
             requerido: r.requerido,
             message:
               `${nombre} sin existencias suficientes. Quedan ${formatoCantidad(disponible)} unidades ` +
-              `y el pedido requiere ${formatoCantidad(r.requerido)}. No se puede aumentar la cantidad.`,
+              `y el pedido requiere ${formatoCantidad(r.requerido)}. No se puede guardar el cambio.`,
           });
         }
       }
 
+      // -----------------------------------------------------------------------
       // 5. SCRUM-182: ¿qué cambió? (si nada cambió no se escribe ni se genera comanda)
+      // -----------------------------------------------------------------------
+      const nombreAdicional = (sel: Seleccion, f?: DetallePedido) =>
+        adicionalesCatalogo.find((a) => a.id_adicional === sel.id_adicional)?.nombre ??
+        f?.adicionales?.find((a) => a.id_adicional === sel.id_adicional)?.nombre_adicional ??
+        `Adicional #${sel.id_adicional}`;
+      const resumenFinal = (c: ConfigFinal, indice: number) => ({
+        ...resumirLineaConfigurada({
+          id_detalle: c.fila?.id_detalle ?? 0,
+          id_item: c.id_item,
+          cantidad: c.cantidad,
+          notas_especiales: c.nota,
+          item: productos.find((p) => p.id_item === c.id_item),
+          promocion_aplicada: c.promoNombre,
+          adicionales: c.seleccion.map((s) => ({ nombre_adicional: nombreAdicional(s, c.fila), cantidad: s.cantidad })),
+        }),
+        ...(c.nueva ? { clave: `nuevo:${indice}`, id_detalle: undefined } : {}),
+      });
       const despues = [
         ...[...solicitadas].map(([idItem, l]) => ({
           id_item: idItem,
@@ -915,11 +1092,7 @@ export class OrdersService {
           cantidad: l.cantidad,
           nota: l.nota,
         })),
-        ...configFinales.map((c) => ({
-          ...resumirLineaConfigurada(c.fila),
-          cantidad: c.cantidad,
-          nota: c.nota,
-        })),
+        ...configFinales.map((c, i) => resumenFinal(c, i)),
       ];
       const cambios = calcularCambios(antes, despues);
       if (cambios.length === 0) return;
@@ -930,34 +1103,74 @@ export class OrdersService {
       const aEliminar: number[] = [];
       const finales: { cantidad: number; precio: number }[] = [];
 
-      // 7a. Líneas configuradas: se actualiza la misma fila (sus adicionales siguen ligados)
+      // -----------------------------------------------------------------------
+      // 7a. Líneas configuradas existentes: misma fila; se sincronizan sus adicionales
+      // -----------------------------------------------------------------------
       for (const f of configuradas) {
-        const pedida = configSolicitadas.get(f.id_detalle);
-        if (!pedida) {
+        if (!configSolicitadas.has(f.id_detalle)) {
           // Solo en PENDIENTE (en preparación ya se rechazó arriba). ON DELETE CASCADE
           // borra sus registros de pedido_item_adicional.
           aEliminar.push(f.id_detalle);
-          continue;
         }
-        const notaActual = normalizarNota(f.notas_especiales);
-        if (pedida.cantidad !== Number(f.cantidad) || pedida.nota !== notaActual) {
-          await manager.update(
-            DetallePedido,
-            { id_detalle: f.id_detalle },
-            { cantidad: pedida.cantidad, notas_especiales: pedida.nota },
-          );
-          f.cantidad = pedida.cantidad;
-          f.notas_especiales = pedida.nota;
+      }
+      for (const c of configFinales.filter((x) => !x.nueva)) {
+        const f = c.fila!;
+        const cambiosFila: Partial<DetallePedido> = {};
+        if (c.cantidad !== Number(f.cantidad)) cambiosFila.cantidad = c.cantidad;
+        if (c.nota !== normalizarNota(f.notas_especiales)) cambiosFila.notas_especiales = c.nota;
+
+        let precio = Number(f.precio_unitario);
+        const nuevoPrecio = precios.get(c);
+        if (nuevoPrecio) {
+          precio = nuevoPrecio.precio;
+          cambiosFila.precio_unitario = precio;
+          cambiosFila.promocion_aplicada = c.promoNombre;
+          await this.sincronizarAdicionales(manager, f, nuevoPrecio.adicionales);
         }
-        // Precio unitario congelado = base/combo + Σ adicionales
-        finales.push({ cantidad: pedida.cantidad, precio: Number(f.precio_unitario) });
+
+        if (Object.keys(cambiosFila).length > 0) {
+          await manager.update(DetallePedido, { id_detalle: f.id_detalle }, cambiosFila);
+        }
+        finales.push({ cantidad: c.cantidad, precio });
       }
 
-      // 7b. Líneas simples, agrupadas por producto
+      // 7b. Líneas nuevas con adicionales o combo
+      for (const c of configFinales.filter((x) => x.nueva)) {
+        const conf = precios.get(c)!;
+        const detalle = await manager.save(
+          manager.create(DetallePedido, {
+            id_pedido: pedido.id_pedido,
+            id_item: c.id_item,
+            cantidad: c.cantidad,
+            precio_unitario: conf.precio,
+            notas_especiales: c.nota,
+            promocion_aplicada: c.promoNombre,
+            id_comanda: comanda.id_comanda,
+          }),
+        );
+        if (conf.adicionales.length > 0) {
+          await manager.save(
+            conf.adicionales.map((a) =>
+              manager.create(PedidoItemAdicional, {
+                id_detalle: detalle.id_detalle,
+                id_adicional: a.id_adicional,
+                cantidad: a.cantidad,
+                precio_unitario: a.precio_unitario,
+                nombre_adicional: a.nombre,
+              }),
+            ),
+          );
+        }
+        finales.push({ cantidad: c.cantidad, precio: conf.precio });
+      }
+
+      // -----------------------------------------------------------------------
+      // 7c. Líneas simples, agrupadas por producto
+      // -----------------------------------------------------------------------
       const filasPorItem = new Map<number, DetallePedido[]>();
       for (const d of editables) filasPorItem.set(d.id_item, [...(filasPorItem.get(d.id_item) ?? []), d]);
 
-      // Productos que ya no están (solo posible en PENDIENTE)
+      // Productos que ya no están como línea simple
       for (const [idItem, filas] of filasPorItem) {
         if (!solicitadas.has(idItem)) aEliminar.push(...filas.map((f) => f.id_detalle));
       }
@@ -1028,6 +1241,103 @@ export class OrdersService {
     });
 
     return this.buscarPorId(idPedido);
+  }
+
+  /**
+   * Valida los adicionales y la promoción de una línea y calcula su precio
+   * unitario con el catálogo actual (mismas reglas que "Nuevo choripán").
+   *   adicionalesNuevos: solo a estos se les exige estar activos (los que la
+   *                      línea ya tenía se pueden conservar aunque se desactiven).
+   *   validarPromo:      solo si la promoción se acaba de elegir (422 si no está vigente).
+   */
+  private configurarLinea(
+    producto: ItemInventario,
+    seleccion: { id_adicional: number; cantidad: number }[],
+    promo: Promocion | null,
+    catalogo: Adicional[],
+    adicionalesNuevos: Set<number>,
+    validarPromo: boolean,
+    ahora: Date,
+  ): { precio: number; adicionales: AdicionalLinea[] } {
+    let panes = 0;
+    const adicionales = seleccion.map<AdicionalLinea>((sel) => {
+      const a = catalogo.find((x) => x.id_adicional === sel.id_adicional);
+      if (!a) throw new NotFoundException(`El adicional con id ${sel.id_adicional} no existe`);
+      if (adicionalesNuevos.has(a.id_adicional) && !a.estado_activo) {
+        throw new BadRequestException(`El adicional "${a.nombre}" no está disponible`);
+      }
+      if (a.id_categoria !== null && a.id_categoria !== undefined && a.id_categoria !== producto.id_categoria) {
+        throw new BadRequestException(`El adicional "${a.nombre}" no aplica a "${producto.nombre}"`);
+      }
+      if (a.tipo === TipoAdicional.PAN && ++panes > 1) {
+        throw new BadRequestException(`Solo se puede elegir un tipo de pan para "${producto.nombre}"`);
+      }
+      return { id_adicional: a.id_adicional, nombre: a.nombre, cantidad: sel.cantidad, precio_unitario: Number(a.precio_adicional) };
+    });
+
+    if (promo && validarPromo) {
+      if (!promocionVigente(promo, ahora)) {
+        throw new UnprocessableEntityException({
+          statusCode: 422,
+          error: 'Unprocessable Entity',
+          codigo: CODIGO_PROMOCION_NO_VIGENTE,
+          id_promocion: promo.id_promocion,
+          promocion: promo.nombre,
+          message: `La promoción "${promo.nombre}" no está vigente y no se aplicó al pedido`,
+        });
+      }
+      if (promo.id_categoria !== null && promo.id_categoria !== undefined && promo.id_categoria !== producto.id_categoria) {
+        throw new BadRequestException(`La promoción "${promo.nombre}" no aplica a "${producto.nombre}"`);
+      }
+    }
+
+    return {
+      precio: calcularPrecioUnitario(Number(producto.precio_venta), adicionales, promo),
+      adicionales,
+    };
+  }
+
+  /**
+   * Sincroniza pedido_item_adicional de una línea: borra los desmarcados,
+   * actualiza cantidad/precio de los que siguen e inserta los nuevos.
+   */
+  private async sincronizarAdicionales(
+    manager: EntityManager,
+    fila: DetallePedido,
+    finales: AdicionalLinea[],
+  ): Promise<void> {
+    const actuales = fila.adicionales ?? [];
+    const quitar = actuales.filter((a) => !finales.some((f) => f.id_adicional === a.id_adicional));
+    if (quitar.length > 0) {
+      await manager.delete(PedidoItemAdicional, {
+        id_pedido_item_adicional: In(quitar.map((a) => a.id_pedido_item_adicional)),
+      });
+    }
+
+    for (const f of finales) {
+      const existente = actuales.find((a) => a.id_adicional === f.id_adicional);
+      if (!existente) {
+        await manager.save(
+          manager.create(PedidoItemAdicional, {
+            id_detalle: fila.id_detalle,
+            id_adicional: f.id_adicional,
+            cantidad: f.cantidad,
+            precio_unitario: f.precio_unitario,
+            nombre_adicional: f.nombre,
+          }),
+        );
+      } else if (
+        Number(existente.cantidad) !== f.cantidad ||
+        Number(existente.precio_unitario) !== f.precio_unitario ||
+        existente.nombre_adicional !== f.nombre
+      ) {
+        await manager.update(
+          PedidoItemAdicional,
+          { id_pedido_item_adicional: existente.id_pedido_item_adicional },
+          { cantidad: f.cantidad, precio_unitario: f.precio_unitario, nombre_adicional: f.nombre },
+        );
+      }
+    }
   }
 
   /**

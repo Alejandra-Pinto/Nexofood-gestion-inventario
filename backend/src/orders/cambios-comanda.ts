@@ -10,13 +10,24 @@
  *   CANTIDAD_AUMENTADA "Se agregó 1x Cerveza (ahora 3)"
  *   CANTIDAD_REDUCIDA  "Se quitó 1x Cerveza (ahora 1)"
  *   NOTA               "Se modificó la nota de Choripán Pampero: "sin cebolla""
+ *   ADICIONAL_AGREGADO "Se agregó adicional + Queso fundido en Choripán Pampero"
+ *   ADICIONAL_QUITADO  "Se quitó adicional + Chimi Rojo en Choripán Pampero"
+ *   FORMATO            "Se cambió a formato Combo con papa en Choripán Pampero"
  *
  * La hora ("a las 12:48") la agrega el frontend con fecha_creacion de la
  * comanda, en la zona horaria del local.
  */
 import { normalizarNota } from './configuracion-linea';
 
-export type TipoCambio = 'AGREGADO' | 'QUITADO' | 'CANTIDAD_AUMENTADA' | 'CANTIDAD_REDUCIDA' | 'NOTA';
+export type TipoCambio =
+  | 'AGREGADO'
+  | 'QUITADO'
+  | 'CANTIDAD_AUMENTADA'
+  | 'CANTIDAD_REDUCIDA'
+  | 'NOTA'
+  | 'ADICIONAL_AGREGADO'
+  | 'ADICIONAL_QUITADO'
+  | 'FORMATO';
 
 export interface CambioComanda {
   tipo: TipoCambio;
@@ -45,7 +56,21 @@ export interface LineaResumen {
   clave?: string;
   id_detalle?: number;
   configurada?: boolean;
+  /** Líneas configuradas: nombre del producto sin adicionales ("Choripán Pampero") */
+  nombre?: string;
+  /** Líneas configuradas: adicionales ("Queso fundido", "Chimi Rojo x2") */
+  adicionales?: string[];
+  /** Líneas configuradas: promoción/combo aplicado (null = Individual) */
+  formato?: string | null;
 }
+
+/** Nombre de cada adicional de la línea ("Chimi Rojo", "Queso fundido x2") */
+const nombresAdicionales = (
+  adicionales?: { nombre_adicional?: string | null; cantidad?: number | null }[] | null,
+): string[] =>
+  (adicionales ?? [])
+    .filter((a) => a.nombre_adicional)
+    .map((a) => `${a.nombre_adicional}${Number(a.cantidad ?? 1) > 1 ? ` x${a.cantidad}` : ''}`);
 
 const claveDe = (l: LineaResumen) => l.clave ?? `item:${l.id_item}`;
 
@@ -57,9 +82,7 @@ export function etiquetaLineaConfigurada(d: {
   adicionales?: { nombre_adicional?: string | null; cantidad?: number | null }[] | null;
 }): string {
   const extras = [
-    ...(d.adicionales ?? [])
-      .filter((a) => a.nombre_adicional)
-      .map((a) => `+ ${a.nombre_adicional}${Number(a.cantidad ?? 1) > 1 ? ` x${a.cantidad}` : ''}`),
+    ...nombresAdicionales(d.adicionales).map((n) => `+ ${n}`),
     ...(d.promocion_aplicada ? [`+ ${d.promocion_aplicada}`] : []),
   ];
   const nombre = d.item?.nombre ?? `Producto #${d.id_item}`;
@@ -84,6 +107,9 @@ export function resumirLineaConfigurada(d: {
     cantidad: Number(d.cantidad),
     nota: normalizarNota(d.notas_especiales),
     configurada: true,
+    nombre: d.item?.nombre ?? `Producto #${d.id_item}`,
+    adicionales: nombresAdicionales(d.adicionales),
+    formato: d.promocion_aplicada ?? null,
   };
 }
 
@@ -140,6 +166,43 @@ export function calcularCambios(antes: LineaResumen[], despues: LineaResumen[]):
         texto: `Se agregó ${d.cantidad}x ${d.producto}${nota ? ` (${nota})` : ''}`,
       });
       continue;
+    }
+
+    // Adicionales y formato de una línea configurada (misma id_detalle)
+    if (a.configurada || d.configurada) {
+      const nombre = d.nombre ?? a.nombre ?? d.producto;
+      const formatoAntes = a.formato ?? null;
+      const formatoDespues = d.formato ?? null;
+      if (formatoAntes !== formatoDespues) {
+        cambios.push({
+          tipo: 'FORMATO',
+          ...ref(d),
+          producto: nombre,
+          antes: formatoAntes ?? 'Individual',
+          despues: formatoDespues ?? 'Individual',
+          texto: `Se cambió a formato ${formatoDespues ?? 'Individual'} en ${nombre}`,
+        });
+      }
+      const previos = a.adicionales ?? [];
+      const nuevos = d.adicionales ?? [];
+      for (const ad of nuevos.filter((x) => !previos.includes(x))) {
+        cambios.push({
+          tipo: 'ADICIONAL_AGREGADO',
+          ...ref(d),
+          producto: nombre,
+          despues: ad,
+          texto: `Se agregó adicional + ${ad} en ${nombre}`,
+        });
+      }
+      for (const ad of previos.filter((x) => !nuevos.includes(x))) {
+        cambios.push({
+          tipo: 'ADICIONAL_QUITADO',
+          ...ref(d),
+          producto: nombre,
+          antes: ad,
+          texto: `Se quitó adicional + ${ad} en ${nombre}`,
+        });
+      }
     }
 
     if (d.cantidad > a.cantidad) {

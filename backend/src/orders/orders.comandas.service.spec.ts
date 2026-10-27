@@ -19,6 +19,8 @@ import { DetallePedido } from './entities/detalle-pedido.entity';
 import { Comanda, EstadoImpresionComanda } from '../kitchen/entities/comanda.entity';
 import { Adicional } from './entities/adicional.entity';
 import { Promocion } from './entities/promocion.entity';
+import { PedidoItemAdicional } from './entities/pedido-item-adicional.entity';
+import { FindOperator } from 'typeorm';
 import { ItemInventario, TipoItem } from '../products/entities/item-inventario.entity';
 import { ModificarPedidoDto } from './dto/modificar-pedido.dto';
 import { RolUsuario } from '../users/entities/user.entity';
@@ -37,10 +39,17 @@ describe('OrdersService · HU-4.3 versionado de comandas', () => {
   /** Insumos que consumen los adicionales y el combo (stock reiniciado en cada prueba) */
   let insumos: Partial<ItemInventario>[];
   const adicionalesCatalogo = [
-    { id_adicional: 3, nombre: 'Orégano', id_insumo: 100, cantidad_insumo: '1.000' },
+    { id_adicional: 3, nombre: 'Orégano', tipo: 'PAN', id_insumo: 100, cantidad_insumo: '1.000', precio_adicional: 0, id_categoria: null, estado_activo: true },
+    { id_adicional: 2, nombre: 'Chimi Rojo', tipo: 'ADEREZO', id_insumo: 101, cantidad_insumo: 1, precio_adicional: 0, id_categoria: null, estado_activo: true },
+    { id_adicional: 4, nombre: 'Queso fundido', tipo: 'EXTRA', id_insumo: 103, cantidad_insumo: 1, precio_adicional: 2500, id_categoria: null, estado_activo: true },
+    { id_adicional: 7, nombre: 'Ciabatta', tipo: 'PAN', id_insumo: 104, cantidad_insumo: 1, precio_adicional: 0, id_categoria: null, estado_activo: true },
+    { id_adicional: 6, nombre: 'Tocineta', tipo: 'EXTRA', id_insumo: null, cantidad_insumo: 1, precio_adicional: 3000, id_categoria: null, estado_activo: false },
   ];
+  const ayer = new Date(Date.now() - 86_400_000);
+  const enUnAno = new Date(Date.now() + 365 * 86_400_000);
   const promocionesCatalogo = [
-    { id_promocion: 1, nombre: 'Combo con papa', id_insumo: 102, cantidad_insumo: 1 },
+    { id_promocion: 1, nombre: 'Combo con papa', tipo: 'COMBO', recargo: 3000, precio_final: null, porcentaje_descuento: 0, id_categoria: null, id_insumo: 102, cantidad_insumo: 1, vigente_desde: ayer, vigente_hasta: enUnAno, estado_activo: true },
+    { id_promocion: 2, nombre: 'Combo de verano', tipo: 'COMBO', recargo: 2000, precio_final: null, porcentaje_descuento: 0, id_categoria: null, id_insumo: null, cantidad_insumo: 1, vigente_desde: new Date('2026-01-01'), vigente_hasta: new Date('2026-03-31'), estado_activo: true },
   ];
 
   let pedido: Fila;
@@ -93,6 +102,9 @@ describe('OrdersService · HU-4.3 versionado de comandas', () => {
     insumos = [
       { id_item: 100, nombre: 'Pan de orégano', tipo_item: TipoItem.INSUMO, cantidad_stock: 40, estado_activo: true },
       { id_item: 102, nombre: 'Papa a la francesa (porción)', tipo_item: TipoItem.INSUMO, cantidad_stock: 50, estado_activo: true },
+      { id_item: 101, nombre: 'Chimichurri rojo', tipo_item: TipoItem.INSUMO, cantidad_stock: 30, estado_activo: true },
+      { id_item: 103, nombre: 'Queso mozzarella (porción)', tipo_item: TipoItem.INSUMO, cantidad_stock: 20, estado_activo: true },
+      { id_item: 104, nombre: 'Pan ciabatta', tipo_item: TipoItem.INSUMO, cantidad_stock: 20, estado_activo: true },
     ];
     pedido = { id_pedido: 24, estado_pedido: EstadoPedido.EN_PREPARACION, total_calculado: 37000 };
     detalles = [fila(1, 1, 2, 16000), fila(2, 9, 1, 5000)];
@@ -249,7 +261,8 @@ describe('OrdersService · HU-4.3 versionado de comandas', () => {
     it('aumentar la cantidad actualiza ESA línea (sus adicionales siguen ligados) y genera la v2', async () => {
       await modificar({ detalles: [{ id_detalle: 5, id_item: 1, cantidad: 2 }, { id_item: 9, cantidad: 1 }] });
 
-      expect(managerMock.update).toHaveBeenCalledWith(DetallePedido, { id_detalle: 5 }, { cantidad: 2, notas_especiales: null });
+      // Solo se actualizan las columnas que cambian
+      expect(managerMock.update).toHaveBeenCalledWith(DetallePedido, { id_detalle: 5 }, { cantidad: 2 });
       expect(managerMock.delete).not.toHaveBeenCalled(); // pedido_item_adicional intacto
       expect(detallesNuevos()).toEqual([]); // no se crea otra fila sin adicionales
       // Subtotal = (precio base/combo + Σ adicionales) × nueva cantidad
@@ -268,7 +281,7 @@ describe('OrdersService · HU-4.3 versionado de comandas', () => {
     it('cambiar la nota de la línea con adicionales queda en la comanda', async () => {
       await modificar({ detalles: [{ id_detalle: 5, id_item: 1, cantidad: 1, notas_especiales: 'sin cebolla' }, { id_item: 9, cantidad: 1 }] });
 
-      expect(managerMock.update).toHaveBeenCalledWith(DetallePedido, { id_detalle: 5 }, { cantidad: 1, notas_especiales: 'sin cebolla' });
+      expect(managerMock.update).toHaveBeenCalledWith(DetallePedido, { id_detalle: 5 }, { notas_especiales: 'sin cebolla' });
       expect((comandaGuardada()!.cambios as { texto: string }[]).map((c) => c.texto)).toEqual([
         'Se agregó la nota "sin cebolla" en Choripán Pampero (+ Orégano, + Combo con papa)',
       ]);
@@ -332,6 +345,185 @@ describe('OrdersService · HU-4.3 versionado de comandas', () => {
       await expect(
         modificar({ detalles: [{ id_detalle: 999, id_item: 1, cantidad: 1 }, { id_item: 9, cantidad: 1 }] }),
       ).rejects.toThrow('La línea #999 no pertenece al pedido #24');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  describe('Editar adicionales y formato de una línea existente', () => {
+    /** Choripán Pampero + Orégano + Combo con papa: $20.500 congelado */
+    const configurada = (promo: string | null = 'Combo con papa'): Fila => ({
+      ...fila(5, 1, 1, 20500),
+      promocion_aplicada: promo,
+      adicionales: [{ id_pedido_item_adicional: 70, id_detalle: 5, id_adicional: 3, cantidad: 1, precio_unitario: 0, nombre_adicional: 'Orégano' }],
+    });
+    const cerveza = { id_item: 9, cantidad: 1 };
+
+    beforeEach(() => {
+      detalles = [configurada(), fila(2, 9, 1, 5000)];
+    });
+
+    /** Llamadas a manager.delete / update / save sobre una entidad */
+    const borradosDe = (entidad: unknown) =>
+      managerMock.delete.mock.calls.filter((c: unknown[]) => c[0] === entidad).map((c: unknown[]) => c[1] as Fila);
+    const actualizacionesDe = (entidad: unknown) =>
+      managerMock.update.mock.calls.filter((c: unknown[]) => c[0] === entidad);
+    const creadosDe = (entidad: unknown) =>
+      guardados.flatMap((g) => (Array.isArray(g) ? g : [g])).filter((g: Fila) => g.__entidad === entidad);
+    const textos = () => (comandaGuardada()!.cambios as { texto: string }[]).map((c) => c.texto);
+
+    it('agregar + Queso fundido: inserta el adicional, recalcula el precio y lo registra en la comanda', async () => {
+      await modificar({
+        detalles: [{ id_detalle: 5, id_item: 1, cantidad: 1, adicionales: [{ id_adicional: 3 }, { id_adicional: 4 }] }, cerveza],
+      });
+
+      expect(creadosDe(PedidoItemAdicional)).toEqual([
+        expect.objectContaining({ id_detalle: 5, id_adicional: 4, cantidad: 1, precio_unitario: 2500, nombre_adicional: 'Queso fundido' }),
+      ]);
+      expect(borradosDe(PedidoItemAdicional)).toEqual([]); // el Orégano se conserva
+      // Precio = base $16.000 + combo $3.000 + Orégano $0 + Queso $2.500
+      expect(managerMock.update).toHaveBeenCalledWith(
+        DetallePedido,
+        { id_detalle: 5 },
+        { precio_unitario: 21500, promocion_aplicada: 'Combo con papa' },
+      );
+      expect(pedido.total_calculado).toBe(21500 + 5000);
+      expect(textos()).toEqual(['Se agregó adicional + Queso fundido en Choripán Pampero']);
+      expect(comandaGuardada()).toMatchObject({ version: 2, estado_impresion: EstadoImpresionComanda.PENDIENTE });
+    });
+
+    it('quitar + Orégano: borra su registro de pedido_item_adicional y baja el precio', async () => {
+      await modificar({ detalles: [{ id_detalle: 5, id_item: 1, cantidad: 1, adicionales: [] }, cerveza] });
+
+      const [borrado] = borradosDe(PedidoItemAdicional);
+      expect((borrado.id_pedido_item_adicional as FindOperator<number>).value).toEqual([70]);
+      expect(managerMock.update).toHaveBeenCalledWith(
+        DetallePedido,
+        { id_detalle: 5 },
+        { precio_unitario: 19000, promocion_aplicada: 'Combo con papa' },
+      );
+      expect(textos()).toEqual(['Se quitó adicional + Orégano en Choripán Pampero']);
+    });
+
+    it('cambiar el pan (Orégano -> Ciabatta) en un solo guardado', async () => {
+      await modificar({ detalles: [{ id_detalle: 5, id_item: 1, cantidad: 1, adicionales: [{ id_adicional: 7 }] }, cerveza] });
+      expect(textos()).toEqual([
+        'Se agregó adicional + Ciabatta en Choripán Pampero',
+        'Se quitó adicional + Orégano en Choripán Pampero',
+      ]);
+    });
+
+    it('cambiar a formato Individual quita el combo y su recargo', async () => {
+      await modificar({ detalles: [{ id_detalle: 5, id_item: 1, cantidad: 1, id_promocion: null }, cerveza] });
+
+      expect(managerMock.update).toHaveBeenCalledWith(
+        DetallePedido,
+        { id_detalle: 5 },
+        { precio_unitario: 16000, promocion_aplicada: null },
+      );
+      expect(textos()).toEqual(['Se cambió a formato Individual en Choripán Pampero']);
+      expect(pedido.total_calculado).toBe(16000 + 5000);
+    });
+
+    it('cambiar a Combo con papa una línea Individual', async () => {
+      detalles = [configurada(null), fila(2, 9, 1, 5000)];
+      await modificar({ detalles: [{ id_detalle: 5, id_item: 1, cantidad: 2, id_promocion: 1 }, cerveza] });
+
+      expect(managerMock.update).toHaveBeenCalledWith(
+        DetallePedido,
+        { id_detalle: 5 },
+        { cantidad: 2, precio_unitario: 19000, promocion_aplicada: 'Combo con papa' },
+      );
+      expect(textos()).toEqual([
+        'Se cambió a formato Combo con papa en Choripán Pampero',
+        'Se incrementó 1x Choripán Pampero (+ Orégano, + Combo con papa) (ahora 2)',
+      ]);
+    });
+
+    it('sin papas suficientes para el combo: 400 STOCK_INSUFICIENTE y no se guarda', async () => {
+      detalles = [configurada(null), fila(2, 9, 1, 5000)];
+      insumos[1].cantidad_stock = 0; // papas
+      const error = await modificar({ detalles: [{ id_detalle: 5, id_item: 1, cantidad: 1, id_promocion: 1 }, cerveza] }).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(BadRequestException);
+      expect((error as BadRequestException).getResponse()).toMatchObject({
+        codigo: 'STOCK_INSUFICIENTE',
+        insumo: 'Papa a la francesa (porción)',
+        disponible: 0,
+        requerido: 1,
+      });
+      expect(managerMock.save).not.toHaveBeenCalled();
+      expect(managerMock.update).not.toHaveBeenCalled();
+    });
+
+    it('sin stock del insumo de un adicional nuevo: 400 y no se guarda', async () => {
+      insumos[3].cantidad_stock = 0; // queso
+      await expect(
+        modificar({ detalles: [{ id_detalle: 5, id_item: 1, cantidad: 1, adicionales: [{ id_adicional: 3 }, { id_adicional: 4 }] }, cerveza] }),
+      ).rejects.toThrow('Queso mozzarella (porción) sin existencias suficientes');
+      expect(managerMock.save).not.toHaveBeenCalled();
+    });
+
+    it('promoción vencida: 422 PROMOCION_NO_VIGENTE y no se aplica', async () => {
+      const error = await modificar({ detalles: [{ id_detalle: 5, id_item: 1, cantidad: 1, id_promocion: 2 }, cerveza] }).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(UnprocessableEntityException);
+      expect((error as UnprocessableEntityException).getResponse()).toMatchObject({ codigo: 'PROMOCION_NO_VIGENTE', id_promocion: 2 });
+      expect(managerMock.save).not.toHaveBeenCalled();
+    });
+
+    it('adicional inactivo o dos tipos de pan se rechazan', async () => {
+      await expect(
+        modificar({ detalles: [{ id_detalle: 5, id_item: 1, cantidad: 1, adicionales: [{ id_adicional: 3 }, { id_adicional: 6 }] }, cerveza] }),
+      ).rejects.toThrow('El adicional "Tocineta" no está disponible');
+      await expect(
+        modificar({ detalles: [{ id_detalle: 5, id_item: 1, cantidad: 1, adicionales: [{ id_adicional: 3 }, { id_adicional: 7 }] }, cerveza] }),
+      ).rejects.toThrow('Solo se puede elegir un tipo de pan');
+    });
+
+    it('en preparación se pueden cambiar adicionales y formato', async () => {
+      await modificar({ detalles: [{ id_detalle: 5, id_item: 1, cantidad: 1, adicionales: [{ id_adicional: 3 }, { id_adicional: 2 }] }, cerveza] });
+      expect(textos()).toEqual(['Se agregó adicional + Chimi Rojo en Choripán Pampero']);
+    });
+
+    it('línea nueva con adicionales y combo (sin id_detalle) se crea con su precio', async () => {
+      await modificar({
+        detalles: [
+          { id_detalle: 5, id_item: 1, cantidad: 1 },
+          cerveza,
+          { id_item: 1, cantidad: 1, adicionales: [{ id_adicional: 4 }], id_promocion: 1 },
+        ],
+      });
+
+      expect(detallesNuevos()).toEqual([
+        expect.objectContaining({ id_item: 1, cantidad: 1, precio_unitario: 16000 + 3000 + 2500, promocion_aplicada: 'Combo con papa', id_comanda: 50 }),
+      ]);
+      expect(creadosDe(PedidoItemAdicional)).toEqual([expect.objectContaining({ id_adicional: 4, nombre_adicional: 'Queso fundido' })]);
+      expect(textos()).toEqual(['Se agregó 1x Choripán Pampero (+ Queso fundido, + Combo con papa)']);
+      expect(pedido.total_calculado).toBe(20500 + 5000 + 21500);
+    });
+
+    it('en preparación, pasar choripanes simples a una línea con adicionales no cuenta como reducir', async () => {
+      detalles = [fila(1, 1, 2, 16000), fila(2, 9, 1, 5000)];
+      await modificar({ detalles: [cerveza, { id_item: 1, cantidad: 2, adicionales: [{ id_adicional: 4 }] }] });
+
+      expect(textos()).toEqual([
+        'Se agregó 2x Choripán Pampero (+ Queso fundido)',
+        'Se quitó 2x Choripán Pampero',
+      ]);
+      expect(pedido.total_calculado).toBe(5000 + 2 * 18500);
+    });
+
+    it('en preparación, convertir menos unidades de las que había sí es reducir', async () => {
+      detalles = [fila(1, 1, 2, 16000), fila(2, 9, 1, 5000)];
+      await expect(
+        modificar({ detalles: [cerveza, { id_item: 1, cantidad: 1, adicionales: [{ id_adicional: 4 }] }] }),
+      ).rejects.toThrow('No se pueden eliminar ni reducir');
+    });
+
+    it('a una línea simple no se le pasan adicionales por id_detalle', async () => {
+      detalles = [fila(1, 1, 2, 16000), fila(2, 9, 1, 5000)];
+      await expect(
+        modificar({ detalles: [{ id_detalle: 1, id_item: 1, cantidad: 2, adicionales: [{ id_adicional: 4 }] }, cerveza] }),
+      ).rejects.toThrow('envíela como línea nueva');
     });
   });
 });
