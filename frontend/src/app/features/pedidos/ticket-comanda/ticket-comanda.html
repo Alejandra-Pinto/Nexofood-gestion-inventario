@@ -9,7 +9,18 @@
       <div class="fila"><span>MESERO</span> <span>{{ pedido.mesero?.nombre || 'N/A' }}</span></div>
       <div class="fila"><span>HORA</span> <span>{{ pedido.fecha_hora | date:'shortTime' }}</span></div>
       <hr>
-      
+
+      <!-- HU-4.3: qué cambió en esta versión (cocina no prepara info desactualizada) -->
+      @if ((version ?? 1) > 1 && cambios.length > 0) {
+        <div class="cambios-version">
+          <div class="bold">*** CAMBIOS v{{ version }} ***</div>
+          @for (c of cambios; track $index) {
+            <div class="linea-adicional">{{ c }}</div>
+          }
+        </div>
+        <hr>
+      }
+
       <!-- HU-3.2: adicionales y combos con "+", notas resaltadas ** SIN CEBOLLA ** -->
       @if (itemsAdicionales && itemsAdicionales.length > 0) {
         @for (item of itemsAdicionales; track $index) {
@@ -26,7 +37,8 @@
       }
       
       <hr>
-      <div class="centrado small">Impreso {{ pedido.fecha_hora | date:'mediumTime' }}</div>
+      <!-- HU-4.3: pie con hora y versión, ej. "Impreso 12:45:22 · v2" -->
+      <div class="centrado small pie-version">Impreso {{ (fechaImpresion ?? pedido.fecha_hora) | date:'HH:mm:ss' }}{{ version ? ' · v' + version : '' }}</div>
     </div>
     
     <div class="acciones no-print">

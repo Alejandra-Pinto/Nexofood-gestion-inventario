@@ -14,6 +14,17 @@ import {
 import { CANTIDAD_MAXIMA } from './create-pedido.dto';
 
 export class ModificarDetallePedidoDto {
+  /**
+   * Línea existente del pedido. Obligatorio para las líneas con adicionales,
+   * combo o promoción (HU-3.2): así se edita ESA línea (cantidad y nota) sin
+   * perder sus registros en pedido_item_adicional. Las líneas simples pueden
+   * omitirlo (se agrupan por producto).
+   */
+  @IsOptional()
+  @IsInt({ message: 'El id de la línea del pedido debe ser un número entero' })
+  @Min(1, { message: 'El id de la línea del pedido no es válido' })
+  id_detalle?: number;
+
   @IsInt({ message: 'El id del producto debe ser un número entero' })
   @Min(1, { message: 'El id del producto es obligatorio' })
   id_item: number;

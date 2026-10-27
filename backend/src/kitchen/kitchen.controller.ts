@@ -39,6 +39,15 @@ export class KitchenController {
   }
 
   /**
+   * HU-4.3: versiones de la comanda, último cambio e historial de impresión.
+   */
+  @Get('pedidos/:id/comandas')
+  @Roles(RolUsuario.ADMINISTRADOR, RolUsuario.CAJERO, RolUsuario.MESERO)
+  resumenPorPedido(@Param('id', ParseIntPipe) id: number) {
+    return this.kitchenService.resumenPorPedido(id);
+  }
+
+  /**
    * Endpoint para que Electron reporte el estado final de la impresión (IMPRESA o ERROR).
    */
   @Patch('comandas/:id/estado')

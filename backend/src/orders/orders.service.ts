@@ -24,6 +24,7 @@ import { EstadoPedido, Pedido } from './entities/pedido.entity';
 import { Adicional, TipoAdicional } from './entities/adicional.entity';
 import { Promocion, TipoPromocion } from './entities/promocion.entity';
 import { PedidoItemAdicional } from './entities/pedido-item-adicional.entity';
+import { CambioComanda, calcularCambios, resumirLineaConfigurada, resumirLineas } from './cambios-comanda';
 import {
   calcularPrecioUnitario,
   calcularSubtotal,
@@ -54,6 +55,25 @@ export interface ResultadoPago {
 /** Códigos de error que el frontend usa para mostrar la tarjeta correcta */
 export const CODIGO_STOCK_INSUFICIENTE = 'STOCK_INSUFICIENTE';
 export const CODIGO_PROMOCION_NO_VIGENTE = 'PROMOCION_NO_VIGENTE';
+/** HU-4.3 · SCRUM-183 */
+export const CODIGO_PEDIDO_NO_MODIFICABLE = 'PEDIDO_NO_MODIFICABLE';
+
+/** HU-4.3 · SCRUM-183: estados en los que el pedido ya no se puede modificar */
+export const ESTADOS_NO_MODIFICABLES: EstadoPedido[] = [
+  EstadoPedido.LISTO,
+  EstadoPedido.ENTREGADO,
+  EstadoPedido.PAGADO,
+  EstadoPedido.ANULADO,
+];
+
+const ETIQUETA_ESTADO_PEDIDO: Record<EstadoPedido, string> = {
+  [EstadoPedido.PENDIENTE]: 'Pendiente',
+  [EstadoPedido.EN_PREPARACION]: 'En preparación',
+  [EstadoPedido.LISTO]: 'Listo para entrega',
+  [EstadoPedido.ENTREGADO]: 'Entregado',
+  [EstadoPedido.PAGADO]: 'Pagado',
+  [EstadoPedido.ANULADO]: 'Anulado',
+};
 
 export interface OpcionAdicional {
   id_adicional: number;
@@ -189,6 +209,8 @@ export class OrdersService {
       const comanda = await manager.save(
         manager.create(Comanda, {
           id_pedido: pedido.id_pedido,
+          version: 1, // HU-4.3: primera versión de la comanda
+          cambios: [],
           estado_impresion: EstadoImpresionComanda.PENDIENTE,
         }),
       );
@@ -641,7 +663,39 @@ export class OrdersService {
 
   // =========================================================================
   // HU-3.3 MODIFICACIÓN DE PEDIDO EXISTENTE
+  // HU-4.3 ACTUALIZAR COMANDA ANTE MODIFICACIONES (SCRUM-181 / 182 / 183)
   // =========================================================================
+
+  /**
+   * SCRUM-183: un pedido listo, entregado, pagado o anulado ya no se modifica.
+   * Responde 422 con codigo PEDIDO_NO_MODIFICABLE para que el frontend
+   * deshabilite la edición y explique el motivo.
+   */
+  private asegurarModificable(pedido: Pedido): void {
+    if (!ESTADOS_NO_MODIFICABLES.includes(pedido.estado_pedido)) return;
+    throw new UnprocessableEntityException({
+      statusCode: 422,
+      error: 'Unprocessable Entity',
+      codigo: CODIGO_PEDIDO_NO_MODIFICABLE,
+      estado_pedido: pedido.estado_pedido,
+      message: `El pedido #${pedido.id_pedido} está ${ETIQUETA_ESTADO_PEDIDO[pedido.estado_pedido]} y ya no admite modificaciones.`,
+    });
+  }
+
+  /**
+   * Modifica el pedido. Todas las líneas son editables:
+   *   - Líneas simples: se agrupan por producto (cantidad total + nota).
+   *   - Líneas con adicionales, combo o promoción (HU-3.2): se identifican por
+   *     id_detalle; se cambia su cantidad y su nota SIN tocar sus registros de
+   *     pedido_item_adicional y conservando su precio unitario congelado
+   *     (precio base o del combo + Σ adicionales). Subtotal = precio_unitario × cantidad.
+   *
+   *   PENDIENTE      -> agregar, quitar, cambiar cantidades y notas.
+   *   EN_PREPARACION -> agregar, aumentar cantidades y cambiar notas
+   *                     (no se reduce ni quita lo ya enviado a cocina).
+   * HU-4.3: si hubo cambios, se genera la comanda vN+1 (PENDIENTE) con el pedido
+   * completo y la lista de cambios; la versión anterior sin imprimir queda REEMPLAZADA.
+   */
   async modificar(
     idPedido: number,
     dto: ModificarPedidoDto,
@@ -653,14 +707,15 @@ export class OrdersService {
     }
 
     await this.dataSource.transaction(async (manager) => {
+      // El bloqueo del pedido serializa las modificaciones: dos versiones no chocan
       const pedido = await manager.findOne(Pedido, {
         where: { id_pedido: idPedido },
         lock: { mode: 'pessimistic_write' },
       });
+      if (!pedido) throw new NotFoundException(`El pedido #${idPedido} no existe`);
 
-      if (!pedido) {
-        throw new NotFoundException(`El pedido #${idPedido} no existe`);
-      }
+      // SCRUM-183: se valida ANTES de leer o escribir cualquier otra cosa
+      this.asegurarModificable(pedido);
 
       const todosLosDetalles = await manager.find(DetallePedido, {
         where: { id_pedido: idPedido },
@@ -668,185 +723,342 @@ export class OrdersService {
         order: { id_detalle: 'ASC' },
       });
 
-      // HU-3.2: las líneas con adicionales o promoción se conservan tal cual
-      // (precio congelado). Aquí solo se editan las líneas simples.
-      const lineasConfiguradas = todosLosDetalles.filter((d) => esLineaConfigurada(d));
-      const totalConfiguradas = lineasConfiguradas.reduce(
-        (s, d) => s + Number(d.cantidad) * Number(d.precio_unitario),
-        0,
-      );
-      pedido.detalles = todosLosDetalles.filter((d) => !esLineaConfigurada(d));
+      const configuradas = todosLosDetalles.filter((d) => esLineaConfigurada(d));
+      const editables = todosLosDetalles.filter((d) => !esLineaConfigurada(d));
+      const antes = [...resumirLineas(editables), ...configuradas.map((d) => resumirLineaConfigurada(d))];
 
-      if (pedido.estado_pedido === EstadoPedido.PAGADO || pedido.estado_pedido === EstadoPedido.ENTREGADO) {
-        throw new BadRequestException(
-          `El pedido #${idPedido} se encuentra en estado ${pedido.estado_pedido} y ya no puede modificarse.`,
-        );
-      }
+      // 1. Separar lo solicitado: líneas configuradas (por id_detalle) y simples (por producto)
+      const solicitadas = new Map<number, { cantidad: number; nota: string | null }>();
+      const configSolicitadas = new Map<number, { cantidad: number; nota: string | null }>();
 
-      if (pedido.estado_pedido === EstadoPedido.ANULADO) {
-        throw new BadRequestException(`El pedido #${idPedido} está anulado y no admite modificaciones.`);
-      }
-
-      if (pedido.estado_pedido === EstadoPedido.LISTO) {
-        throw new BadRequestException(`El pedido #${idPedido} está listo para entrega y no puede modificarse.`);
-      }
-
-      // Validar y agrupar detalles solicitados
-      const lineasSolicitadas = new Map<number, { cantidad: number; notas_especiales?: string; promocion_aplicada?: string }>();
       for (const d of dto.detalles) {
         if (!Number.isInteger(d.cantidad) || d.cantidad <= 0) {
           throw new BadRequestException('La cantidad debe ser un número entero mayor a 0');
         }
-        const actual = lineasSolicitadas.get(d.id_item);
-        const nuevaCant = (actual?.cantidad ?? 0) + d.cantidad;
-        if (nuevaCant > CANTIDAD_MAXIMA) {
+        if (d.cantidad > CANTIDAD_MAXIMA) {
           throw new BadRequestException(`La cantidad máxima por producto es ${CANTIDAD_MAXIMA}`);
         }
-        lineasSolicitadas.set(d.id_item, {
-          cantidad: nuevaCant,
-          notas_especiales: d.notas_especiales ?? actual?.notas_especiales,
-          promocion_aplicada: d.promocion_aplicada ?? actual?.promocion_aplicada,
-        });
+        const nota = normalizarNota(d.notas_especiales);
+        if (nota && nota.length > MAX_NOTA) {
+          throw new BadRequestException(`Las notas especiales admiten máximo ${MAX_NOTA} caracteres`);
+        }
+
+        if (d.id_detalle !== undefined && d.id_detalle !== null) {
+          const fila = todosLosDetalles.find((x) => x.id_detalle === d.id_detalle);
+          if (!fila) throw new NotFoundException(`La línea #${d.id_detalle} no pertenece al pedido #${idPedido}`);
+          if (fila.id_item !== d.id_item) {
+            throw new BadRequestException(`La línea #${d.id_detalle} no corresponde al producto ${d.id_item}`);
+          }
+          if (esLineaConfigurada(fila)) {
+            // HU-3.2: la promoción de la línea es la que ya tiene (no se cambia por texto)
+            if (configSolicitadas.has(d.id_detalle)) {
+              throw new BadRequestException(`La línea #${d.id_detalle} viene repetida`);
+            }
+            configSolicitadas.set(d.id_detalle, { cantidad: d.cantidad, nota });
+            continue;
+          }
+        }
+
+        if (d.promocion_aplicada?.trim()) {
+          throw new BadRequestException(
+            'Las promociones y combos se aplican desde "Nuevo choripán" para validar su vigencia',
+          );
+        }
+        const actual = solicitadas.get(d.id_item);
+        const cantidad = (actual?.cantidad ?? 0) + d.cantidad;
+        if (cantidad > CANTIDAD_MAXIMA) {
+          throw new BadRequestException(`La cantidad máxima por producto es ${CANTIDAD_MAXIMA}`);
+        }
+        solicitadas.set(d.id_item, { cantidad, nota: nota ?? actual?.nota ?? null });
       }
 
-      const idsItems = Array.from(lineasSolicitadas.keys());
+      // Líneas configuradas que siguen en el pedido y las que aumentan
+      const configFinales = configuradas
+        .filter((f) => configSolicitadas.has(f.id_detalle))
+        .map((f) => ({ fila: f, ...configSolicitadas.get(f.id_detalle)! }));
+      const configAumentadas = configFinales.filter((c) => c.cantidad > Number(c.fila.cantidad));
+
+      // 2. En preparación no se reduce ni se quita lo que ya está en cocina
+      if (pedido.estado_pedido === EstadoPedido.EN_PREPARACION) {
+        for (const a of antes) {
+          const nueva = a.configurada ? configSolicitadas.get(a.id_detalle!) : solicitadas.get(a.id_item);
+          if (!nueva || nueva.cantidad < a.cantidad) {
+            throw new BadRequestException(
+              `El pedido está En preparación. No se pueden eliminar ni reducir productos ya enviados a cocina ("${a.producto}").`,
+            );
+          }
+        }
+      }
+
+      // 3. Insumos de adicionales y combos de las líneas configuradas que aumentan
+      const adicionalesCatalogo = configAumentadas.length
+        ? await manager.find(Adicional, {
+            where: {
+              id_adicional: In([
+                ...new Set(configFinales.flatMap((c) => (c.fila.adicionales ?? []).map((a) => a.id_adicional))),
+              ]),
+            },
+          })
+        : [];
+      const nombresPromo = [
+        ...new Set(configFinales.map((c) => c.fila.promocion_aplicada).filter((n): n is string => !!n)),
+      ];
+      const promosCatalogo =
+        configAumentadas.length && nombresPromo.length
+          ? await manager.find(Promocion, { where: { nombre: In(nombresPromo) } })
+          : [];
+
+      // Requerimiento de cada insumo por TODAS las líneas configuradas con su nueva cantidad
+      const requerido = new Map<number, { requerido: number; usos: Set<string> }>();
+      const insumosAumentados = new Set<number>();
+      for (const c of configFinales) {
+        const sube = c.cantidad > Number(c.fila.cantidad);
+        const sumar = (idInsumo: number | null | undefined, cantidad: number, uso: string) => {
+          if (idInsumo === null || idInsumo === undefined) return;
+          const r = requerido.get(idInsumo) ?? { requerido: 0, usos: new Set<string>() };
+          r.requerido += cantidad;
+          r.usos.add(uso);
+          requerido.set(idInsumo, r);
+          if (sube) insumosAumentados.add(idInsumo);
+        };
+        for (const a of c.fila.adicionales ?? []) {
+          const cat = adicionalesCatalogo.find((x) => x.id_adicional === a.id_adicional);
+          if (cat) sumar(cat.id_insumo, Number(cat.cantidad_insumo) * Number(a.cantidad ?? 1) * c.cantidad, cat.nombre);
+        }
+        const promo = promosCatalogo.find((p) => p.nombre === c.fila.promocion_aplicada);
+        if (promo) sumar(promo.id_insumo, Number(promo.cantidad_insumo) * c.cantidad, promo.nombre);
+      }
+
+      // 4. Productos (simples y de líneas configuradas) e insumos en una consulta
       const productos = await manager.find(ItemInventario, {
-        where: { id_item: In(idsItems) },
+        where: {
+          id_item: In([
+            ...new Set([...solicitadas.keys(), ...configFinales.map((c) => c.fila.id_item), ...insumosAumentados]),
+          ]),
+        },
         lock: { mode: 'pessimistic_read' },
       });
 
-      for (const [idItem, l] of lineasSolicitadas) {
+      for (const idItem of solicitadas.keys()) {
         const prod = productos.find((p) => p.id_item === idItem);
         if (!prod) throw new NotFoundException(`El producto con id ${idItem} no existe`);
         if (prod.tipo_item !== TipoItem.PRODUCTO) {
           throw new BadRequestException(`"${prod.nombre}" es un insumo y no se puede vender en un pedido`);
         }
-        if (!prod.estado_activo) {
-          throw new BadRequestException(`"${prod.nombre}" no está disponible`);
-        }
-        if (prod.cantidad_stock < l.cantidad) {
-          throw new BadRequestException(
-            `Stock insuficiente para "${prod.nombre}". Disponible: ${prod.cantidad_stock}, solicitado: ${l.cantidad}`,
-          );
+        if (!prod.estado_activo) throw new BadRequestException(`"${prod.nombre}" no está disponible`);
+      }
+      for (const c of configAumentadas) {
+        const prod = productos.find((p) => p.id_item === c.fila.id_item);
+        if (!prod || !prod.estado_activo) {
+          throw new BadRequestException(`"${c.fila.item?.nombre ?? c.fila.id_item}" no está disponible`);
         }
       }
 
-      if (pedido.estado_pedido === EstadoPedido.PENDIENTE) {
-        // En PENDIENTE: modificación completa (agregar, editar cantidades/notas, eliminar)
-        const idsAEliminar = pedido.detalles
-          .filter((d) => !lineasSolicitadas.has(d.id_item))
-          .map((d) => d.id_detalle);
-
-        if (idsAEliminar.length > 0) {
-          await manager.delete(DetallePedido, { id_detalle: In(idsAEliminar) });
+      // Stock del producto: todas sus líneas juntas (simples + configuradas)
+      const unidades = (lineas: { id_item: number; cantidad: number }[]) => {
+        const m = new Map<number, number>();
+        for (const l of lineas) m.set(l.id_item, (m.get(l.id_item) ?? 0) + l.cantidad);
+        return m;
+      };
+      const unidadesAntes = unidades(antes);
+      const unidadesDespues = unidades([
+        ...[...solicitadas].map(([id_item, l]) => ({ id_item, cantidad: l.cantidad })),
+        ...configFinales.map((c) => ({ id_item: c.fila.id_item, cantidad: c.cantidad })),
+      ]);
+      for (const [idItem, total] of unidadesDespues) {
+        const prod = productos.find((p) => p.id_item === idItem);
+        if (!prod) continue;
+        const esSimple = solicitadas.has(idItem);
+        const aumenta = total > (unidadesAntes.get(idItem) ?? 0);
+        if ((esSimple || aumenta) && Number(prod.cantidad_stock) < total) {
+          throw new BadRequestException({
+            statusCode: 400,
+            error: 'Bad Request',
+            codigo: CODIGO_STOCK_INSUFICIENTE,
+            id_item: idItem,
+            insumo: prod.nombre,
+            disponible: Number(prod.cantidad_stock),
+            requerido: total,
+            message: `Stock insuficiente para "${prod.nombre}". Disponible: ${prod.cantidad_stock}, solicitado: ${total}`,
+          });
         }
+      }
 
-        let totalCalculado = totalConfiguradas;
+      // Stock de insumos de adicionales/combos (solo si alguna de sus líneas aumenta)
+      for (const idInsumo of insumosAumentados) {
+        const r = requerido.get(idInsumo)!;
+        const insumo = productos.find((p) => p.id_item === idInsumo);
+        const disponible = insumo?.estado_activo ? Number(insumo.cantidad_stock) : 0;
+        if (disponible < r.requerido) {
+          const nombre = insumo?.nombre ?? `Insumo #${idInsumo}`;
+          throw new BadRequestException({
+            statusCode: 400,
+            error: 'Bad Request',
+            codigo: CODIGO_STOCK_INSUFICIENTE,
+            id_item: idInsumo,
+            insumo: nombre,
+            adicionales: [...r.usos],
+            disponible,
+            requerido: r.requerido,
+            message:
+              `${nombre} sin existencias suficientes. Quedan ${formatoCantidad(disponible)} unidades ` +
+              `y el pedido requiere ${formatoCantidad(r.requerido)}. No se puede aumentar la cantidad.`,
+          });
+        }
+      }
 
-        for (const [idItem, l] of lineasSolicitadas) {
-          const prod = productos.find((p) => p.id_item === idItem)!;
-          const detalleExistente = pedido.detalles.find((d) => d.id_item === idItem);
-          const precioUnitario = detalleExistente ? detalleExistente.precio_unitario : prod.precio_venta;
-          totalCalculado += l.cantidad * precioUnitario;
+      // 5. SCRUM-182: ¿qué cambió? (si nada cambió no se escribe ni se genera comanda)
+      const despues = [
+        ...[...solicitadas].map(([idItem, l]) => ({
+          id_item: idItem,
+          producto: productos.find((p) => p.id_item === idItem)!.nombre,
+          cantidad: l.cantidad,
+          nota: l.nota,
+        })),
+        ...configFinales.map((c) => ({
+          ...resumirLineaConfigurada(c.fila),
+          cantidad: c.cantidad,
+          nota: c.nota,
+        })),
+      ];
+      const cambios = calcularCambios(antes, despues);
+      if (cambios.length === 0) return;
 
-          if (detalleExistente) {
-            detalleExistente.cantidad = l.cantidad;
-            detalleExistente.notas_especiales = l.notas_especiales?.trim() || null;
-            detalleExistente.promocion_aplicada = l.promocion_aplicada?.trim() || null;
-            await manager.save(detalleExistente);
+      // 6. SCRUM-181: nueva versión de la comanda con el pedido completo
+      const comanda = await this.nuevaVersionComanda(manager, pedido.id_pedido, cambios);
+
+      const aEliminar: number[] = [];
+      const finales: { cantidad: number; precio: number }[] = [];
+
+      // 7a. Líneas configuradas: se actualiza la misma fila (sus adicionales siguen ligados)
+      for (const f of configuradas) {
+        const pedida = configSolicitadas.get(f.id_detalle);
+        if (!pedida) {
+          // Solo en PENDIENTE (en preparación ya se rechazó arriba). ON DELETE CASCADE
+          // borra sus registros de pedido_item_adicional.
+          aEliminar.push(f.id_detalle);
+          continue;
+        }
+        const notaActual = normalizarNota(f.notas_especiales);
+        if (pedida.cantidad !== Number(f.cantidad) || pedida.nota !== notaActual) {
+          await manager.update(
+            DetallePedido,
+            { id_detalle: f.id_detalle },
+            { cantidad: pedida.cantidad, notas_especiales: pedida.nota },
+          );
+          f.cantidad = pedida.cantidad;
+          f.notas_especiales = pedida.nota;
+        }
+        // Precio unitario congelado = base/combo + Σ adicionales
+        finales.push({ cantidad: pedida.cantidad, precio: Number(f.precio_unitario) });
+      }
+
+      // 7b. Líneas simples, agrupadas por producto
+      const filasPorItem = new Map<number, DetallePedido[]>();
+      for (const d of editables) filasPorItem.set(d.id_item, [...(filasPorItem.get(d.id_item) ?? []), d]);
+
+      // Productos que ya no están (solo posible en PENDIENTE)
+      for (const [idItem, filas] of filasPorItem) {
+        if (!solicitadas.has(idItem)) aEliminar.push(...filas.map((f) => f.id_detalle));
+      }
+
+      for (const [idItem, l] of solicitadas) {
+        const prod = productos.find((p) => p.id_item === idItem)!;
+        const filas = filasPorItem.get(idItem) ?? [];
+        const existente = filas.reduce((s, f) => s + Number(f.cantidad), 0);
+        const notaCambio = !filas.every((f) => (normalizarNota(f.notas_especiales) ?? null) === l.nota);
+        const modificadas = new Set<DetallePedido>();
+
+        // Menos unidades: se descuentan de las filas más recientes
+        let sobran = existente - l.cantidad;
+        for (const f of [...filas].reverse()) {
+          if (sobran <= 0) break;
+          const cant = Number(f.cantidad);
+          if (cant <= sobran) {
+            aEliminar.push(f.id_detalle);
+            sobran -= cant;
+            f.cantidad = 0;
           } else {
-            const nuevoDetalle = manager.create(DetallePedido, {
+            f.cantidad = cant - sobran;
+            sobran = 0;
+            modificadas.add(f);
+          }
+        }
+
+        // La nota es del producto: aplica a todas sus unidades
+        if (notaCambio) {
+          for (const f of filas) {
+            if (Number(f.cantidad) === 0) continue;
+            f.notas_especiales = l.nota;
+            modificadas.add(f);
+          }
+        }
+        for (const f of modificadas) await manager.save(f);
+        for (const f of filas) {
+          if (Number(f.cantidad) > 0) finales.push({ cantidad: Number(f.cantidad), precio: Number(f.precio_unitario) });
+        }
+
+        // Más unidades: fila nueva al precio actual, ligada a la nueva versión
+        if (l.cantidad > existente) {
+          const nueva = l.cantidad - existente;
+          await manager.save(
+            manager.create(DetallePedido, {
               id_pedido: pedido.id_pedido,
               id_item: idItem,
-              cantidad: l.cantidad,
-              precio_unitario: precioUnitario,
-              notas_especiales: l.notas_especiales?.trim() || null,
-              promocion_aplicada: l.promocion_aplicada?.trim() || null,
-            });
-            await manager.save(nuevoDetalle);
-          }
-        }
-
-        if (totalCalculado > INT_MAX) {
-          throw new BadRequestException('El total del pedido supera el máximo permitido');
-        }
-
-        pedido.total_calculado = totalCalculado;
-        await manager.save(pedido);
-
-      } else if (pedido.estado_pedido === EstadoPedido.EN_PREPARACION) {
-        // En EN_PREPARACION: solo adición de productos o aumento de cantidad.
-        // No se permite eliminar ni reducir ítems ya enviados a cocina.
-        const existenciasPorItem = new Map<number, number>();
-        for (const d of pedido.detalles) {
-          existenciasPorItem.set(d.id_item, (existenciasPorItem.get(d.id_item) ?? 0) + Number(d.cantidad));
-        }
-
-        for (const [idItem, cantidadExistente] of existenciasPorItem) {
-          const nuevaLinea = lineasSolicitadas.get(idItem);
-          if (!nuevaLinea || nuevaLinea.cantidad < cantidadExistente) {
-            const prod = productos.find((p) => p.id_item === idItem);
-            throw new BadRequestException(
-              `El pedido está En preparación. No se pueden eliminar ni reducir productos ya enviados a cocina ("${prod?.nombre ?? idItem}").`,
-            );
-          }
-        }
-
-        const adicionesParaComanda: { id_item: number; cantidad: number; precio_unitario: number; notas?: string; promo?: string }[] = [];
-        let totalCalculado = totalConfiguradas;
-
-        for (const [idItem, l] of lineasSolicitadas) {
-          const prod = productos.find((p) => p.id_item === idItem)!;
-          const cantidadExistente = existenciasPorItem.get(idItem) ?? 0;
-          const cantidadAdicional = l.cantidad - cantidadExistente;
-
-          totalCalculado += l.cantidad * prod.precio_venta;
-
-          if (cantidadAdicional > 0) {
-            adicionesParaComanda.push({
-              id_item: idItem,
-              cantidad: cantidadAdicional,
+              cantidad: nueva,
               precio_unitario: prod.precio_venta,
-              notas: l.notas_especiales,
-              promo: l.promocion_aplicada,
-            });
-          }
-        }
-
-        if (totalCalculado > INT_MAX) {
-          throw new BadRequestException('El total del pedido supera el máximo permitido');
-        }
-
-        pedido.total_calculado = totalCalculado;
-        await manager.save(pedido);
-
-        // Si hay productos recién agregados o cantidades incrementadas,
-        // generar comanda de adición para cocina con solo los ítems adicionales
-        if (adicionesParaComanda.length > 0) {
-          const comandaAdicion = await manager.save(
-            manager.create(Comanda, {
-              id_pedido: pedido.id_pedido,
-              estado_impresion: EstadoImpresionComanda.PENDIENTE,
+              notas_especiales: l.nota,
+              promocion_aplicada: null,
+              id_comanda: comanda.id_comanda,
             }),
           );
-
-          for (const adic of adicionesParaComanda) {
-            const nuevoDetalle = manager.create(DetallePedido, {
-              id_pedido: pedido.id_pedido,
-              id_item: adic.id_item,
-              cantidad: adic.cantidad,
-              precio_unitario: adic.precio_unitario,
-              notas_especiales: adic.notas?.trim() || null,
-              promocion_aplicada: adic.promo?.trim() || null,
-              id_comanda: comandaAdicion.id_comanda,
-            });
-            await manager.save(nuevoDetalle);
-          }
+          finales.push({ cantidad: nueva, precio: Number(prod.precio_venta) });
         }
       }
+
+      if (aEliminar.length > 0) {
+        await manager.delete(DetallePedido, { id_detalle: In(aEliminar) });
+      }
+
+      const total = finales.reduce((s, f) => s + f.cantidad * f.precio, 0);
+      if (total > INT_MAX) throw new BadRequestException('El total del pedido supera el máximo permitido');
+
+      pedido.total_calculado = total;
+      await manager.save(pedido);
     });
 
     return this.buscarPorId(idPedido);
+  }
+
+  /**
+   * HU-4.3 · SCRUM-181/182: crea la comanda vN+1 en PENDIENTE con sus cambios.
+   * Las versiones anteriores que seguían PENDIENTES quedan REEMPLAZADAS para que
+   * el agente de impresión solo imprima la versión vigente.
+   */
+  private async nuevaVersionComanda(
+    manager: EntityManager,
+    idPedido: number,
+    cambios: CambioComanda[],
+  ): Promise<Comanda> {
+    const ultima = await manager.findOne(Comanda, {
+      where: { id_pedido: idPedido },
+      order: { version: 'DESC' },
+    });
+
+    await manager.update(
+      Comanda,
+      { id_pedido: idPedido, estado_impresion: EstadoImpresionComanda.PENDIENTE },
+      { estado_impresion: EstadoImpresionComanda.REEMPLAZADA },
+    );
+
+    return manager.save(
+      manager.create(Comanda, {
+        id_pedido: idPedido,
+        version: (ultima?.version ?? 0) + 1,
+        estado_impresion: EstadoImpresionComanda.PENDIENTE,
+        cambios,
+      }),
+    );
   }
 
   // =========================================================================

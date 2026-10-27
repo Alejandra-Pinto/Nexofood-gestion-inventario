@@ -63,4 +63,29 @@ describe('TicketComandaComponent', () => {
     ]);
     expect(ticket.querySelector('.linea-nota')?.textContent).toBe('** SIN CEBOLLA **');
   });
+
+  it('HU-4.3: el pie indica hora y versión (Impreso 12:45:22 · v2) y lista los cambios', () => {
+    fixture.componentRef.setInput('pedido', pedido);
+    fixture.componentRef.setInput('visible', true);
+    fixture.componentRef.setInput('version', 2);
+    fixture.componentRef.setInput('fechaImpresion', '2026-10-27T17:48:10Z');
+    fixture.componentRef.setInput('cambios', ['Se agregó 1x Cerveza (ahora 2)']);
+    fixture.detectChanges();
+
+    const ticket = fixture.nativeElement as HTMLElement;
+    expect(ticket.querySelector('.pie-version')?.textContent).toMatch(/^Impreso \d{2}:\d{2}:\d{2} · v2$/);
+    expect(ticket.querySelector('.cambios-version')?.textContent).toContain('*** CAMBIOS v2 ***');
+    expect(ticket.querySelector('.cambios-version')?.textContent).toContain('Se agregó 1x Cerveza (ahora 2)');
+  });
+
+  it('HU-4.3: la v1 no muestra bloque de cambios', () => {
+    fixture.componentRef.setInput('pedido', pedido);
+    fixture.componentRef.setInput('visible', true);
+    fixture.componentRef.setInput('version', 1);
+    fixture.detectChanges();
+
+    const ticket = fixture.nativeElement as HTMLElement;
+    expect(ticket.querySelector('.cambios-version')).toBeNull();
+    expect(ticket.querySelector('.pie-version')?.textContent).toMatch(/· v1$/);
+  });
 });

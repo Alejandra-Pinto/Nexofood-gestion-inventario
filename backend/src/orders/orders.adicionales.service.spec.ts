@@ -100,6 +100,8 @@ describe('OrdersService · HU-3.2 adicionales, promociones, combos y notas', () 
       return Promise.resolve(datos);
     }),
     delete: jest.fn(() => Promise.resolve({ affected: 1 })),
+    // HU-4.3: la nueva versión de la comanda reemplaza la anterior pendiente
+    update: jest.fn(() => Promise.resolve({ affected: 1 })),
   };
 
   const dataSourceMock = {
@@ -671,7 +673,7 @@ describe('OrdersService · HU-3.2 adicionales, promociones, combos y notas', () 
 
   // ---------------------------------------------------------------------------
   describe('Compatibilidad con HU-3.3 (modificar pedido)', () => {
-    it('conserva las líneas configuradas y suma su valor al total', async () => {
+    it('conserva la línea con combo (enviada por id_detalle) y suma su valor al total', async () => {
       const configurada = {
         id_detalle: 1,
         id_pedido: 10,
@@ -707,7 +709,8 @@ describe('OrdersService · HU-3.2 adicionales, promociones, combos y notas', () 
 
       await service.modificar(
         10,
-        { detalles: [{ id_item: 9, cantidad: 3 }] },
+        // La línea con combo viaja con su id_detalle (sin cambios)
+        { detalles: [{ id_detalle: 1, id_item: 1, cantidad: 1 }, { id_item: 9, cantidad: 3 }] },
         7,
         RolUsuario.MESERO,
       );

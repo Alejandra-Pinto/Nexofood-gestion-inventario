@@ -158,6 +158,8 @@ export interface CrearPedido {
 
 /** HU-3.3: Modificar pedido existente */
 export interface ModificarDetallePedido {
+  /** Línea con adicionales/combo: se edita esa línea (sus adicionales se conservan) */
+  id_detalle?: number;
   id_item: number;
   cantidad: number;
   notas_especiales?: string;

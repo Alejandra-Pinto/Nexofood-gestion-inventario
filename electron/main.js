@@ -179,6 +179,17 @@ function generarTicketHTML(comanda) {
   //   ["2x CHORIPAN PAMPERO", "+ Chimi Rojo", "+ Combo con papa", "** SIN CEBOLLA **"]
   // La primera línea es el producto; las que empiezan con "+" son adicionales/combos
   // y las que van entre "**" son notas de cocina (resaltadas).
+  // HU-4.3: versión de la comanda y cambios respecto a la versión anterior
+  const version = Number(comanda.version) || 1;
+  const cambios = Array.isArray(comanda.cambios) ? comanda.cambios : [];
+  const bloqueCambios = version > 1 && cambios.length > 0
+    ? `<div class="cambios">
+    <div class="bold">*** CAMBIOS v${version} ***</div>
+    ${cambios.map((c) => `<div class="adicional">${escaparHtml(c.texto || '')}</div>`).join('')}
+  </div>
+  <hr>`
+    : '';
+
   const lineasProductos = detalles.map((d) => {
     const lineas = Array.isArray(d.lineas_cocina) && d.lineas_cocina.length > 0
       ? d.lineas_cocina
@@ -214,22 +225,24 @@ function generarTicketHTML(comanda) {
     .fila { display: flex; justify-content: space-between; margin: 3px 0; word-break: break-word; }
     .nota { font-size: 11px; margin-left: 8px; font-style: italic; }
     .adicional { font-size: 12px; margin: 1px 0 1px 10px; }
+    .cambios { border: 1px dashed #000000; padding: 4px; }
     .nota-cocina { font-size: 13px; font-weight: bold; margin: 2px 0 2px 10px; }
     hr { border: none; border-top: 1px dashed #000000; margin: 8px 0; }
   </style>
 </head>
 <body>
   <div class="centrado bold">CHORI COMPANY</div>
-  <div class="centrado">COMANDA DE COCINA</div>
+  <div class="centrado">${version > 1 ? `COMANDA ACTUALIZADA v${version}` : 'COMANDA DE COCINA'}</div>
   <hr>
   <div class="fila"><span>PEDIDO</span><span>#${p.id_pedido || '?'}</span></div>
   <div class="fila"><span>UBICACIÓN</span><span>${mesa}</span></div>
   <div class="fila"><span>MESERO</span><span>${mesero}</span></div>
   <div class="fila"><span>HORA</span><span>${hora}</span></div>
   <hr>
+  ${bloqueCambios}
   ${lineasProductos}
   <hr>
-  <div class="centrado small">Impreso ${new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+  <div class="centrado small">Impreso ${new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })} · v${version}</div>
 </body>
 </html>`;
 }

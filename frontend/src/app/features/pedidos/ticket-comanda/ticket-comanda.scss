@@ -59,6 +59,11 @@
     margin: 2px 0 2px 12px;
     font-weight: bold;
   }
+  /* HU-4.3: bloque de cambios de la versión */
+  .cambios-version {
+    border: 1px dashed #000000;
+    padding: 4px 6px;
+  }
   hr {
     border: none;
     border-top: 1px dashed #000000;

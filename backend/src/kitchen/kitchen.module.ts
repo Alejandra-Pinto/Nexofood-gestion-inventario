@@ -4,9 +4,10 @@ import { KitchenController } from './kitchen.controller';
 import { KitchenService } from './kitchen.service';
 import { Comanda } from './entities/comanda.entity';
 import { Pedido } from '../orders/entities/pedido.entity';
+import { HistorialImpresion } from './entities/historial-impresion.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Comanda, Pedido])],
+  imports: [TypeOrmModule.forFeature([Comanda, Pedido, HistorialImpresion])],
   controllers: [KitchenController],
   providers: [KitchenService],
   exports: [KitchenService],
