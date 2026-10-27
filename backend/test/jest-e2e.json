@@ -1,9 +1,20 @@
 {
-  "moduleFileExtensions": ["js", "json", "ts"],
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
+    "^.+[\\\\/]node_modules[\\\\/]@nestjs[\\\\/].+\\.js$": "<rootDir>/jest-esm-transformer.js",
     "^.+\\.(t|j)s$": "ts-jest"
-  }
+  },
+  "transformIgnorePatterns": [
+    "[\\\\/]node_modules[\\\\/](?!@nestjs[\\\\/])"
+  ],
+  "setupFiles": [
+    "reflect-metadata"
+  ]
 }
