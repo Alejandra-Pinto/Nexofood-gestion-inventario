@@ -10,10 +10,21 @@
  */
 import { Injectable } from '@angular/core';
 import { ItemInventario } from '../models/item-inventario.model';
+import { OpcionAdicional, OpcionPromocion } from '../models/pedido.model';
+
+/** HU-3.2: adicional elegido para una línea del borrador */
+export type AdicionalElegido = OpcionAdicional & { cantidad: number };
 
 export interface LineaBorrador {
+  /** HU-3.2: identifica la línea (mismo producto + mismos adicionales/promo/nota) */
+  clave: string;
   producto: ItemInventario;
   cantidad: number;
+  /** HU-3.2: precio de UNA unidad confirmado por el backend (si no: precio_venta) */
+  precio_unitario?: number;
+  adicionales?: AdicionalElegido[];
+  promocion?: OpcionPromocion | null;
+  notas_especiales?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

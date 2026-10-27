@@ -155,6 +155,16 @@ async function reportarEstado(idComanda, estado) {
   });
 }
 
+// Las notas las escribe el mesero: se escapan antes de insertarlas en el HTML del ticket
+function escaparHtml(texto) {
+  return String(texto)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ─── Generación del Ticket HTML (Tipografía monoespaciada) ──────────
 function generarTicketHTML(comanda) {
   const p = comanda.pedido || {};
@@ -165,11 +175,23 @@ function generarTicketHTML(comanda) {
     ? new Date(p.fecha_hora).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
     : '';
 
+  // HU-3.2: el backend envía `lineas_cocina` ya formateadas:
+  //   ["2x CHORIPAN PAMPERO", "+ Chimi Rojo", "+ Combo con papa", "** SIN CEBOLLA **"]
+  // La primera línea es el producto; las que empiezan con "+" son adicionales/combos
+  // y las que van entre "**" son notas de cocina (resaltadas).
   const lineasProductos = detalles.map((d) => {
-    let linea = `<div class="fila bold"><span>${d.cantidad}x ${d.item?.nombre || 'Producto'}</span></div>`;
-    if (d.notas_especiales) linea += `<div class="nota">** ${d.notas_especiales} **</div>`;
-    if (d.promocion_aplicada) linea += `<div class="nota">&gt; ${d.promocion_aplicada}</div>`;
-    return linea;
+    const lineas = Array.isArray(d.lineas_cocina) && d.lineas_cocina.length > 0
+      ? d.lineas_cocina
+      : [
+          `${d.cantidad}x ${d.item?.nombre || 'Producto'}`,
+          ...(d.promocion_aplicada ? [`+ ${d.promocion_aplicada}`] : []),
+          ...(d.notas_especiales ? [`** ${String(d.notas_especiales).toUpperCase()} **`] : []),
+        ];
+    return lineas.map((texto, i) => {
+      if (i === 0) return `<div class="fila bold"><span>${escaparHtml(texto)}</span></div>`;
+      if (texto.startsWith('**')) return `<div class="nota-cocina">${escaparHtml(texto)}</div>`;
+      return `<div class="adicional">${escaparHtml(texto)}</div>`;
+    }).join('');
   }).join('\n');
 
   return `<!DOCTYPE html>
@@ -191,6 +213,8 @@ function generarTicketHTML(comanda) {
     .small { font-size: 11px; }
     .fila { display: flex; justify-content: space-between; margin: 3px 0; word-break: break-word; }
     .nota { font-size: 11px; margin-left: 8px; font-style: italic; }
+    .adicional { font-size: 12px; margin: 1px 0 1px 10px; }
+    .nota-cocina { font-size: 13px; font-weight: bold; margin: 2px 0 2px 10px; }
     hr { border: none; border-top: 1px dashed #000000; margin: 8px 0; }
   </style>
 </head>

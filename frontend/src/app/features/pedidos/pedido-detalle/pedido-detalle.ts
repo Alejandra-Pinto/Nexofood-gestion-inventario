@@ -18,6 +18,7 @@ import {
 } from '../../../core/models/pedido.model';
 import { ItemInventario } from '../../../core/models/item-inventario.model';
 import { ItemTicketAdicional, TicketComandaComponent } from '../ticket-comanda/ticket-comanda';
+import { esLineaConfigurada } from '../../../core/utils/configuracion-linea';
 
 export interface LineaEdicion {
   id_detalle?: number;
@@ -105,11 +106,16 @@ export class PedidoDetalleComponent implements OnInit {
     return rolAutorizado && estadoAnulable;
   });
 
-  public totalEdicion = computed(() =>
-    this.lineasEdicion().reduce(
-      (sum, linea) => sum + linea.cantidad * linea.precio_unitario,
-      0,
-    ),
+  /**
+   * HU-3.2: líneas con adicionales o promoción (precio congelado). En la
+   * modificación (HU-3.3) se conservan tal cual y no se fusionan con otras.
+   */
+  public lineasConfiguradas = computed(() => (this.pedido()?.detalles ?? []).filter((d) => esLineaConfigurada(d)));
+
+  public totalEdicion = computed(
+    () =>
+      this.lineasConfiguradas().reduce((sum, d) => sum + d.cantidad * d.precio_unitario, 0) +
+      this.lineasEdicion().reduce((sum, linea) => sum + linea.cantidad * linea.precio_unitario, 0),
   );
 
   public productosFiltrados = computed(() => {
@@ -165,7 +171,8 @@ export class PedidoDetalleComponent implements OnInit {
     }
 
     const mapaLineas = new Map<number, LineaEdicion>();
-    for (const d of p.detalles ?? []) {
+    // HU-3.2: las líneas configuradas no se editan aquí (se conservan con su precio)
+    for (const d of (p.detalles ?? []).filter((x) => !esLineaConfigurada(x))) {
       const actual = mapaLineas.get(d.id_item);
       if (actual) {
         actual.cantidad += d.cantidad;

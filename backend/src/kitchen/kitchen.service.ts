@@ -4,6 +4,19 @@ import { Repository } from 'typeorm';
 import { Comanda, EstadoImpresionComanda } from './entities/comanda.entity';
 import { Pedido } from '../orders/entities/pedido.entity';
 import { UpdateEstadoComandaDto } from './dto/update-estado-comanda.dto';
+import { lineasCocina } from '../orders/configuracion-linea';
+
+/**
+ * HU-3.2 · SCRUM-154: cada detalle viaja con sus líneas ya formateadas para la
+ * impresora (2x CHORIPAN PAMPERO / + Chimi Rojo / + Combo con papa / ** SIN CEBOLLA **).
+ * El agente Electron las imprime tal cual.
+ */
+function agregarLineasCocina(comanda: Comanda): Comanda {
+  for (const d of comanda?.pedido?.detalles ?? []) {
+    (d as typeof d & { lineas_cocina: string[] }).lineas_cocina = lineasCocina(d);
+  }
+  return comanda;
+}
 
 @Injectable()
 export class KitchenService {
@@ -18,18 +31,20 @@ export class KitchenService {
    * Lista todas las comandas pendientes de imprimir para el agente Electron.
    */
   async listarPendientes(): Promise<Comanda[]> {
-    return this.comandaRepo.find({
+    const comandas = await this.comandaRepo.find({
       where: { estado_impresion: EstadoImpresionComanda.PENDIENTE },
       relations: {
         pedido: {
           detalles: {
             item: true,
+            adicionales: true,
           },
           mesero: true,
         },
       },
       order: { fecha_impresion: 'ASC' },
     });
+    return comandas.map(agregarLineasCocina);
   }
 
   /**
@@ -42,6 +57,7 @@ export class KitchenService {
         pedido: {
           detalles: {
             item: true,
+            adicionales: true,
           },
           mesero: true,
         },
@@ -53,7 +69,7 @@ export class KitchenService {
       throw new NotFoundException(`No existe una comanda asociada al pedido #${idPedido}`);
     }
 
-    return comanda;
+    return agregarLineasCocina(comanda);
   }
 
   /**

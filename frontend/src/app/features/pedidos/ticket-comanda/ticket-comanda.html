@@ -10,28 +10,17 @@
       <div class="fila"><span>HORA</span> <span>{{ pedido.fecha_hora | date:'shortTime' }}</span></div>
       <hr>
       
+      <!-- HU-3.2: adicionales y combos con "+", notas resaltadas ** SIN CEBOLLA ** -->
       @if (itemsAdicionales && itemsAdicionales.length > 0) {
         @for (item of itemsAdicionales; track $index) {
-          <div class="fila bold">
-            <span>{{ item.cantidad }}x {{ item.nombre }}</span>
-          </div>
-          @if (item.notas_especiales) {
-            <div class="nota">** {{ item.notas_especiales }} **</div>
-          }
-          @if (item.promocion_aplicada) {
-            <div class="nota">> {{ item.promocion_aplicada }}</div>
+          @for (linea of lineasAdicional(item); track $index; let i = $index) {
+            <div [class]="'linea-' + tipoLinea(linea, i)">{{ linea }}</div>
           }
         }
       } @else {
         @for (detalle of pedido.detalles; track detalle.id_detalle) {
-          <div class="fila bold">
-            <span>{{ detalle.cantidad }}x {{ detalle.item?.nombre }}</span>
-          </div>
-          @if (detalle.notas_especiales) {
-            <div class="nota">** {{ detalle.notas_especiales }} **</div>
-          }
-          @if (detalle.promocion_aplicada) {
-            <div class="nota">> {{ detalle.promocion_aplicada }}</div>
+          @for (linea of lineasDetalle(detalle); track $index; let i = $index) {
+            <div [class]="'linea-' + tipoLinea(linea, i)">{{ linea }}</div>
           }
         }
       }

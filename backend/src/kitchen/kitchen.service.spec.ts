@@ -55,7 +55,7 @@ describe('KitchenService', () => {
         where: { estado_impresion: EstadoImpresionComanda.PENDIENTE },
         relations: {
           pedido: {
-            detalles: { item: true },
+            detalles: { item: true, adicionales: true },
             mesero: true,
           },
         },

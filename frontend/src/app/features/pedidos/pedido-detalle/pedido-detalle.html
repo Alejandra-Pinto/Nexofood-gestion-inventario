@@ -85,6 +85,9 @@
                   <tr>
                     <td>
                       <div class="prod-nombre">{{ d.item?.nombre ?? 'Producto #' + d.id_item }}</div>
+                      @for (a of d.adicionales; track a.id_adicional) {
+                        <div class="prod-adicional">+ {{ a.nombre_adicional }}{{ a.cantidad > 1 ? ' x' + a.cantidad : '' }}</div>
+                      }
                       @if (d.notas_especiales) {
                         <div class="prod-nota">Nota: {{ d.notas_especiales }}</div>
                       }
@@ -174,6 +177,25 @@
               <strong>{{ totalEdicion() | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
             </div>
           </div>
+
+          <!-- HU-3.2: productos con adicionales/combo se conservan sin cambios -->
+          @if (lineasConfiguradas().length > 0) {
+            <div class="configurados">
+              <p class="configurados-titulo">Productos con adicionales o combo (se conservan sin cambios)</p>
+              <ul>
+                @for (d of lineasConfiguradas(); track d.id_detalle) {
+                  <li>
+                    <span>
+                      <strong>{{ d.cantidad }}x {{ d.item?.nombre ?? 'Producto #' + d.id_item }}</strong>
+                      @for (a of d.adicionales; track a.id_adicional) { · + {{ a.nombre_adicional }} }
+                      @if (d.promocion_aplicada) { · + {{ d.promocion_aplicada }} }
+                    </span>
+                    <span>{{ d.cantidad * d.precio_unitario | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
 
           <!-- Tabla de productos en edición -->
           <div class="tabla-wrap">
