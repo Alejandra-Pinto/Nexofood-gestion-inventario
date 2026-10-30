@@ -36,12 +36,26 @@
       
       <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" style="margin-top:26px">
         
-        <!-- Input Correo -->
+        <!-- Input Usuario o Correo -->
         <div style="margin-bottom:15px">
           <span class="lbl">Usuario o correo</span>
           <div class="inp" [class.err]="loginForm.get('credencial')?.invalid && loginForm.get('credencial')?.touched">
             <input type="email" formControlName="credencial" placeholder="Ingrese su usuario o correo" class="grow reset-input">
           </div>
+          @if (loginForm.get('credencial')?.invalid && loginForm.get('credencial')?.touched) {
+            <div class="hint">
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="10" cy="10" r="9"/>
+                <line x1="10" y1="6" x2="10" y2="10"/>
+                <line x1="10" y1="14" x2="10.01" y2="14"/>
+              </svg>
+              @if (loginForm.get('credencial')?.errors?.['required']) {
+                <span>El usuario o correo es obligatorio.</span>
+              } @else if (loginForm.get('credencial')?.errors?.['email']) {
+                <span>Ingrese un correo electrónico válido.</span>
+              }
+            </div>
+          }
         </div>
         
         <!-- Input Contraseña -->
@@ -55,14 +69,31 @@
             </svg>
           </div>
           
-          <!-- Mensaje de Error del Backend -->
-          <div class="hint" *ngIf="errorMessage">
-            <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10 3.2a4.4 4.4 0 0 1 4.4 4.4c0 3.6 1.3 4.8 1.3 4.8H4.3s1.3-1.2 1.3-4.8A4.4 4.4 0 0 1 10 3.2z"/>
-              <path d="M8.6 15.2a1.6 1.6 0 0 0 2.8 0"/>
-            </svg> 
-            {{ errorMessage }}
-          </div>
+          @if (loginForm.get('password')?.invalid && loginForm.get('password')?.touched) {
+            <div class="hint">
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="10" cy="10" r="9"/>
+                <line x1="10" y1="6" x2="10" y2="10"/>
+                <line x1="10" y1="14" x2="10.01" y2="14"/>
+              </svg>
+              @if (loginForm.get('password')?.errors?.['required']) {
+                <span>La contraseña es obligatoria.</span>
+              } @else if (loginForm.get('password')?.errors?.['minlength']) {
+                <span>La contraseña debe tener al menos 6 caracteres.</span>
+              }
+            </div>
+          }
+
+          <!-- Mensaje de Error del Backend (Credenciales incorrectas o usuario inactivo) -->
+          @if (errorMessage) {
+            <div class="hint" style="margin-top: 8px;">
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 3.2a4.4 4.4 0 0 1 4.4 4.4c0 3.6 1.3 4.8 1.3 4.8H4.3s1.3-1.2 1.3-4.8A4.4 4.4 0 0 1 10 3.2z"/>
+                <path d="M8.6 15.2a1.6 1.6 0 0 0 2.8 0"/>
+              </svg> 
+              {{ errorMessage }}
+            </div>
+          }
         </div>
         
         <!-- Opciones de sesión -->
