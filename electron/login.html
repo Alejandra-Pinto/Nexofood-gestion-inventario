@@ -19,29 +19,29 @@
       background: #ffffff;
       border: 1px solid #e5e7eb;
       border-radius: 14px;
-      padding: 28px 24px;
-      width: 320px;
+      padding: 24px 22px;
+      width: 330px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.08);
       text-align: center;
     }
     .logo {
-      font-size: 32px;
-      margin-bottom: 8px;
+      font-size: 30px;
+      margin-bottom: 6px;
     }
     h2 {
       font-size: 1.15rem;
       color: #6b1f22;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
       font-weight: 700;
     }
     p.subtitulo {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       color: #6b7280;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
     }
     .campo {
       text-align: left;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
     label {
       display: block;
@@ -55,12 +55,27 @@
       padding: 9px 12px;
       border: 1px solid #d1d5db;
       border-radius: 8px;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, background-color 0.2s;
     }
     input:focus {
       border-color: #6b1f22;
+    }
+    input.err {
+      border-color: #c0392b;
+      background: #fff8f7;
+    }
+    .hint {
+      display: none;
+      font-size: 0.72rem;
+      color: #c0392b;
+      margin-top: 4px;
+      align-items: center;
+      gap: 4px;
+    }
+    .hint.visible {
+      display: flex;
     }
     .btn {
       width: 100%;
@@ -72,7 +87,7 @@
       font-size: 0.9rem;
       font-weight: 600;
       cursor: pointer;
-      margin-top: 8px;
+      margin-top: 6px;
       transition: background 0.2s;
     }
     .btn:hover {
@@ -85,16 +100,17 @@
     .alerta {
       display: none;
       margin-top: 12px;
-      padding: 8px;
-      border-radius: 6px;
+      padding: 9px 10px;
+      border-radius: 8px;
       font-size: 0.78rem;
       background: #fef2f2;
       border: 1px solid #f5c2c2;
       color: #b91c1c;
       text-align: left;
+      line-height: 1.35;
     }
     .seguridad {
-      margin-top: 16px;
+      margin-top: 14px;
       font-size: 0.7rem;
       color: #9ca3af;
       display: flex;
@@ -110,15 +126,31 @@
     <h2>NexoFood Printer</h2>
     <p class="subtitulo">Autentica el agente de impresión de la caja</p>
 
-    <form id="formLogin">
+    <form id="formLogin" novalidate>
       <div class="campo">
         <label for="credencial">Usuario o Correo</label>
-        <input type="text" id="credencial" required autocomplete="username" placeholder="cajero" autofocus />
+        <input type="text" id="credencial" autocomplete="username" placeholder="cajero@nexofood.com" autofocus />
+        <div class="hint" id="hintCredencial">
+          <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="10" cy="10" r="9"/>
+            <line x1="10" y1="6" x2="10" y2="10"/>
+            <line x1="10" y1="14" x2="10.01" y2="14"/>
+          </svg>
+          <span id="txtHintCredencial">El usuario o correo es obligatorio.</span>
+        </div>
       </div>
 
       <div class="campo">
         <label for="password">Contraseña</label>
-        <input type="password" id="password" required autocomplete="current-password" placeholder="••••••••" />
+        <input type="password" id="password" autocomplete="current-password" placeholder="••••••••" />
+        <div class="hint" id="hintPassword">
+          <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="10" cy="10" r="9"/>
+            <line x1="10" y1="6" x2="10" y2="10"/>
+            <line x1="10" y1="14" x2="10.01" y2="14"/>
+          </svg>
+          <span id="txtHintPassword">La contraseña es obligatoria.</span>
+        </div>
       </div>
 
       <button type="submit" class="btn" id="btnIngresar">Iniciar Agente</button>
@@ -133,26 +165,74 @@
 
   <script>
     const form = document.getElementById('formLogin');
+    const inputCredencial = document.getElementById('credencial');
+    const inputPassword = document.getElementById('password');
+    const hintCredencial = document.getElementById('hintCredencial');
+    const txtHintCredencial = document.getElementById('txtHintCredencial');
+    const hintPassword = document.getElementById('hintPassword');
+    const txtHintPassword = document.getElementById('txtHintPassword');
     const btn = document.getElementById('btnIngresar');
     const alerta = document.getElementById('alertaError');
+
+    function validarCredencial() {
+      const val = inputCredencial.value.trim();
+      if (!val) {
+        inputCredencial.classList.add('err');
+        txtHintCredencial.textContent = 'El usuario o correo es obligatorio.';
+        hintCredencial.classList.add('visible');
+        return false;
+      }
+      inputCredencial.classList.remove('err');
+      hintCredencial.classList.remove('visible');
+      return true;
+    }
+
+    function validarPassword() {
+      const val = inputPassword.value;
+      if (!val) {
+        inputPassword.classList.add('err');
+        txtHintPassword.textContent = 'La contraseña es obligatoria.';
+        hintPassword.classList.add('visible');
+        return false;
+      }
+      inputPassword.classList.remove('err');
+      hintPassword.classList.remove('visible');
+      return true;
+    }
+
+    inputCredencial.addEventListener('input', () => {
+      if (inputCredencial.classList.contains('err')) validarCredencial();
+    });
+
+    inputPassword.addEventListener('input', () => {
+      if (inputPassword.classList.contains('err')) validarPassword();
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       alerta.style.display = 'none';
+
+      const credValida = validarCredencial();
+      const passValida = validarPassword();
+
+      if (!credValida || !passValida) {
+        return;
+      }
+
       btn.disabled = true;
       btn.textContent = 'Autenticando...';
 
-      const credencial = document.getElementById('credencial').value.trim();
-      const password = document.getElementById('password').value;
+      const credencial = inputCredencial.value.trim();
+      const password = inputPassword.value;
 
       try {
         const respuesta = await window.api.iniciarSesion({ credencial, password });
         if (!respuesta.ok) {
-          throw new Error(respuesta.mensaje || 'Error al iniciar sesión');
+          throw new Error(respuesta.mensaje || 'Credenciales inválidas');
         }
         btn.textContent = '¡Conectado! Iniciando...';
       } catch (err) {
-        alerta.textContent = err.message;
+        alerta.textContent = err.message || 'Usuario o contraseña incorrectos.';
         alerta.style.display = 'block';
         btn.disabled = false;
         btn.textContent = 'Iniciar Agente';
@@ -161,4 +241,3 @@
   </script>
 </body>
 </html>
-
