@@ -480,6 +480,7 @@ function mostrarVentanaLogin() {
     maximizable: false,
     minimizable: true,
     title: 'NexoFood — Agente de Impresión',
+    icon: path.join(__dirname, 'tray-icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
