@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { KitchenService } from './kitchen.service';
 import { Comanda, EstadoImpresionComanda } from './entities/comanda.entity';
-import { Pedido } from '../orders/entities/pedido.entity';
+import { EstadoPedido, Pedido } from '../orders/entities/pedido.entity';
 import {
   HistorialImpresion,
   ResultadoImpresion,
@@ -59,14 +59,37 @@ describe('KitchenService', () => {
   });
 
   describe('listarPendientes', () => {
-    it('debe retornar solo comandas en estado PENDIENTE', async () => {
+    it('debe retornar solo comandas en estado PENDIENTE y excluir pedidos anulados', async () => {
+
       const pendientes = [
-        { id_comanda: 1, id_pedido: 10, estado_impresion: EstadoImpresionComanda.PENDIENTE },
+        {
+          id_comanda: 1,
+          id_pedido: 10,
+          estado_impresion: EstadoImpresionComanda.PENDIENTE,
+          pedido: { estado_pedido: EstadoPedido.PENDIENTE },
+        },
+        {
+          id_comanda: 2,
+          id_pedido: 11,
+          estado_impresion: EstadoImpresionComanda.PENDIENTE,
+          pedido: { estado_pedido: EstadoPedido.ANULADO },
+        },
       ];
       mockComandaRepo.find.mockResolvedValue(pendientes);
 
+
+
       const res = await service.listarPendientes();
-      expect(res).toEqual(pendientes);
+      expect(res).toHaveLength(1);
+      expect(res[0].id_comanda).toBe(1);
+
+
+
+
+
+
+
+
       expect(mockComandaRepo.find).toHaveBeenCalledWith({
         where: { estado_impresion: EstadoImpresionComanda.PENDIENTE },
         relations: {
@@ -147,6 +170,15 @@ describe('KitchenService', () => {
       mockPedidoRepo.findOne.mockResolvedValue(null);
 
       await expect(service.solicitarImpresion(999)).rejects.toThrow(NotFoundException);
+    });
+
+    it('debe lanzar BadRequestException si el pedido está anulado', async () => {
+      mockPedidoRepo.findOne.mockResolvedValue({
+        id_pedido: 10,
+        estado_pedido: EstadoPedido.ANULADO,
+      });
+
+      await expect(service.solicitarImpresion(10)).rejects.toThrow(BadRequestException);
     });
   });
 
