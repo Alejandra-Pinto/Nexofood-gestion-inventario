@@ -1426,6 +1426,13 @@ export class OrdersService {
          ON CONFLICT (id_pedido) DO NOTHING`,
         [idPedido, idUsuario, motivoLimpio, ahora],
       );
+
+      // Si el pedido tenía comandas pendientes, se descartan para que no salgan a la impresora
+      await manager.update(
+        Comanda,
+        { id_pedido: idPedido, estado_impresion: EstadoImpresionComanda.PENDIENTE },
+        { estado_impresion: EstadoImpresionComanda.REEMPLAZADA },
+      );
     });
 
     return this.buscarPorId(idPedido);

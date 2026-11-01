@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Comanda, EstadoImpresionComanda } from './entities/comanda.entity';
-import { Pedido } from '../orders/entities/pedido.entity';
+import { EstadoPedido, Pedido } from '../orders/entities/pedido.entity';
 import { UpdateEstadoComandaDto } from './dto/update-estado-comanda.dto';
 import { lineasCocina } from '../orders/configuracion-linea';
 import type { CambioComanda } from '../orders/cambios-comanda';
@@ -79,7 +79,13 @@ export class KitchenService {
       },
       order: { fecha_impresion: 'ASC' },
     });
-    return comandas.map(agregarLineasCocina);
+    // Excluir comandas de pedidos que hayan sido anulados
+    const noAnuladas = comandas.filter(
+      (c) =>
+        c.pedido?.estado_pedido !== EstadoPedido.ANULADO &&
+        (c.pedido?.estado_pedido as string)?.toUpperCase() !== 'ANULADO',
+    );
+    return noAnuladas.map(agregarLineasCocina);
   }
 
   /**
@@ -201,6 +207,15 @@ export class KitchenService {
 
     if (!pedido) {
       throw new NotFoundException(`El pedido #${idPedido} no existe`);
+    }
+
+    if (
+      pedido.estado_pedido === EstadoPedido.ANULADO ||
+      (pedido.estado_pedido as string)?.toUpperCase() === 'ANULADO'
+    ) {
+      throw new BadRequestException(
+        `El pedido #${idPedido} está anulado y no se puede reimprimir su comanda.`,
+      );
     }
 
     // HU-4.3: se reimprime la versión VIGENTE (la más alta), nunca una vieja
