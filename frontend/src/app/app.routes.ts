@@ -107,6 +107,13 @@ export const routes: Routes = [
           ),
       },
       {
+        // HU-6.7 Resumen de operaciones por período · HU-6.2 Reporte general de ventas
+        path: 'reportes',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/reportes/reportes/reportes').then((m) => m.Reportes),
+      },
+      {
         // HU-7.2 Registrar ingresos no provenientes de ventas (exclusivo Administrador)
         path: 'financiero',
         canActivate: [adminGuard],

@@ -1,0 +1,117 @@
+<!-- HU-6.7 · SCRUM-236 Vista del resumen por período -->
+<header class="encabezado">
+  <div>
+    <h1>Reportes y estadísticas</h1>
+    <p class="subtitulo">Resumen de pedidos, ventas y anulaciones del período seleccionado.</p>
+  </div>
+</header>
+
+<div class="pagina">
+  <!-- Selector de período -->
+  <section class="card barra" aria-label="Período del reporte">
+    <div class="barra-fila">
+      <div class="campo">
+        <span class="etiqueta">Rango</span>
+        <div class="pestanas" role="group" aria-label="Período">
+          @for (p of periodos; track p.valor) {
+            <button type="button" class="pestana" [class.activa]="periodo() === p.valor" (click)="elegirPeriodo(p.valor)">
+              {{ p.texto }}
+            </button>
+          }
+        </div>
+      </div>
+      @if (periodo() === 'personalizado') {
+        <div class="campo">
+          <label for="r-desde">Fecha inicial</label>
+          <input id="r-desde" type="date" [max]="hoy" [class.invalido]="!!errorPeriodo()"
+            [value]="desde()" (input)="desde.set($any($event.target).value)" />
+        </div>
+        <div class="campo">
+          <label for="r-hasta">Fecha final</label>
+          <input id="r-hasta" type="date" [max]="hoy" [class.invalido]="!!errorPeriodo()"
+            [value]="hasta()" (input)="hasta.set($any($event.target).value)" />
+        </div>
+        <button type="button" class="btn btn-primario" [disabled]="cargando()" (click)="consultar()">Consultar</button>
+      }
+      <span class="rango-texto muted">{{ desde() | date: 'dd/MM/yyyy' }} – {{ hasta() | date: 'dd/MM/yyyy' }}</span>
+    </div>
+    @if (periodo() === 'personalizado' && errorPeriodo()) {
+      <p class="error-txt" role="alert">⚠ {{ errorPeriodo() }}</p>
+    }
+  </section>
+
+  @if (cargando()) {
+    <p class="muted centro">Generando reporte…</p>
+  } @else if (errorCarga()) {
+    <div class="alerta alerta-error">⚠ {{ errorCarga() }}</div>
+  } @else if (resumen(); as r) {
+    @if (r.sin_operaciones) {
+      <!-- SCRUM-238 Período sin operaciones -->
+      <section class="card vacio" role="status">
+        <span class="vacio-icono" aria-hidden="true">∅</span>
+        <strong>{{ msjSinOperaciones }}</strong>
+        <p>Pruebe con otro rango de fechas.</p>
+      </section>
+    } @else {
+      <!-- Cifras clave -->
+      <section class="cifras">
+        <article class="card cifra destacada">
+          <span class="cifra-valor">{{ r.ventas.total | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+          <strong>Ventas acumuladas</strong>
+          <small>{{ r.ventas.cantidad }} {{ r.ventas.cantidad === 1 ? 'pedido pagado' : 'pedidos pagados' }}</small>
+        </article>
+        <article class="card cifra">
+          <span class="cifra-valor">{{ r.pedidos.total }}</span>
+          <strong>Pedidos registrados</strong>
+          <small>{{ r.pedidos.en_curso }} en curso</small>
+        </article>
+        <article class="card cifra">
+          <span class="cifra-valor rojo">{{ r.anulados.cantidad }}</span>
+          <strong>Pedidos anulados</strong>
+          <small>{{ r.anulados.total | currency: 'COP' : 'symbol-narrow' : '1.0-0' }} sin cobrar</small>
+        </article>
+        <article class="card cifra">
+          <span class="cifra-valor">{{ r.ventas.ticket_promedio | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+          <strong>Ticket promedio</strong>
+          <small>Valor medio por venta</small>
+        </article>
+      </section>
+
+      @if (r.otros_ingresos.cantidad > 0) {
+        <p class="nota">
+          Además hubo {{ r.otros_ingresos.cantidad }} {{ r.otros_ingresos.cantidad === 1 ? 'ingreso' : 'ingresos' }} que no son ventas
+          por {{ r.otros_ingresos.total | currency: 'COP' : 'symbol-narrow' : '1.0-0' }} (no se suman a las ventas).
+        </p>
+      }
+
+      <!-- Detalle por día -->
+      <section class="card tabla-card">
+        <h2>Detalle por día</h2>
+        <div class="tabla-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th class="num">Pedidos</th>
+                <th class="num">Ventas</th>
+                <th class="num">Total vendido</th>
+                <th class="num">Anulados</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (d of diasConMovimiento(); track d.fecha) {
+                <tr>
+                  <td>{{ d.fecha + 'T12:00:00' | date: 'EEE dd/MM/yyyy' }}</td>
+                  <td class="num">{{ d.pedidos }}</td>
+                  <td class="num">{{ d.ventas }}</td>
+                  <td class="num">{{ d.total_vendido | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</td>
+                  <td class="num">{{ d.anulados }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  }
+</div>
