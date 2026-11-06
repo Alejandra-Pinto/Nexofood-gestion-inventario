@@ -4,6 +4,8 @@
  * HU-6.7 · Resumen de operaciones por período
  *   SCRUM-237 Cantidad de pedidos, ventas acumuladas y anulados
  *   SCRUM-238 Período sin operaciones
+ * HU-6.2 · Reporte general de ventas
+ *   SCRUM-219 Consulta de ventas finalizadas
  *
  * Las consultas solo traen los datos del período; los cálculos están en
  * reportes.ts (funciones puras que se prueban sin base de datos).
@@ -17,7 +19,15 @@ import {
   OrigenMovimiento,
   TipoMovimientoFinanciero,
 } from '../finance/entities/movimiento-financiero.entity';
-import { calcularResumen, ResumenPeriodo, validarPeriodo, ZONA_HORARIA } from './reportes';
+import {
+  calcularResumen,
+  construirReporteVentas,
+  FilaVenta,
+  ReporteVentas,
+  ResumenPeriodo,
+  validarPeriodo,
+  ZONA_HORARIA,
+} from './reportes';
 
 /** Día de un timestamp en la hora de Colombia (para filtrar por fecha) */
 const dia = (col: string) => `(${col} AT TIME ZONE '${ZONA_HORARIA}')::date`;
@@ -50,5 +60,36 @@ export class ReportesService {
       .getMany();
 
     return calcularResumen(desde, hasta, pedidos, ingresos);
+  }
+
+  /**
+   * GET /queries-reports/ventas?desde=&hasta= (HU-6.2)
+   * Ventas finalizadas = pedidos PAGADOS. La fecha de la venta es la del pago
+   * (si el pedido no tiene pago registrado se usa la fecha del pedido).
+   * Los ingresos manuales (HU-7.2) no aparecen: no tienen pedido.
+   */
+  async ventas(desdeTxt?: string, hastaTxt?: string): Promise<ReporteVentas> {
+    const { desde, hasta } = validarPeriodo(desdeTxt, hastaTxt);
+    const fechaVenta = 'COALESCE(mf.fecha_hora, p.fecha_hora)';
+
+    const filas = await this.pedidosRepo
+      .createQueryBuilder('p')
+      .leftJoin('p.mesero', 'u')
+      .leftJoin(MovimientoFinanciero, 'mf', 'mf.id_pedido = p.id_pedido AND mf.tipo_movimiento = :ingreso', {
+        ingreso: TipoMovimientoFinanciero.INGRESO,
+      })
+      .select('p.id_pedido', 'id_pedido')
+      .addSelect(fechaVenta, 'fecha_venta')
+      .addSelect('p.numero_mesa', 'numero_mesa')
+      .addSelect('u.nombre_completo', 'mesero')
+      .addSelect('mf.medio_pago', 'medio_pago')
+      .addSelect('p.total_calculado', 'total')
+      .where('UPPER(p.estado_pedido) = :pagado', { pagado: 'PAGADO' })
+      .andWhere(`${dia(fechaVenta)} BETWEEN :desde AND :hasta`, { desde, hasta })
+      .orderBy(fechaVenta, 'DESC')
+      .addOrderBy('p.id_pedido', 'DESC')
+      .getRawMany<FilaVenta>();
+
+    return construirReporteVentas(desde, hasta, filas);
   }
 }

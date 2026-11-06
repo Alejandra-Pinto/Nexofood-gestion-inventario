@@ -3,6 +3,7 @@
  * ------------------------------------------------------------------
  * HU-6.7 · SCRUM-237 Calcular cantidad de pedidos, ventas acumuladas y anulados
  *        · SCRUM-238 Manejar período sin operaciones
+ * HU-6.2 · SCRUM-219 Consulta de ventas finalizadas
  *
  * Reglas:
  *   - Venta     = pedido en estado PAGADO.
@@ -120,5 +121,67 @@ export function calcularResumen(
     anulados: { cantidad: anulados, total: totalAnulados },
     otros_ingresos: { cantidad: ingresosManuales.length, total: totalIngresos },
     por_dia: [...porDia.values()],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// HU-6.2 Reporte general de ventas
+// ---------------------------------------------------------------------------
+
+/** Fila tal como sale de la consulta (getRawMany: los números llegan como texto) */
+export interface FilaVenta {
+  id_pedido: number | string;
+  fecha_venta: Date | string;
+  numero_mesa: number | string | null;
+  mesero: string | null;
+  medio_pago: string | null;
+  total: number | string;
+}
+
+export interface VentaReporte {
+  id_pedido: number;
+  fecha_hora: string;
+  numero_mesa: number | null;
+  mesero: string | null;
+  medio_pago: string;
+  total: number;
+}
+
+export interface ReporteVentas {
+  desde: string;
+  hasta: string;
+  sin_ventas: boolean;
+  resumen: { ventas: number; total_vendido: number; ticket_promedio: number };
+  por_medio_pago: { medio_pago: string; ventas: number; total: number }[];
+  ventas: VentaReporte[];
+}
+
+/** SCRUM-219: convierte las filas en el reporte (totales y agrupación por medio de pago) */
+export function construirReporteVentas(desde: string, hasta: string, filas: FilaVenta[]): ReporteVentas {
+  const ventas = filas.map<VentaReporte>((f) => ({
+    id_pedido: Number(f.id_pedido),
+    fecha_hora: new Date(f.fecha_venta).toISOString(),
+    numero_mesa: f.numero_mesa === null || f.numero_mesa === undefined ? null : Number(f.numero_mesa),
+    mesero: f.mesero ?? null,
+    medio_pago: f.medio_pago ?? 'SIN_REGISTRO',
+    total: Number(f.total) || 0,
+  }));
+
+  const porMedio = new Map<string, { medio_pago: string; ventas: number; total: number }>();
+  for (const v of ventas) {
+    const m = porMedio.get(v.medio_pago) ?? { medio_pago: v.medio_pago, ventas: 0, total: 0 };
+    m.ventas++;
+    m.total += v.total;
+    porMedio.set(v.medio_pago, m);
+  }
+
+  const total = ventas.reduce((s, v) => s + v.total, 0);
+  return {
+    desde,
+    hasta,
+    sin_ventas: ventas.length === 0,
+    resumen: { ventas: ventas.length, total_vendido: total, ticket_promedio: ventas.length ? Math.round(total / ventas.length) : 0 },
+    por_medio_pago: [...porMedio.values()].sort((a, b) => b.total - a.total),
+    ventas,
   };
 }
