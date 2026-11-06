@@ -98,6 +98,15 @@ export const routes: Routes = [
           ),
       },
       {
+        // HU-5.2 Historial de pedidos y ventas con filtros (exclusivo Administrador)
+        path: 'historial',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/historial/historial-pedidos/historial-pedidos').then(
+            (m) => m.HistorialPedidos,
+          ),
+      },
+      {
         // HU-3.3, HU-3.4, HU-3.6 Detalle, modificación y anulación del pedido
         path: 'pedidos/:id',
         loadComponent: () =>

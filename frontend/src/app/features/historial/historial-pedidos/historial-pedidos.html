@@ -1,0 +1,130 @@
+<header class="encabezado">
+  <div>
+    <h1>Historial de pedidos</h1>
+    <p class="subtitulo">Consulta los pedidos y ventas registrados filtrando por fecha, rango de fechas o producto.</p>
+  </div>
+</header>
+
+<div class="pagina">
+  <!-- ===== SCRUM-201 Barra de filtros ===== -->
+  <section class="card barra" aria-label="Filtros del historial">
+    <div class="barra-fila">
+      <div class="campo campo-modo">
+        <span class="etiqueta">Filtrar por</span>
+        <div class="pestanas" role="group" aria-label="Tipo de filtro de fecha">
+          <button type="button" class="pestana" [class.activa]="modo() === 'fecha'" (click)="cambiarModo('fecha')">Fecha</button>
+          <button type="button" class="pestana" [class.activa]="modo() === 'rango'" (click)="cambiarModo('rango')">Rango de fechas</button>
+        </div>
+      </div>
+
+      @if (modo() === 'fecha') {
+        <div class="campo">
+          <label for="f-fecha">Fecha</label>
+          <input id="f-fecha" type="date" [value]="fecha()" (input)="fecha.set($any($event.target).value)" />
+        </div>
+      } @else {
+        <div class="campo">
+          <label for="f-desde">Fecha inicial</label>
+          <input id="f-desde" type="date" [class.invalido]="!!errorFiltro()" [value]="desde()" (input)="desde.set($any($event.target).value)" />
+        </div>
+        <div class="campo">
+          <label for="f-hasta">Fecha final</label>
+          <input id="f-hasta" type="date" [class.invalido]="!!errorFiltro()" [value]="hasta()" (input)="hasta.set($any($event.target).value)" />
+        </div>
+      }
+
+      <div class="campo campo-producto">
+        <label for="f-producto">Producto</label>
+        <select id="f-producto" [value]="idItem()" (change)="idItem.set($any($event.target).value)">
+          <option value="">Todos los productos</option>
+          @for (p of productos(); track p.id_item) {
+            <option [value]="p.id_item" [selected]="idItem() === '' + p.id_item">{{ p.nombre }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="acciones">
+        <button type="button" class="btn btn-secundario" [disabled]="buscando()" (click)="limpiar()">Limpiar</button>
+        <button type="button" class="btn btn-primario" [disabled]="buscando()" (click)="buscar()">
+          {{ buscando() ? 'Buscando…' : 'Buscar' }}
+        </button>
+      </div>
+    </div>
+
+    @if (errorFiltro()) {
+      <p class="error-txt" role="alert">⚠ {{ errorFiltro() }}</p>
+    }
+  </section>
+
+  <!-- ===== Resultados ===== -->
+  <section class="card tabla-card">
+    @if (errorCarga()) {
+      <div class="alerta alerta-error" role="alert">⚠ {{ errorCarga() }}</div>
+    } @else if (!resultado()) {
+      <p class="muted centro">Cargando historial…</p>
+    } @else {
+      <div class="tabla-encabezado">
+        <div>
+          <h2>{{ hayFiltros() ? 'Resultados' : 'Todos los pedidos' }}</h2>
+          @if (descripcionFiltros()) {
+            <p class="subtitulo" data-test="filtros-aplicados">{{ descripcionFiltros() }}</p>
+          }
+        </div>
+        @if (pedidos().length > 0) {
+          <div class="resumen" data-test="resumen">
+            <span class="chip">{{ resultado()!.resumen.pedidos }} {{ resultado()!.resumen.pedidos === 1 ? 'pedido' : 'pedidos' }}</span>
+            <span class="chip">{{ resultado()!.resumen.ventas }} {{ resultado()!.resumen.ventas === 1 ? 'venta' : 'ventas' }}</span>
+            <span class="chip chip-total">Vendido: {{ resultado()!.resumen.total_vendido | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+          </div>
+        }
+      </div>
+
+      @if (pedidos().length === 0) {
+        <!-- SCRUM-204 Sin resultados -->
+        <div class="vacio" data-test="sin-resultados">
+          <span class="vacio-icono" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16M21 21l-4.3-4.3" /></svg>
+          </span>
+          <strong>{{ hayFiltros() ? msjSinResultados : 'Aún no hay pedidos registrados.' }}</strong>
+          @if (hayFiltros()) {
+            <p>Pruebe con otra fecha, otro rango u otro producto.</p>
+            <button type="button" class="btn btn-secundario" (click)="limpiar()">Limpiar filtros</button>
+          }
+        </div>
+      } @else {
+        <div class="tabla-wrap">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th>Pedido</th>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>Mesa</th>
+                <th>Productos</th>
+                <th>Estado</th>
+                <th class="num">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (p of pedidos(); track p.id_pedido) {
+                <tr>
+                  <td><a class="link" [routerLink]="['/pedidos', p.id_pedido]">#{{ p.id_pedido }}</a></td>
+                  <td>{{ p.fecha_hora | date: 'dd/MM/yyyy' }}</td>
+                  <td>{{ p.fecha_hora | date: 'h:mm a' }}</td>
+                  <td>{{ p.numero_mesa ? 'Mesa ' + p.numero_mesa : 'Para llevar' }}</td>
+                  <td class="productos">
+                    @for (x of p.productos; track x.id_item; let ultimo = $last) {
+                      <span [class.resaltado]="esProductoFiltrado(x.id_item)">{{ x.cantidad }}x {{ x.nombre }}</span>@if (!ultimo) {<span>, </span>}
+                    }
+                  </td>
+                  <td><span class="badge" [class]="'badge badge-' + p.estado_pedido.toLowerCase()">{{ etiquetaEstado[p.estado_pedido] }}</span></td>
+                  <td class="num">{{ p.total_calculado | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  </section>
+</div>

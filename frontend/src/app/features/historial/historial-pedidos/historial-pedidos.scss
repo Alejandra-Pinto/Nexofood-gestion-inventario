@@ -1,0 +1,101 @@
+/* Encabezado blanco de la pantalla (igual que Productos y Usuarios) */
+.encabezado {
+  padding: 22px 32px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+  h1 { font-size: 1.5rem; }
+}
+.subtitulo { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
+.pagina { display: flex; flex-direction: column; gap: 20px; padding: 24px 32px; }
+.centro { text-align: center; }
+
+/* ---------- SCRUM-201 Barra de filtros ---------- */
+.barra { padding: 18px 24px; }
+.barra-fila { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
+.barra .campo { margin-bottom: 0; min-width: 160px; }
+.campo-producto { flex: 1 1 220px; }
+.acciones { display: flex; gap: 10px; margin-left: auto; }
+.error-txt { margin: 12px 0 0; }
+
+.pestanas { display: flex; gap: 8px; }
+.pestana {
+  padding: 10px 16px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  &.activa { background: var(--primario); border-color: var(--primario); color: #fff; }
+}
+
+/* ---------- Resultados ---------- */
+.tabla-card { padding: 20px 24px; min-width: 0; }
+.tabla-encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  h2 { font-size: 1.05rem; }
+}
+.resumen { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--fondo);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.chip-total { background: var(--primario-suave); color: var(--primario); }
+
+.tabla-wrap { overflow-x: auto; }
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  th {
+    padding: 10px 12px; text-align: left; font-size: 0.72rem; letter-spacing: 0.5px;
+    text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--borde);
+  }
+  td { padding: 12px; border-bottom: 1px solid var(--borde); white-space: nowrap; }
+  .num { text-align: right; }
+  .productos { white-space: normal; min-width: 220px; }
+}
+.resaltado { font-weight: 700; color: var(--primario); }
+
+.link { color: var(--primario); font-weight: 600; }
+
+/* Etiquetas de estado (mismos colores que la pantalla del pedido) */
+.badge-pendiente { background: #fef3c7; color: #92400e; }
+.badge-en_preparacion { background: #ffedd5; color: #c2410c; }
+.badge-listo { background: #dbeafe; color: #1e40af; }
+.badge-entregado, .badge-pagado { background: var(--ok-suave); color: var(--ok); }
+.badge-anulado { background: var(--error-suave); color: var(--error); }
+
+/* SCRUM-204 Estado sin resultados */
+.vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 16px;
+  text-align: center;
+  p { margin: 0 0 8px; font-size: 0.85rem; color: var(--muted); }
+}
+.vacio-icono {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--fondo);
+  margin-bottom: 6px;
+  svg { width: 22px; height: 22px; fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; }
+}
+
+@media (max-width: 640px) {
+  .encabezado, .pagina { padding: 16px; }
+  .barra .campo, .acciones { width: 100%; }
+  .acciones .btn { flex: 1; }
+}
