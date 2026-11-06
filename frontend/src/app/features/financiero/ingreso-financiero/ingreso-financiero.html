@@ -1,0 +1,133 @@
+<!-- HU-7.2 · SCRUM-245 Formulario de registro de ingresos (prototipo 18) -->
+<header class="encabezado">
+  <div>
+    <h1>Registrar ingreso</h1>
+    <p class="subtitulo">Ingresos que no provienen de ventas: aportes, base de caja, préstamos y otros.</p>
+  </div>
+</header>
+
+<div class="pagina">
+  <section class="card formulario">
+    <div class="titulo-form">
+      <h2>Nuevo ingreso</h2>
+      <span class="chip-ingreso">Ingreso</span>
+    </div>
+    <p class="aviso">Este ingreso <strong>no se suma a las ventas</strong> ni a los reportes de ventas.</p>
+
+    <div class="campo">
+      <label for="concepto">Concepto <span class="obligatorio">*</span></label>
+      <input id="concepto" type="text" maxlength="120" placeholder="Ej: Aporte de socios para la base de caja"
+        [class.invalido]="intento() && errorConcepto()"
+        [value]="concepto()" (input)="concepto.set($any($event.target).value)" />
+      @if (intento() && errorConcepto()) {
+        <small class="error-txt">⚠ {{ errorConcepto() }}</small>
+      }
+    </div>
+
+    <div class="fila">
+      <div class="campo">
+        <label for="monto">Monto <span class="obligatorio">*</span></label>
+        <div class="moneda">
+          <span>$</span>
+          <input id="monto" type="number" min="1" step="1" placeholder="0"
+            [class.invalido]="intento() && errorMonto()"
+            [value]="monto()" (input)="monto.set($any($event.target).value)" />
+        </div>
+        @if (intento() && errorMonto()) {
+          <small class="error-txt">⚠ {{ errorMonto() }}</small>
+        }
+      </div>
+      <div class="campo">
+        <label for="fecha">Fecha <span class="obligatorio">*</span></label>
+        <input id="fecha" type="date" [max]="hoy"
+          [class.invalido]="intento() && errorFecha()"
+          [value]="fecha()" (input)="fecha.set($any($event.target).value)" />
+        @if (intento() && errorFecha()) {
+          <small class="error-txt">⚠ {{ errorFecha() }}</small>
+        }
+      </div>
+    </div>
+
+    <span class="etiqueta">Medio de pago <span class="obligatorio">*</span></span>
+    <div class="medios" role="radiogroup" aria-label="Medio de pago">
+      @for (m of medios; track m.valor) {
+        <button type="button" class="medio" role="radio" [attr.aria-checked]="medio() === m.valor"
+          [class.seleccionado]="medio() === m.valor" (click)="medio.set(m.valor)">
+          {{ m.texto }}
+        </button>
+      }
+    </div>
+    @if (intento() && errorMedio()) {
+      <small class="error-txt">⚠ {{ errorMedio() }}</small>
+    }
+
+    <div class="campo campo-categoria">
+      <label for="categoria">Categoría <span class="obligatorio">*</span></label>
+      <select id="categoria" [class.invalido]="intento() && errorCategoria()"
+        [value]="categoria()" (change)="categoria.set($any($event.target).value)">
+        <option value="">Seleccione…</option>
+        @for (c of categorias; track c.valor) {
+          <option [value]="c.valor" [selected]="categoria() === c.valor">{{ c.texto }}</option>
+        }
+      </select>
+      @if (intento() && errorCategoria()) {
+        <small class="error-txt">⚠ {{ errorCategoria() }}</small>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="obs">Soporte / observaciones (opcional)</label>
+      <textarea id="obs" rows="3" maxlength="255" placeholder="Ej: Recibo #12"
+        [value]="observaciones()" (input)="observaciones.set($any($event.target).value)"></textarea>
+    </div>
+
+    @if (errorGeneral()) {
+      <div class="alerta alerta-error">⚠ {{ errorGeneral() }}</div>
+    }
+
+    <div class="acciones">
+      <button type="button" class="btn btn-secundario" [disabled]="enviando()" (click)="limpiar()">Cancelar</button>
+      <button type="button" class="btn btn-primario" [disabled]="enviando()" (click)="registrar()">
+        {{ enviando() ? 'Registrando…' : 'Registrar ingreso' }}
+      </button>
+    </div>
+  </section>
+
+  <!-- Ingresos del mes -->
+  <section class="card lista">
+    <div class="lista-encabezado">
+      <h2>Ingresos del mes</h2>
+      @if (lista(); as l) {
+        <strong class="total">{{ l.total | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+      }
+    </div>
+
+    @if (cargando()) {
+      <p class="muted centro">Cargando ingresos…</p>
+    } @else if (errorCarga()) {
+      <div class="alerta alerta-error">
+        ⚠ No se pudieron cargar los ingresos.
+        <button type="button" class="link" (click)="cargar()">Reintentar</button>
+      </div>
+    } @else if (!lista()?.ingresos?.length) {
+      <div class="vacio">
+        <strong>Aún no hay ingresos este mes</strong>
+        <p>Los ingresos que registre aparecerán aquí.</p>
+      </div>
+    } @else {
+      <ul class="ingresos">
+        @for (i of lista()!.ingresos; track i.id_movimiento) {
+          <li>
+            <div class="ingreso-info">
+              <strong>{{ i.concepto }}</strong>
+              <small class="muted">
+                {{ i.fecha_hora | date: 'dd/MM/yyyy' }} · {{ textoCategoria(i.categoria) }} · {{ i.medio_pago | titlecase }}
+              </small>
+            </div>
+            <span class="monto">+{{ i.monto | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+</div>
