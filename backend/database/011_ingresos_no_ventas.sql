@@ -12,6 +12,8 @@
 --    origen = 'MANUAL' -> ingreso que NO viene de ventas (HU-7.2): aportes, base de
 --                         caja, préstamos... No tiene pedido y no cuenta en los
 --                         reportes de ventas.
+-- 3. En bases locales del Sprint 2, desliga los pagos que apuntaban a la tabla
+--    vieja "pedido" para que no choquen con los pedidos nuevos de "pedidos".
 -- ============================================================================
 
 DO $$
@@ -48,6 +50,44 @@ ALTER TABLE movimientos_financieros
   ADD CONSTRAINT ck_movfin_manual CHECK (
     origen = 'VENTA' OR (id_pedido IS NULL AND concepto IS NOT NULL AND categoria IS NOT NULL)
   );
+
+-- 3. Bases locales del Sprint 2: los pagos viejos quedaron ligados (con llave foránea)
+--    a la tabla vieja "pedido". Sus ids chocan con los de la tabla nueva "pedidos"
+--    (ej. el pago del pedido viejo #1 hacía creer que el pedido nuevo #1 ya estaba pagado).
+--    Se desligan (id_pedido = NULL, se anota en observaciones) y la llave pasa a "pedidos".
+DO $$
+DECLARE
+  r RECORD;
+  col SMALLINT;
+  fk_a_pedidos BOOLEAN := FALSE;
+BEGIN
+  SELECT attnum INTO col FROM pg_attribute
+   WHERE attrelid = 'public.movimientos_financieros'::regclass AND attname = 'id_pedido';
+
+  FOR r IN
+    SELECT con.conname, cl.relname AS tabla_ref
+      FROM pg_constraint con
+      JOIN pg_class cl ON cl.oid = con.confrelid
+     WHERE con.conrelid = 'public.movimientos_financieros'::regclass
+       AND con.contype = 'f'
+       AND con.conkey = ARRAY[col]
+  LOOP
+    IF r.tabla_ref = 'pedidos' THEN
+      fk_a_pedidos := TRUE;
+    ELSE
+      UPDATE movimientos_financieros
+         SET observaciones = COALESCE(observaciones, 'Pago del Sprint 2 (tabla vieja pedido #' || id_pedido || ')'),
+             id_pedido = NULL
+       WHERE id_pedido IS NOT NULL;
+      EXECUTE format('ALTER TABLE movimientos_financieros DROP CONSTRAINT %I', r.conname);
+    END IF;
+  END LOOP;
+
+  IF NOT fk_a_pedidos AND to_regclass('public.pedidos') IS NOT NULL THEN
+    ALTER TABLE movimientos_financieros
+      ADD CONSTRAINT fk_movfin_pedidos FOREIGN KEY (id_pedido) REFERENCES pedidos (id_pedido) NOT VALID;
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_movfin_origen_fecha ON movimientos_financieros (origen, fecha_hora);
 
