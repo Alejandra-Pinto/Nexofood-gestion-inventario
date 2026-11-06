@@ -15,6 +15,16 @@ export enum TipoMovimientoFinanciero {
   EGRESO = 'EGRESO',
 }
 
+/**
+ * Origen del dinero (HU-7.2):
+ *   VENTA  -> cobro de un pedido (HU-3.5)
+ *   MANUAL -> ingreso que no viene de ventas; no cuenta en los reportes de ventas
+ */
+export enum OrigenMovimiento {
+  VENTA = 'VENTA',
+  MANUAL = 'MANUAL',
+}
+
 /** Medios de pago del prototipo (deben coincidir con ck_movfin_medio en la BD) */
 export enum MedioPago {
   EFECTIVO = 'EFECTIVO',
@@ -58,4 +68,18 @@ export class MovimientoFinanciero {
 
   @Column({ type: 'timestamptz', name: 'fecha_hora', default: () => 'NOW()' })
   fecha_hora: Date;
+
+  // ---- HU-7.2 · columnas de backend/database/011_ingresos_no_ventas.sql ----
+  @Column({ type: 'varchar', length: 10, default: OrigenMovimiento.VENTA })
+  origen: OrigenMovimiento;
+
+  // Concepto del ingreso manual (ej. "Aporte de socios para base de caja")
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  concepto: string | null;
+
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  categoria: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  observaciones: string | null;
 }
