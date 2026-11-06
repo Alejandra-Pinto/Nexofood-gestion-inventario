@@ -23,6 +23,38 @@ export interface ResumenPeriodo {
   por_dia: DiaResumen[];
 }
 
+/** Una venta finalizada (pedido PAGADO) del reporte de ventas */
+export interface VentaReporte {
+  id_pedido: number;
+  fecha_hora: string;
+  numero_mesa: number | null;
+  mesero: string | null;
+  medio_pago: string;
+  total: number;
+}
+
+/** Respuesta de GET /queries-reports/ventas (HU-6.2) */
+export interface ReporteVentas {
+  desde: string;
+  hasta: string;
+  sin_ventas: boolean;
+  resumen: { ventas: number; total_vendido: number; ticket_promedio: number };
+  por_medio_pago: { medio_pago: string; ventas: number; total: number }[];
+  ventas: VentaReporte[];
+}
+
+export const MSJ_SIN_VENTAS = 'No hay ventas finalizadas en el período seleccionado.';
+
+/** Texto de cada medio de pago */
+export const TEXTO_MEDIO: Record<string, string> = {
+  EFECTIVO: 'Efectivo',
+  TRANSFERENCIA: 'Transferencia',
+  NEQUI: 'Nequi',
+  DAVIPLATA: 'Daviplata',
+  TARJETA: 'Tarjeta',
+  SIN_REGISTRO: 'Sin registro',
+};
+
 /** Período rápido del selector (como "Este mes" en el prototipo de Reportes) */
 export type PeriodoRapido = 'hoy' | 'semana' | 'mes' | 'personalizado';
 

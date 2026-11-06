@@ -6,7 +6,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import { ResumenPeriodo } from '../models/reportes.model';
+import { ReporteVentas, ResumenPeriodo } from '../models/reportes.model';
 
 @Injectable({ providedIn: 'root' })
 export class ReportesService {
@@ -17,5 +17,11 @@ export class ReportesService {
   resumen(desde: string, hasta: string) {
     const params = new HttpParams().set('desde', desde).set('hasta', hasta);
     return this.http.get<ResumenPeriodo>(`${this.api}/resumen`, { params });
+  }
+
+  /** GET /queries-reports/ventas?desde=&hasta= (HU-6.2) */
+  ventas(desde: string, hasta: string) {
+    const params = new HttpParams().set('desde', desde).set('hasta', hasta);
+    return this.http.get<ReporteVentas>(`${this.api}/ventas`, { params });
   }
 }

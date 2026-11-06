@@ -10,6 +10,39 @@
 .centro { text-align: center; padding: 24px 0; }
 h2 { font-size: 1.1rem; margin-bottom: 12px; }
 
+/* ---------- Pestañas Resumen / Ventas ---------- */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 32px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+}
+.tab {
+  padding: 12px 16px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  &.activa { color: var(--primario); border-bottom-color: var(--primario); }
+}
+
+/* ---------- HU-6.2 Ventas ---------- */
+.ventas-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: start; }
+.medios-card { padding: 20px 24px; }
+.medios-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.medio-fila { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9rem; margin-bottom: 6px; }
+.barra-medio {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--fondo);
+  span { display: block; height: 100%; border-radius: 4px; background: var(--dorado); }
+}
+td a { color: var(--primario); font-weight: 600; text-decoration: none; }
+
 /* ---------- Selector de período ---------- */
 .barra { padding: 18px 24px; }
 .barra-fila { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
@@ -93,4 +126,6 @@ tr:last-child td { border-bottom: none; }
   .pagina { padding: 16px; }
   .encabezado { padding: 18px 16px; }
   .rango-texto { margin-left: 0; }
+  .tabs { padding: 0 16px; overflow-x: auto; }
+  .ventas-grid { grid-template-columns: 1fr; }
 }

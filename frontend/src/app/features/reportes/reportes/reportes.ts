@@ -4,25 +4,34 @@
  * HU-6.7 · Resumen de operaciones por período
  *   SCRUM-236 Diseñar vista del resumen por período
  *   SCRUM-238 Manejar período sin operaciones
+ * HU-6.2 · Reporte general de ventas
+ *   SCRUM-218 Diseñar vista del reporte de ventas (pestaña "Ventas")
  *
  * Arriba se elige el período (Hoy, Esta semana, Este mes o Personalizado,
  * como el selector "Rango" del prototipo de Reportes).
  */
 import { CurrencyPipe, DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ReportesService } from '../../../core/services/reportes.service';
 import {
   fechaColombia,
   MSJ_SIN_OPERACIONES,
+  MSJ_SIN_VENTAS,
   PeriodoRapido,
   rangoDe,
+  ReporteVentas,
   ResumenPeriodo,
+  TEXTO_MEDIO,
 } from '../../../core/models/reportes.model';
+
+/** Pestañas del reporte (como en el prototipo de Reportes) */
+type Pestana = 'resumen' | 'ventas';
 
 @Component({
   selector: 'app-reportes',
-  imports: [CurrencyPipe, DatePipe],
+  imports: [CurrencyPipe, DatePipe, RouterLink],
   templateUrl: './reportes.html',
   styleUrl: './reportes.scss',
 })
@@ -30,6 +39,9 @@ export class Reportes {
   private service = inject(ReportesService);
 
   protected readonly msjSinOperaciones = MSJ_SIN_OPERACIONES;
+  protected readonly msjSinVentas = MSJ_SIN_VENTAS;
+  protected readonly textoMedio = TEXTO_MEDIO;
+  protected pestana = signal<Pestana>('resumen');
   protected readonly hoy = fechaColombia();
   protected readonly periodos: { valor: PeriodoRapido; texto: string }[] = [
     { valor: 'hoy', texto: 'Hoy' },
@@ -55,7 +67,18 @@ export class Reportes {
   /** Días del período con movimiento (los días en cero no se listan) */
   protected diasConMovimiento = computed(() => (this.resumen()?.por_dia ?? []).filter((d) => d.pedidos > 0));
 
+  // ---------- Ventas (HU-6.2) ----------
+  protected reporteVentas = signal<ReporteVentas | null>(null);
+  /** Para las barras de "Ventas por medio de pago" */
+  protected maxPorMedio = computed(() => Math.max(1, ...(this.reporteVentas()?.por_medio_pago ?? []).map((m) => m.total)));
+
   constructor() {
+    this.consultar();
+  }
+
+  protected cambiarPestana(p: Pestana): void {
+    if (this.pestana() === p) return;
+    this.pestana.set(p);
     this.consultar();
   }
 
@@ -73,6 +96,22 @@ export class Reportes {
     if (this.errorPeriodo()) return;
     this.cargando.set(true);
     this.errorCarga.set(null);
+
+    if (this.pestana() === 'ventas') {
+      this.service.ventas(this.desde(), this.hasta()).subscribe({
+        next: (r) => {
+          this.reporteVentas.set(r);
+          this.cargando.set(false);
+        },
+        error: (e: HttpErrorResponse) => {
+          this.cargando.set(false);
+          this.reporteVentas.set(null);
+          this.errorCarga.set(this.mensajeError(e));
+        },
+      });
+      return;
+    }
+
     this.service.resumen(this.desde(), this.hasta()).subscribe({
       next: (r) => {
         this.resumen.set(r);

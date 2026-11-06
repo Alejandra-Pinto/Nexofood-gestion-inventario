@@ -6,6 +6,12 @@
   </div>
 </header>
 
+<!-- Pestañas del reporte -->
+<nav class="tabs" aria-label="Tipo de reporte">
+  <button type="button" class="tab" [class.activa]="pestana() === 'resumen'" (click)="cambiarPestana('resumen')">Resumen del período</button>
+  <button type="button" class="tab" [class.activa]="pestana() === 'ventas'" (click)="cambiarPestana('ventas')">Ventas</button>
+</nav>
+
 <div class="pagina">
   <!-- Selector de período -->
   <section class="card barra" aria-label="Período del reporte">
@@ -44,6 +50,84 @@
     <p class="muted centro">Generando reporte…</p>
   } @else if (errorCarga()) {
     <div class="alerta alerta-error">⚠ {{ errorCarga() }}</div>
+  } @else if (pestana() === 'ventas') {
+    <!-- ===================== HU-6.2 REPORTE GENERAL DE VENTAS ===================== -->
+    @if (reporteVentas(); as rv) {
+      @if (rv.sin_ventas) {
+        <section class="card vacio" role="status">
+          <span class="vacio-icono" aria-hidden="true">∅</span>
+          <strong>{{ msjSinVentas }}</strong>
+          <p>Solo se cuentan los pedidos pagados. Pruebe con otro rango de fechas.</p>
+        </section>
+      } @else {
+        <section class="cifras">
+          <article class="card cifra destacada">
+            <span class="cifra-valor">{{ rv.resumen.total_vendido | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+            <strong>Total vendido</strong>
+            <small>Pedidos pagados del período</small>
+          </article>
+          <article class="card cifra">
+            <span class="cifra-valor">{{ rv.resumen.ventas }}</span>
+            <strong>Ventas finalizadas</strong>
+            <small>{{ rv.resumen.ventas === 1 ? 'pedido pagado' : 'pedidos pagados' }}</small>
+          </article>
+          <article class="card cifra">
+            <span class="cifra-valor">{{ rv.resumen.ticket_promedio | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+            <strong>Ticket promedio</strong>
+            <small>Valor medio por venta</small>
+          </article>
+        </section>
+
+        <div class="ventas-grid">
+          <!-- Ventas por medio de pago -->
+          <section class="card medios-card">
+            <h2>Por medio de pago</h2>
+            <ul class="medios-lista">
+              @for (m of rv.por_medio_pago; track m.medio_pago) {
+                <li>
+                  <div class="medio-fila">
+                    <span>{{ textoMedio[m.medio_pago] ?? m.medio_pago }} <small class="muted">({{ m.ventas }})</small></span>
+                    <strong>{{ m.total | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+                  </div>
+                  <div class="barra-medio"><span [style.width.%]="(m.total / maxPorMedio()) * 100"></span></div>
+                </li>
+              }
+            </ul>
+          </section>
+
+          <!-- Detalle de ventas -->
+          <section class="card tabla-card">
+            <h2>Ventas finalizadas</h2>
+            <div class="tabla-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Pedido</th>
+                    <th>Fecha y hora</th>
+                    <th>Mesa</th>
+                    <th>Mesero</th>
+                    <th>Medio de pago</th>
+                    <th class="num">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (v of rv.ventas; track v.id_pedido) {
+                    <tr>
+                      <td><a [routerLink]="['/pedidos', v.id_pedido]">#{{ v.id_pedido }}</a></td>
+                      <td>{{ v.fecha_hora | date: 'dd/MM/yyyy h:mm a' }}</td>
+                      <td>{{ v.numero_mesa ? 'Mesa ' + v.numero_mesa : 'Para llevar' }}</td>
+                      <td>{{ v.mesero ?? '—' }}</td>
+                      <td>{{ textoMedio[v.medio_pago] ?? v.medio_pago }}</td>
+                      <td class="num">{{ v.total | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      }
+    }
   } @else if (resumen(); as r) {
     @if (r.sin_operaciones) {
       <!-- SCRUM-238 Período sin operaciones -->
