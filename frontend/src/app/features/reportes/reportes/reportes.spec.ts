@@ -1,17 +1,36 @@
 /**
  * Pruebas unitarias: Reportes (pantalla)
  * HU-6.7 · SCRUM-239 Pruebas del resumen
+ * HU-6.2 · SCRUM-220 Pruebas del reporte de ventas
  */
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Reportes } from './reportes';
-import { MSJ_SIN_OPERACIONES, rangoDe, ResumenPeriodo } from '../../../core/models/reportes.model';
+import { MSJ_SIN_OPERACIONES, MSJ_SIN_VENTAS, rangoDe, ReporteVentas, ResumenPeriodo } from '../../../core/models/reportes.model';
+import { provideRouter } from '@angular/router';
 import { environment } from '../../../../environments/environment';
 
 describe('Reportes · resumen por período', () => {
   let http: HttpTestingController;
   const urlResumen = `${environment.apiUrl}/queries-reports/resumen`;
+  const urlVentas = `${environment.apiUrl}/queries-reports/ventas`;
+
+  const reporteVentas = (cambios: Partial<ReporteVentas> = {}): ReporteVentas => ({
+    desde: '2026-11-01',
+    hasta: '2026-11-06',
+    sin_ventas: false,
+    resumen: { ventas: 2, total_vendido: 54000, ticket_promedio: 27000 },
+    por_medio_pago: [
+      { medio_pago: 'EFECTIVO', ventas: 1, total: 36000 },
+      { medio_pago: 'NEQUI', ventas: 1, total: 18000 },
+    ],
+    ventas: [
+      { id_pedido: 3, fecha_hora: '2026-11-04T20:00:00.000Z', numero_mesa: 4, mesero: 'Mesero QA', medio_pago: 'EFECTIVO', total: 36000 },
+      { id_pedido: 2, fecha_hora: '2026-11-04T18:00:00.000Z', numero_mesa: null, mesero: 'Cajero QA', medio_pago: 'NEQUI', total: 18000 },
+    ],
+    ...cambios,
+  });
 
   const resumen = (cambios: Partial<ResumenPeriodo> = {}): ResumenPeriodo => ({
     desde: '2026-11-01',
@@ -39,7 +58,7 @@ describe('Reportes · resumen por período', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [Reportes],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
   });
@@ -67,6 +86,33 @@ describe('Reportes · resumen por período', () => {
     const req = http.expectOne((x) => x.url === urlResumen);
     expect(req.request.params.get('desde')).toBe(req.request.params.get('hasta'));
     req.flush(resumen());
+  });
+
+  it('SCRUM-218 la pestaña Ventas muestra total vendido, medios de pago y la tabla de ventas', async () => {
+    const { fixture, cmp, html } = await crear(resumen());
+    cmp.cambiarPestana('ventas');
+    const req = http.expectOne((x) => x.url === urlVentas);
+    expect(req.request.params.get('desde')).toBe(rangoDe('mes').desde);
+    req.flush(reporteVentas());
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const texto = html.textContent!;
+    expect(texto).toContain('Total vendido');
+    expect(texto).toContain('Nequi');
+    const filas = html.querySelectorAll('tbody tr');
+    expect(filas.length).toBe(2);
+    expect(filas[0].textContent).toContain('#3');
+    expect(filas[0].textContent).toContain('Mesa 4');
+    expect(filas[1].textContent).toContain('Para llevar');
+  });
+
+  it('SCRUM-220 sin ventas en el período muestra el mensaje', async () => {
+    const { fixture, cmp, html } = await crear(resumen());
+    cmp.cambiarPestana('ventas');
+    http.expectOne((x) => x.url === urlVentas).flush(reporteVentas({ sin_ventas: true, ventas: [], por_medio_pago: [] }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(html.textContent).toContain(MSJ_SIN_VENTAS);
   });
 
   it('rango personalizado inválido no consulta', async () => {
