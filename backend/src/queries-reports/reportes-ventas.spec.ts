@@ -1,7 +1,4 @@
-/**
- * Pruebas unitarias: reporte general de ventas
- * HU-6.2 · SCRUM-220 Pruebas del reporte de ventas
- */
+/** Pruebas unitarias: reporte general de ventas - Pruebas del reporte de ventas */
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { construirReporteVentas, FilaVenta } from './reportes';
@@ -15,7 +12,7 @@ const filas: FilaVenta[] = [
   { id_pedido: '1', fecha_venta: '2026-11-03T15:00:00Z', numero_mesa: '2', mesero: 'Mesero QA', medio_pago: 'EFECTIVO', total: '6000' },
 ];
 
-describe('Reportes · HU-6.2 construirReporteVentas', () => {
+describe('Reportes', () => {
   it('suma el total vendido, cuenta las ventas y calcula el ticket promedio', () => {
     const r = construirReporteVentas('2026-11-01', '2026-11-06', filas);
     expect(r.resumen).toEqual({ ventas: 3, total_vendido: 60000, ticket_promedio: 20000 });
@@ -49,7 +46,7 @@ describe('Reportes · HU-6.2 construirReporteVentas', () => {
   });
 });
 
-describe('ReportesService · HU-6.2 consulta de ventas finalizadas', () => {
+describe('ReportesService', () => {
   let service: ReportesService;
   const condiciones: { sql: string; params?: Record<string, unknown> }[] = [];
   const joins: unknown[][] = [];
@@ -85,7 +82,7 @@ describe('ReportesService · HU-6.2 consulta de ventas finalizadas', () => {
     service = module.get(ReportesService);
   });
 
-  it('SCRUM-219 solo consulta pedidos PAGADOS en el período, por la fecha del pago', async () => {
+  it('solo consulta pedidos PAGADOS en el período, por la fecha del pago', async () => {
     const r = await service.ventas('2026-11-01', '2026-11-06');
     expect(condiciones.find((c) => c.params?.pagado)?.params).toEqual({ pagado: 'PAGADO' });
     const periodo = condiciones.find((c) => c.params?.desde);

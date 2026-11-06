@@ -1,20 +1,6 @@
--- ============================================================================
--- HU-7.2 · SCRUM-246 Registrar ingresos no provenientes de ventas
--- Tabla: movimientos_financieros (la que usa la entidad MovimientoFinanciero)
--- ============================================================================
--- Ejecutar en PostgreSQL local (pgAdmin -> nexofood -> Query Tool).
--- Es seguro ejecutarlo más de una vez.
---
--- 1. Si la base local tiene la tabla vieja "movimiento_financiero" (script 006)
---    y todavía no existe "movimientos_financieros", se renombra (no se pierden datos).
--- 2. Agrega los campos del ingreso manual: concepto, categoría, observaciones y origen.
---    origen = 'VENTA'  -> cobro de un pedido (HU-3.5)
---    origen = 'MANUAL' -> ingreso que NO viene de ventas (HU-7.2): aportes, base de
---                         caja, préstamos... No tiene pedido y no cuenta en los
---                         reportes de ventas.
--- 3. En bases locales del Sprint 2, desliga los pagos que apuntaban a la tabla
---    vieja "pedido" para que no choquen con los pedidos nuevos de "pedidos".
--- ============================================================================
+-- Ingresos no provenientes de ventas: tabla movimientos_financieros
+-- Ejecutar en pgAdmin (nexofood -> Query Tool). Se puede ejecutar varias veces.
+-- origen = 'VENTA': cobro de un pedido · origen = 'MANUAL': ingreso que no es venta
 
 DO $$
 BEGIN
@@ -44,17 +30,14 @@ ALTER TABLE movimientos_financieros DROP CONSTRAINT IF EXISTS ck_movfin_origen;
 ALTER TABLE movimientos_financieros
   ADD CONSTRAINT ck_movfin_origen CHECK (origen IN ('VENTA', 'MANUAL'));
 
--- Un ingreso manual nunca está ligado a un pedido y siempre tiene concepto
+-- Ingreso manual: sin pedido y con concepto
 ALTER TABLE movimientos_financieros DROP CONSTRAINT IF EXISTS ck_movfin_manual;
 ALTER TABLE movimientos_financieros
   ADD CONSTRAINT ck_movfin_manual CHECK (
     origen = 'VENTA' OR (id_pedido IS NULL AND concepto IS NOT NULL AND categoria IS NOT NULL)
   );
 
--- 3. Bases locales del Sprint 2: los pagos viejos quedaron ligados (con llave foránea)
---    a la tabla vieja "pedido". Sus ids chocan con los de la tabla nueva "pedidos"
---    (ej. el pago del pedido viejo #1 hacía creer que el pedido nuevo #1 ya estaba pagado).
---    Se desligan (id_pedido = NULL, se anota en observaciones) y la llave pasa a "pedidos".
+-- Pagos viejos que apuntaban a la tabla "pedido": se desligan y la llave pasa a "pedidos"
 DO $$
 DECLARE
   r RECORD;
@@ -91,7 +74,7 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_movfin_origen_fecha ON movimientos_financieros (origen, fecha_hora);
 
--- Compatibilidad con scripts que usan el nombre viejo (ej. 008): vista de solo lectura
+-- Vista con el nombre viejo (la usa el script 008)
 DO $$
 BEGIN
   IF to_regclass('public.movimiento_financiero') IS NULL THEN

@@ -1,9 +1,4 @@
-/**
- * Servicio: FinanzasService
- * ------------------------------------------------------------------
- * Se comunica con el módulo Finance del backend.
- * HU-7.2 Registrar ingresos no provenientes de ventas
- */
+/** Servicio: FinanzasService - Se comunica con el módulo Finance del backend. */
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map } from 'rxjs';

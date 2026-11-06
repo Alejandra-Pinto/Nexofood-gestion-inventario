@@ -1,18 +1,4 @@
-/**
- * DTO: CreateIngresoFinancieroDto
- * ------------------------------------------------------------------
- * HU-7.2 · SCRUM-246 Registrar ingreso sin afectar estadísticas de ventas
- *        · SCRUM-247 Validar monto inválido
- *
- *   {
- *     "concepto": "Aporte de socios para la base de caja",
- *     "categoria": "APORTE_SOCIOS",
- *     "monto": 200000,
- *     "medio_pago": "EFECTIVO",
- *     "fecha": "2026-11-06",            (opcional, por defecto hoy)
- *     "observaciones": "Recibo #12"      (opcional)
- *   }
- */
+/** DTO: CreateIngresoFinancieroDto - Registrar ingreso sin afectar estadísticas de ventas */
 import { IsEnum, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { MedioPago } from '../entities/movimiento-financiero.entity';
@@ -32,7 +18,7 @@ export class CreateIngresoFinancieroDto {
   @IsIn(Object.keys(CATEGORIAS_INGRESO), { message: 'Seleccione una categoría válida' })
   categoria: CategoriaIngreso;
 
-  // SCRUM-247: monto inválido (vacío, texto, decimal, cero, negativo o exagerado)
+  // Monto inválido (vacío, texto, decimal, cero, negativo o exagerado)
   @IsInt({ message: 'El monto debe ser un valor entero en pesos (sin decimales)' })
   @Min(1, { message: 'El monto debe ser mayor a cero' })
   @Max(MONTO_MAXIMO, { message: 'El monto supera el máximo permitido ($100.000.000)' })

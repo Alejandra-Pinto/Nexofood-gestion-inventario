@@ -1,7 +1,4 @@
-/**
- * Modelos de los reportes (módulo QueriesReports del backend)
- * HU-6.7 Resumen de operaciones por período · HU-6.2 Reporte general de ventas
- */
+/** Modelos de los reportes - Resumen de operaciones por período · Reporte general de ventas */
 
 export interface DiaResumen {
   fecha: string;
@@ -71,7 +68,7 @@ export function rangoDe(periodo: Exclude<PeriodoRapido, 'personalizado'>, hoy = 
   if (periodo === 'mes') return { desde: `${hoy.slice(0, 8)}01`, hasta: hoy };
   const [a, m, d] = hoy.split('-').map(Number);
   const fecha = new Date(Date.UTC(a, m - 1, d));
-  const diaSemana = (fecha.getUTCDay() + 6) % 7; // lunes = 0
+  const diaSemana = (fecha.getUTCDay() + 6) % 7; // Lunes = 0
   fecha.setUTCDate(fecha.getUTCDate() - diaSemana);
   return { desde: fecha.toISOString().slice(0, 10), hasta: hoy };
 }

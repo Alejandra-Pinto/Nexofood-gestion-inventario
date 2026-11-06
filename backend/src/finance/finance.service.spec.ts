@@ -1,7 +1,4 @@
-/**
- * Pruebas unitarias: FinanceService
- * HU-7.2 · SCRUM-248 Pruebas de ingresos no provenientes de ventas
- */
+/** Pruebas unitarias: FinanceService - Pruebas de ingresos no provenientes de ventas */
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -15,7 +12,7 @@ import {
 import { CreateIngresoFinancieroDto } from './dto/create-ingreso-financiero.dto';
 import { hoyColombia } from './ingresos';
 
-describe('FinanceService · HU-7.2 ingresos no provenientes de ventas', () => {
+describe('FinanceService', () => {
   let service: FinanceService;
   let filas: unknown[];
 
@@ -59,7 +56,7 @@ describe('FinanceService · HU-7.2 ingresos no provenientes de ventas', () => {
     service = module.get(FinanceService);
   });
 
-  it('SCRUM-246 registra el ingreso como MANUAL, sin pedido, para no afectar las ventas', async () => {
+  it('registra el ingreso como MANUAL, sin pedido, para no afectar las ventas', async () => {
     const r = await service.registrarIngreso(dto({ observaciones: '  Recibo #12  ' }), 7);
     const guardado = repo.save.mock.calls[0][0];
     expect(guardado).toMatchObject({
@@ -75,7 +72,7 @@ describe('FinanceService · HU-7.2 ingresos no provenientes de ventas', () => {
     expect(r.monto).toBe(200000);
   });
 
-  it('SCRUM-246 con una fecha pasada guarda ese día', async () => {
+  it('con una fecha pasada guarda ese día', async () => {
     await service.registrarIngreso(dto({ fecha: '2026-01-15' }), 7);
     const fecha = repo.save.mock.calls[0][0].fecha_hora as Date;
     expect(fecha.toISOString()).toBe('2026-01-15T17:00:00.000Z');

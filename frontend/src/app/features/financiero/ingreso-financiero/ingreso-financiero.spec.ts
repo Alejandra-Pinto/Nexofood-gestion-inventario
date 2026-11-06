@@ -1,7 +1,4 @@
-/**
- * Pruebas unitarias: IngresoFinanciero (pantalla)
- * HU-7.2 · SCRUM-248 Pruebas de ingresos no provenientes de ventas
- */
+/** Pruebas unitarias: IngresoFinanciero - Pruebas de ingresos no provenientes de ventas */
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -67,7 +64,7 @@ describe('IngresoFinanciero', () => {
     expect(html.textContent).toContain(mensaje);
   });
 
-  it('SCRUM-246 envía el ingreso válido y recarga la lista', async () => {
+  it('envía el ingreso válido y recarga la lista', async () => {
     const { cmp } = await crear();
     llenar(cmp, '200000');
     cmp.registrar();

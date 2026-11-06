@@ -1,10 +1,4 @@
-/**
- * Controlador: FinanceController
- * ------------------------------------------------------------------
- * Endpoints (solo Administrador):
- *   POST /finance/ingresos             -> HU-7.2 registra un ingreso que no viene de ventas
- *   GET  /finance/ingresos?desde=&hasta= -> HU-7.2 lista los ingresos manuales del período
- */
+/** Controlador: FinanceController - Endpoints (solo Administrador) */
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { FinanceService, IngresoFinanciero, ListaIngresos } from './finance.service';
 import { CreateIngresoFinancieroDto } from './dto/create-ingreso-financiero.dto';
@@ -21,12 +15,7 @@ import type { UsuarioAutenticado } from '../auth/strategies/jwt.strategy';
 export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
 
-  /**
-   * HU-7.2 · Registrar ingreso no proveniente de ventas
-   *   201 -> ingreso registrado
-   *   400 -> monto inválido, concepto vacío, categoría, medio de pago o fecha inválidos
-   *   403 -> el usuario no es Administrador
-   */
+  /** Registrar ingreso no proveniente de ventas */
   @Post('ingresos')
   registrarIngreso(
     @Body() dto: CreateIngresoFinancieroDto,

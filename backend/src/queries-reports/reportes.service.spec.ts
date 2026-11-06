@@ -1,7 +1,4 @@
-/**
- * Pruebas unitarias: ReportesService
- * HU-6.7 · SCRUM-239 Pruebas del resumen
- */
+/** Pruebas unitarias: ReportesService - Pruebas del resumen */
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ReportesService } from './reportes.service';
@@ -29,7 +26,7 @@ function qbSimulado(datos: () => unknown[], condiciones: { sql: string; params?:
   return qb;
 }
 
-describe('ReportesService · HU-6.7 resumen', () => {
+describe('ReportesService', () => {
   let service: ReportesService;
   let pedidos: unknown[];
   let ingresos: unknown[];
@@ -64,7 +61,7 @@ describe('ReportesService · HU-6.7 resumen', () => {
     expect(r.otros_ingresos.total).toBe(100000);
   });
 
-  it('SCRUM-238 sin pedidos ni ingresos responde sin_operaciones', async () => {
+  it('sin pedidos ni ingresos responde sin_operaciones', async () => {
     pedidos = [];
     ingresos = [];
     const r = await service.resumen('2026-10-01', '2026-10-31');

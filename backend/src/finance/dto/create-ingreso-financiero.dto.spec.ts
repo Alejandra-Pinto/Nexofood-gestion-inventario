@@ -1,7 +1,4 @@
-/**
- * Pruebas unitarias: CreateIngresoFinancieroDto
- * HU-7.2 · SCRUM-247 Validar monto inválido · SCRUM-248 Pruebas de ingresos
- */
+/** Pruebas unitarias: CreateIngresoFinancieroDto - Validar monto inválido · Pruebas de ingresos */
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { CreateIngresoFinancieroDto } from './create-ingreso-financiero.dto';

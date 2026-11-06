@@ -1,8 +1,4 @@
-/**
- * Servicio: ReportesService
- * ------------------------------------------------------------------
- * HU-6.7 Resumen de operaciones por período · HU-6.2 Reporte general de ventas
- */
+/** Servicio: ReportesService - Resumen de operaciones por período · Reporte general de ventas */
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { environment } from '../../../environments/environment';

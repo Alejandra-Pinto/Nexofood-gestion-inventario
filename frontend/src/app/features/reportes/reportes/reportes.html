@@ -1,4 +1,4 @@
-<!-- HU-6.7 · SCRUM-236 Vista del resumen por período -->
+<!-- Reportes: resumen del período y ventas -->
 <header class="encabezado">
   <div>
     <h1>Reportes y estadísticas</h1>
@@ -51,7 +51,7 @@
   } @else if (errorCarga()) {
     <div class="alerta alerta-error">⚠ {{ errorCarga() }}</div>
   } @else if (pestana() === 'ventas') {
-    <!-- ===================== HU-6.2 REPORTE GENERAL DE VENTAS ===================== -->
+    <!-- Reporte general de ventas -->
     @if (reporteVentas(); as rv) {
       @if (rv.sin_ventas) {
         <section class="card vacio" role="status">
@@ -130,7 +130,7 @@
     }
   } @else if (resumen(); as r) {
     @if (r.sin_operaciones) {
-      <!-- SCRUM-238 Período sin operaciones -->
+      <!-- Período sin operaciones -->
       <section class="card vacio" role="status">
         <span class="vacio-icono" aria-hidden="true">∅</span>
         <strong>{{ msjSinOperaciones }}</strong>

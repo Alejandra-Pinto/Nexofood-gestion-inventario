@@ -30,7 +30,7 @@ h2 { font-size: 1.1rem; margin-bottom: 12px; }
   &.activa { color: var(--primario); border-bottom-color: var(--primario); }
 }
 
-/* ---------- HU-6.2 Ventas ---------- */
+/* ---------- Ventas ---------- */
 .ventas-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: start; }
 .medios-card { padding: 20px 24px; }
 .medios-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
@@ -101,7 +101,7 @@ td { padding: 12px; border-bottom: 1px solid var(--borde); }
 tr:last-child td { border-bottom: none; }
 .num { text-align: right; white-space: nowrap; }
 
-/* ---------- SCRUM-238 Período sin operaciones ---------- */
+/* ---------- Período sin operaciones ---------- */
 .vacio {
   display: flex;
   flex-direction: column;

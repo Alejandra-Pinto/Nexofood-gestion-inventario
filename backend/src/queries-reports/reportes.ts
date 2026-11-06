@@ -1,17 +1,4 @@
-/**
- * Cálculos de los reportes (funciones puras, sin base de datos)
- * ------------------------------------------------------------------
- * HU-6.7 · SCRUM-237 Calcular cantidad de pedidos, ventas acumuladas y anulados
- *        · SCRUM-238 Manejar período sin operaciones
- * HU-6.2 · SCRUM-219 Consulta de ventas finalizadas
- *
- * Reglas:
- *   - Venta     = pedido en estado PAGADO.
- *   - Anulado   = pedido en estado ANULADO.
- *   - En curso  = cualquier otro estado (pendiente, en preparación, listo, entregado).
- *   - Los ingresos manuales (HU-7.2) se muestran aparte y NUNCA se suman a las ventas.
- * Las fechas se cuentan en la hora de Colombia.
- */
+/** Cálculos de los reportes - Calcular cantidad de pedidos, ventas acumuladas y anulados */
 import { BadRequestException } from '@nestjs/common';
 
 export const ZONA_HORARIA = 'America/Bogota';
@@ -52,9 +39,7 @@ export function diasDelPeriodo(desde: string, hasta: string): string[] {
   return dias;
 }
 
-// ---------------------------------------------------------------------------
-// HU-6.7 Resumen de operaciones por período
-// ---------------------------------------------------------------------------
+// Resumen de operaciones por período
 
 export interface PedidoResumen {
   fecha_hora: Date | string;
@@ -124,9 +109,7 @@ export function calcularResumen(
   };
 }
 
-// ---------------------------------------------------------------------------
-// HU-6.2 Reporte general de ventas
-// ---------------------------------------------------------------------------
+// Reporte general de ventas
 
 /** Fila tal como sale de la consulta (getRawMany: los números llegan como texto) */
 export interface FilaVenta {

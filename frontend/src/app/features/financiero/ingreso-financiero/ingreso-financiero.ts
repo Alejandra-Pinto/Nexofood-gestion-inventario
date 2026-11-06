@@ -1,14 +1,4 @@
-/**
- * Pantalla: IngresoFinanciero (opción "Financiero" del menú)
- * ------------------------------------------------------------------
- * HU-7.2 · Registrar ingresos no provenientes de ventas
- *   SCRUM-245 Diseñar formulario de registro de ingresos (prototipo 18)
- *   SCRUM-246 Registrar el ingreso sin afectar las estadísticas de ventas
- *   SCRUM-247 Validar monto inválido
- *
- * El administrador registra dinero que entra al negocio y no es una venta
- * (aportes, base de caja, préstamos...). Abajo ve los ingresos del mes.
- */
+/** Pantalla: IngresoFinanciero - Registrar ingresos no provenientes de ventas */
 import { CurrencyPipe, DatePipe, TitleCasePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
@@ -37,19 +27,19 @@ export class IngresoFinanciero {
   protected readonly categorias = CATEGORIAS_INGRESO;
   protected readonly hoy = hoyColombia();
 
-  // ---------- Formulario (SCRUM-245) ----------
+  // Formulario
   protected concepto = signal('');
   protected monto = signal('');
   protected fecha = signal(this.hoy);
   protected medio = signal<MedioPago | null>(null);
   protected categoria = signal<CategoriaIngreso | ''>('');
   protected observaciones = signal('');
-  /** true después del primer intento de registrar: muestra los errores */
+  /** True después del primer intento de registrar: muestra los errores */
   protected intento = signal(false);
   protected enviando = signal(false);
   protected errorGeneral = signal<string | null>(null);
 
-  // ---------- Validaciones en pantalla ----------
+  // Validaciones en pantalla
   protected errorConcepto = computed(() => {
     const t = this.concepto().trim();
     if (!t) return 'El concepto es obligatorio.';
@@ -70,7 +60,7 @@ export class IngresoFinanciero {
     () => !this.errorConcepto() && !this.errorMonto() && !this.errorFecha() && !this.errorMedio() && !this.errorCategoria(),
   );
 
-  // ---------- Ingresos del mes ----------
+  // Ingresos del mes
   protected lista = signal<ListaIngresos | null>(null);
   protected cargando = signal(true);
   protected errorCarga = signal(false);

@@ -1,15 +1,4 @@
-/**
- * Servicio: FinanceService
- * ------------------------------------------------------------------
- * HU-7.2 · Registrar ingresos no provenientes de ventas
- *   SCRUM-246 Registrar el ingreso sin afectar las estadísticas de ventas
- *   SCRUM-247 Validar monto inválido
- *
- * El ingreso se guarda en movimientos_financieros con:
- *   tipo_movimiento = INGRESO, origen = MANUAL, id_pedido = NULL
- * Los reportes de ventas (HU-6.2, HU-6.7) solo cuentan pedidos PAGADOS,
- * por eso un ingreso manual nunca cambia las cifras de ventas.
- */
+/** Servicio: FinanceService - Registrar ingresos no provenientes de ventas */
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -47,13 +36,9 @@ export class FinanceService {
     private readonly movimientosRepo: Repository<MovimientoFinanciero>,
   ) {}
 
-  /**
-   * SCRUM-246: registra un ingreso que NO viene de ventas.
-   * @param dto       Datos del formulario
-   * @param idUsuario Administrador que lo registra (viene del JWT)
-   */
+  /** Registra un ingreso que NO viene de ventas. */
   async registrarIngreso(dto: CreateIngresoFinancieroDto, idUsuario: number): Promise<IngresoFinanciero> {
-    // SCRUM-247: el DTO ya valida; se repite aquí por si otro módulo llama al servicio
+    // El DTO ya valida; se repite aquí por si otro módulo llama al servicio
     const error = errorMonto(dto?.monto);
     if (error) throw new BadRequestException(error);
     if (!dto.concepto?.trim()) throw new BadRequestException('El concepto es obligatorio');
@@ -67,7 +52,7 @@ export class FinanceService {
     const guardado = await this.movimientosRepo.save(
       this.movimientosRepo.create({
         id_usuario: idUsuario,
-        id_pedido: null, // no viene de un pedido: no afecta ventas
+        id_pedido: null, // No viene de un pedido: no afecta ventas
         tipo_movimiento: TipoMovimientoFinanciero.INGRESO,
         origen: OrigenMovimiento.MANUAL,
         monto: dto.monto,
@@ -98,7 +83,7 @@ export class FinanceService {
     const filas = await this.movimientosRepo
       .createQueryBuilder('m')
       .leftJoin('m.usuario', 'u')
-      .addSelect(['u.id_usuario', 'u.nombre_completo']) // nunca el password_hash
+      .addSelect(['u.id_usuario', 'u.nombre_completo']) // Nunca el password_hash
       .where('m.origen = :origen', { origen: OrigenMovimiento.MANUAL })
       .andWhere('m.tipo_movimiento = :tipo', { tipo: TipoMovimientoFinanciero.INGRESO })
       .andWhere(`(m.fecha_hora AT TIME ZONE '${ZONA_HORARIA}')::date BETWEEN :desde AND :hasta`, { desde: d, hasta: h })

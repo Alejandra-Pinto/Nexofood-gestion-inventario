@@ -1,11 +1,8 @@
-/**
- * Pruebas unitarias: cálculos de los reportes
- * HU-6.7 · SCRUM-239 Pruebas del resumen
- */
+/** Pruebas unitarias: cálculos de los reportes - Pruebas del resumen */
 import { BadRequestException } from '@nestjs/common';
 import { calcularResumen, diaColombia, validarPeriodo } from './reportes';
 
-describe('Reportes · HU-6.7 resumen de operaciones por período', () => {
+describe('Reportes', () => {
   const pedidos = [
     { fecha_hora: '2026-11-03T15:00:00Z', estado_pedido: 'PAGADO', total_calculado: 36000 },
     { fecha_hora: '2026-11-03T20:00:00Z', estado_pedido: 'PAGADO', total_calculado: '24000' },
@@ -13,7 +10,7 @@ describe('Reportes · HU-6.7 resumen de operaciones por período', () => {
     { fecha_hora: '2026-11-04T17:00:00Z', estado_pedido: 'Pendiente', total_calculado: 5000 },
   ];
 
-  it('SCRUM-237 cuenta pedidos, ventas acumuladas y anulados', () => {
+  it('cuenta pedidos, ventas acumuladas y anulados', () => {
     const r = calcularResumen('2026-11-01', '2026-11-05', pedidos);
     expect(r.pedidos).toEqual({ total: 4, en_curso: 1 });
     expect(r.ventas).toEqual({ cantidad: 2, total: 60000, ticket_promedio: 30000 });
@@ -36,7 +33,7 @@ describe('Reportes · HU-6.7 resumen de operaciones por período', () => {
     expect(diaColombia('2026-11-05T02:00:00Z')).toBe('2026-11-04');
   });
 
-  it('SCRUM-238 período sin operaciones: todo en cero y sin_operaciones = true', () => {
+  it('período sin operaciones: todo en cero y sin_operaciones = true', () => {
     const r = calcularResumen('2026-10-01', '2026-10-02', []);
     expect(r.sin_operaciones).toBe(true);
     expect(r.ventas).toEqual({ cantidad: 0, total: 0, ticket_promedio: 0 });

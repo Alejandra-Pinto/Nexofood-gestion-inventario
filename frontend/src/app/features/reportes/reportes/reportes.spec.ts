@@ -1,8 +1,4 @@
-/**
- * Pruebas unitarias: Reportes (pantalla)
- * HU-6.7 · SCRUM-239 Pruebas del resumen
- * HU-6.2 · SCRUM-220 Pruebas del reporte de ventas
- */
+/** Pruebas unitarias: Reportes - Pruebas del resumen */
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -65,7 +61,7 @@ describe('Reportes · resumen por período', () => {
 
   afterEach(() => http.verify());
 
-  it('SCRUM-236 muestra pedidos, ventas acumuladas, anulados y el detalle por día', async () => {
+  it('muestra pedidos, ventas acumuladas, anulados y el detalle por día', async () => {
     const { html } = await crear(resumen());
     const texto = html.textContent!;
     expect(texto).toContain('Ventas acumuladas');
@@ -74,7 +70,7 @@ describe('Reportes · resumen por período', () => {
     expect(html.querySelectorAll('tbody tr').length).toBe(1);
   });
 
-  it('SCRUM-238 período sin operaciones muestra el mensaje y no las cifras', async () => {
+  it('período sin operaciones muestra el mensaje y no las cifras', async () => {
     const { html } = await crear(resumen({ sin_operaciones: true, pedidos: { total: 0, en_curso: 0 }, por_dia: [] }));
     expect(html.textContent).toContain(MSJ_SIN_OPERACIONES);
     expect(html.textContent).not.toContain('Ventas acumuladas');
@@ -88,7 +84,7 @@ describe('Reportes · resumen por período', () => {
     req.flush(resumen());
   });
 
-  it('SCRUM-218 la pestaña Ventas muestra total vendido, medios de pago y la tabla de ventas', async () => {
+  it('la pestaña Ventas muestra total vendido, medios de pago y la tabla de ventas', async () => {
     const { fixture, cmp, html } = await crear(resumen());
     cmp.cambiarPestana('ventas');
     const req = http.expectOne((x) => x.url === urlVentas);
@@ -106,7 +102,7 @@ describe('Reportes · resumen por período', () => {
     expect(filas[1].textContent).toContain('Para llevar');
   });
 
-  it('SCRUM-220 sin ventas en el período muestra el mensaje', async () => {
+  it('sin ventas en el período muestra el mensaje', async () => {
     const { fixture, cmp, html } = await crear(resumen());
     cmp.cambiarPestana('ventas');
     http.expectOne((x) => x.url === urlVentas).flush(reporteVentas({ sin_ventas: true, ventas: [], por_medio_pago: [] }));

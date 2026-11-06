@@ -1,7 +1,4 @@
-/**
- * Pruebas unitarias: FinanceController
- * HU-7.2 · SCRUM-248
- */
+/** Pruebas unitarias: FinanceController */
 import { Test, TestingModule } from '@nestjs/testing';
 import { FinanceController } from './finance.controller';
 import { FinanceService } from './finance.service';

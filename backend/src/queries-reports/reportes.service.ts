@@ -1,15 +1,4 @@
-/**
- * Servicio: ReportesService
- * ------------------------------------------------------------------
- * HU-6.7 · Resumen de operaciones por período
- *   SCRUM-237 Cantidad de pedidos, ventas acumuladas y anulados
- *   SCRUM-238 Período sin operaciones
- * HU-6.2 · Reporte general de ventas
- *   SCRUM-219 Consulta de ventas finalizadas
- *
- * Las consultas solo traen los datos del período; los cálculos están en
- * reportes.ts (funciones puras que se prueban sin base de datos).
- */
+/** Servicio: ReportesService - Resumen de operaciones por período */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -62,12 +51,7 @@ export class ReportesService {
     return calcularResumen(desde, hasta, pedidos, ingresos);
   }
 
-  /**
-   * GET /queries-reports/ventas?desde=&hasta= (HU-6.2)
-   * Ventas finalizadas = pedidos PAGADOS. La fecha de la venta es la del pago
-   * (si el pedido no tiene pago registrado se usa la fecha del pedido).
-   * Los ingresos manuales (HU-7.2) no aparecen: no tienen pedido.
-   */
+  /** GET /queries-reports/ventas?desde=&hasta= */
   async ventas(desdeTxt?: string, hastaTxt?: string): Promise<ReporteVentas> {
     const { desde, hasta } = validarPeriodo(desdeTxt, hastaTxt);
     const fechaVenta = 'COALESCE(mf.fecha_hora, p.fecha_hora)';

@@ -1,15 +1,4 @@
-/**
- * Pantalla: Reportes (opción "Reportes" del menú, solo Administrador)
- * ------------------------------------------------------------------
- * HU-6.7 · Resumen de operaciones por período
- *   SCRUM-236 Diseñar vista del resumen por período
- *   SCRUM-238 Manejar período sin operaciones
- * HU-6.2 · Reporte general de ventas
- *   SCRUM-218 Diseñar vista del reporte de ventas (pestaña "Ventas")
- *
- * Arriba se elige el período (Hoy, Esta semana, Este mes o Personalizado,
- * como el selector "Rango" del prototipo de Reportes).
- */
+/** Pantalla: Reportes - Resumen del período y reporte de ventas */
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -50,7 +39,7 @@ export class Reportes {
     { valor: 'personalizado', texto: 'Personalizado' },
   ];
 
-  // ---------- Período ----------
+  // Período
   protected periodo = signal<PeriodoRapido>('mes');
   protected desde = signal(rangoDe('mes').desde);
   protected hasta = signal(rangoDe('mes').hasta);
@@ -60,14 +49,14 @@ export class Reportes {
     return null;
   });
 
-  // ---------- Resumen (HU-6.7) ----------
+  // Resumen
   protected resumen = signal<ResumenPeriodo | null>(null);
   protected cargando = signal(false);
   protected errorCarga = signal<string | null>(null);
   /** Días del período con movimiento (los días en cero no se listan) */
   protected diasConMovimiento = computed(() => (this.resumen()?.por_dia ?? []).filter((d) => d.pedidos > 0));
 
-  // ---------- Ventas (HU-6.2) ----------
+  // Ventas
   protected reporteVentas = signal<ReporteVentas | null>(null);
   /** Para las barras de "Ventas por medio de pago" */
   protected maxPorMedio = computed(() => Math.max(1, ...(this.reporteVentas()?.por_medio_pago ?? []).map((m) => m.total)));
@@ -84,7 +73,7 @@ export class Reportes {
 
   protected elegirPeriodo(p: PeriodoRapido): void {
     this.periodo.set(p);
-    if (p === 'personalizado') return; // espera a que elija las fechas
+    if (p === 'personalizado') return; // Espera a que elija las fechas
     const r = rangoDe(p);
     this.desde.set(r.desde);
     this.hasta.set(r.hasta);

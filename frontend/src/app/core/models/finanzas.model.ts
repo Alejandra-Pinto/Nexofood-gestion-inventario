@@ -1,7 +1,4 @@
-/**
- * Modelos del módulo Financiero (FinanceModule del backend)
- * HU-7.2 Registrar ingresos no provenientes de ventas
- */
+/** Modelos del módulo Financiero - Registrar ingresos no provenientes de ventas */
 import { MedioPago } from './pedido.model';
 
 /** Categorías de ingreso (iguales a CATEGORIAS_INGRESO del backend) */
@@ -48,10 +45,7 @@ export interface ListaIngresos {
   ingresos: IngresoFinanciero[];
 }
 
-/**
- * SCRUM-247: mensaje de error del monto escrito en el formulario, o null si es válido.
- * Recibe el texto del input (vacío, decimales, negativos, letras...).
- */
+/** Mensaje de error del monto escrito en el formulario, o null si es válido. */
 export function errorMonto(texto: string): string | null {
   const t = texto.trim();
   if (!t) return 'El monto es obligatorio.';

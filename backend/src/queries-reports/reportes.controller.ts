@@ -1,10 +1,4 @@
-/**
- * Controlador: ReportesController
- * ------------------------------------------------------------------
- * Endpoints (solo Administrador):
- *   GET /queries-reports/resumen?desde=&hasta=  -> HU-6.7 resumen de operaciones por período
- *   GET /queries-reports/ventas?desde=&hasta=   -> HU-6.2 reporte general de ventas
- */
+/** Controlador: ReportesController - Endpoints (solo Administrador) */
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ReportesService } from './reportes.service';
 import { ReporteVentas, ResumenPeriodo } from './reportes';
