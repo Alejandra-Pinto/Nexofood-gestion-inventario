@@ -1,0 +1,131 @@
+/* Encabezado blanco (igual que las demás pantallas) */
+.encabezado {
+  padding: 22px 32px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+  h1 { font-size: 1.5rem; }
+}
+.subtitulo { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
+.pagina { display: flex; flex-direction: column; gap: 20px; padding: 24px 32px; }
+.centro { text-align: center; padding: 24px 0; }
+h2 { font-size: 1.1rem; margin-bottom: 12px; }
+
+/* ---------- Pestañas Resumen / Ventas ---------- */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 32px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+}
+.tab {
+  padding: 12px 16px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  &.activa { color: var(--primario); border-bottom-color: var(--primario); }
+}
+
+/* ---------- Ventas ---------- */
+.ventas-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: start; }
+.medios-card { padding: 20px 24px; }
+.medios-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.medio-fila { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9rem; margin-bottom: 6px; }
+.barra-medio {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--fondo);
+  span { display: block; height: 100%; border-radius: 4px; background: var(--dorado); }
+}
+td a { color: var(--primario); font-weight: 600; text-decoration: none; }
+
+/* ---------- Selector de período ---------- */
+.barra { padding: 18px 24px; }
+.barra-fila { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
+.barra .campo { margin-bottom: 0; }
+.rango-texto { margin-left: auto; font-size: 0.85rem; padding-bottom: 10px; }
+.error-txt { margin: 12px 0 0; }
+.pestanas { display: flex; flex-wrap: wrap; gap: 8px; }
+.pestana {
+  padding: 10px 16px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  &.activa { background: var(--primario); border-color: var(--primario); color: #fff; }
+}
+
+/* ---------- Cifras clave (prototipo "Cifras clave") ---------- */
+.cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.cifra {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 20px;
+  strong { font-size: 0.9rem; }
+  small { color: var(--muted); font-size: 0.78rem; }
+  &.destacada {
+    background: #1c1c1e;
+    border-color: #1c1c1e;
+    color: #fff;
+    strong { color: var(--dorado); }
+    small { color: #cbd5e1; }
+  }
+}
+.cifra-valor { font-size: 1.7rem; font-weight: 700; line-height: 1.2; }
+.rojo { color: var(--error); }
+.nota { margin: -6px 0 0; font-size: 0.85rem; color: var(--muted); }
+
+/* ---------- Tabla ---------- */
+.tabla-card { padding: 20px 24px; min-width: 0; }
+.tabla-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--borde);
+}
+td { padding: 12px; border-bottom: 1px solid var(--borde); }
+tr:last-child td { border-bottom: none; }
+.num { text-align: right; white-space: nowrap; }
+
+/* ---------- Período sin operaciones ---------- */
+.vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 40px 20px;
+  text-align: center;
+  p { margin: 0; color: var(--muted); font-size: 0.85rem; }
+}
+.vacio-icono {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--fondo);
+  color: var(--muted);
+  font-size: 1.4rem;
+}
+
+@media (max-width: 900px) {
+  .pagina { padding: 16px; }
+  .encabezado { padding: 18px 16px; }
+  .rango-texto { margin-left: 0; }
+  .tabs { padding: 0 16px; overflow-x: auto; }
+  .ventas-grid { grid-template-columns: 1fr; }
+}

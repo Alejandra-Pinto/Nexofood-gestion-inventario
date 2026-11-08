@@ -1,0 +1,89 @@
+/* Encabezado blanco (igual que las demás pantallas) */
+.encabezado {
+  padding: 22px 32px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+  h1 { font-size: 1.5rem; }
+}
+.subtitulo { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
+
+/* Formulario a la izquierda, ingresos del mes a la derecha */
+.pagina {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 20px;
+  align-items: start;
+  padding: 24px 32px;
+}
+.formulario, .lista { padding: 22px 24px; }
+h2 { font-size: 1.1rem; }
+.centro { text-align: center; padding: 20px 0; }
+
+.titulo-form { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.chip-ingreso {
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid #99d5cf;
+  background: #effaf8;
+  color: #0f766e;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.aviso { margin: 0 0 18px; font-size: 0.82rem; color: var(--muted); }
+
+.fila { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.moneda {
+  position: relative;
+  span { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+  input { padding-left: 28px; }
+}
+textarea {
+  font: inherit;
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  resize: vertical;
+}
+
+/* Medio de pago: botones tipo pastilla (como en el prototipo) */
+.medios { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px; }
+.medio {
+  padding: 8px 16px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: var(--superficie);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  &.seleccionado { background: #1c1c1e; border-color: #1c1c1e; color: #fff; }
+}
+.campo-categoria { margin-top: 16px; }
+
+.acciones { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.alerta { margin-bottom: 12px; }
+
+/* Lista de ingresos del mes */
+.lista-encabezado { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.total { color: #0f766e; font-size: 1.1rem; }
+.ingresos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ingresos li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--borde);
+  &:last-child { border-bottom: none; }
+}
+.ingreso-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ingreso-info small { font-size: 0.75rem; }
+.monto { font-weight: 700; color: #0f766e; white-space: nowrap; }
+.vacio { text-align: center; padding: 20px 8px; color: var(--muted); p { margin: 4px 0 0; font-size: 0.85rem; } }
+.link { background: none; border: none; color: var(--primario); font: inherit; font-weight: 600; cursor: pointer; }
+
+@media (max-width: 900px) {
+  .pagina { grid-template-columns: 1fr; padding: 16px; }
+  .encabezado { padding: 18px 16px; }
+  .fila { grid-template-columns: 1fr; gap: 0; }
+}
