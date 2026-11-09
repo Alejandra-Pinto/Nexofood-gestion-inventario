@@ -1,0 +1,473 @@
+-- ============================================================================
+-- ESQUEMA COMPLETO Y CONSOLIDADO DE BASE DE DATOS — CORVSOFT (CHORI COMPANY)
+-- ============================================================================
+-- Este script es 100% idempotente y seguro de ejecutar en PostgreSQL local
+-- (pgAdmin, DBeaver, psql) o en Supabase (SQL Editor).
+-- Integra todos los módulos: Usuarios, Inventario, Kardex, Ventas,
+-- Adicionales, Promociones, Comandas Versionadas y Movimientos Financieros.
+--
+-- NOTA IMPORTANTE DE SEGURIDAD Y DISEÑO:
+-- La contraseña se almacena UNA SOLA VEZ en la columna 'password' (hash bcrypt).
+-- ============================================================================
+
+BEGIN;
+
+-- ----------------------------------------------------------------------------
+-- 1. MÓDULO DE SEGURIDAD Y USUARIOS
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS usuarios (
+    id_usuario       SERIAL PRIMARY KEY,
+    nombre           VARCHAR(255) NOT NULL,
+    credencial       VARCHAR(255) UNIQUE NOT NULL,
+    password         VARCHAR(255) NOT NULL,
+    rol              VARCHAR(50) NOT NULL CHECK (rol IN ('Administrador', 'Cajero', 'Mesero')),
+    permisos         TEXT[],
+    estado_activo    BOOLEAN DEFAULT true
+);
+
+-- Asegurar columnas si la tabla ya existía previamente
+ALTER TABLE usuarios
+    ADD COLUMN IF NOT EXISTS nombre VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS credencial VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS password VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS rol VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS permisos TEXT[],
+    ADD COLUMN IF NOT EXISTS estado_activo BOOLEAN DEFAULT true;
+
+-- Limpieza y migración de columnas legacy (si existían previamente)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'usuarios' AND column_name = 'password_hash'
+    ) THEN
+        UPDATE usuarios SET password = password_hash WHERE password IS NULL;
+        ALTER TABLE usuarios DROP COLUMN IF EXISTS password_hash;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'usuarios' AND column_name = 'nombre_completo'
+    ) THEN
+        UPDATE usuarios SET nombre = nombre_completo WHERE nombre IS NULL;
+        ALTER TABLE usuarios DROP COLUMN IF EXISTS nombre_completo;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'usuarios' AND column_name = 'documento'
+    ) THEN
+        ALTER TABLE usuarios DROP COLUMN IF EXISTS documento;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'usuarios' AND column_name = 'telefono'
+    ) THEN
+        ALTER TABLE usuarios DROP COLUMN IF EXISTS telefono;
+    END IF;
+END $$;
+
+DROP TRIGGER IF EXISTS tgr_sync_usuarios ON usuarios;
+DROP FUNCTION IF EXISTS trg_sync_usuario_campos();
+
+CREATE INDEX IF NOT EXISTS idx_usuarios_credencial ON usuarios (credencial);
+CREATE INDEX IF NOT EXISTS idx_usuarios_rol ON usuarios (rol);
+
+-- ----------------------------------------------------------------------------
+-- 2. MÓDULO DE INVENTARIO Y CATÁLOGO
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS categoria (
+    id_categoria  SERIAL PRIMARY KEY,
+    nombre        VARCHAR(60) NOT NULL,
+    CONSTRAINT uq_categoria_nombre UNIQUE (nombre)
+);
+
+CREATE TABLE IF NOT EXISTS proveedor (
+    id_proveedor   SERIAL PRIMARY KEY,
+    nombre         VARCHAR(120) NOT NULL,
+    estado_activo  BOOLEAN NOT NULL DEFAULT TRUE,
+    CONSTRAINT uq_proveedor_nombre UNIQUE (nombre)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_proveedor_nombre_lower
+    ON proveedor (LOWER(TRIM(nombre)));
+
+CREATE TABLE IF NOT EXISTS item_inventario (
+    id_item            SERIAL PRIMARY KEY,
+    id_categoria       INTEGER NOT NULL REFERENCES categoria (id_categoria),
+    nombre             VARCHAR(80) NOT NULL,
+    tipo_item          VARCHAR(10) NOT NULL,
+    cantidad_stock     NUMERIC NOT NULL DEFAULT 0,
+    stock_minimo       NUMERIC NOT NULL DEFAULT 0,
+    costo_fabricacion  INTEGER NOT NULL DEFAULT 0,
+    precio_venta       INTEGER NOT NULL DEFAULT 0,
+    estado_activo      BOOLEAN NOT NULL DEFAULT TRUE,
+
+    CONSTRAINT ck_item_tipo CHECK (tipo_item IN ('PRODUCTO', 'INSUMO')),
+    CONSTRAINT ck_item_stock CHECK (cantidad_stock >= 0 AND stock_minimo >= 0),
+    CONSTRAINT ck_item_valores CHECK (costo_fabricacion >= 0 AND precio_venta >= 0),
+    CONSTRAINT ck_item_precio CHECK (tipo_item = 'INSUMO' OR precio_venta > 0)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_item_nombre
+    ON item_inventario (LOWER(TRIM(nombre)));
+
+CREATE TABLE IF NOT EXISTS receta_escandallo (
+    id_producto         INTEGER NOT NULL REFERENCES item_inventario (id_item) ON DELETE CASCADE,
+    id_insumo           INTEGER NOT NULL REFERENCES item_inventario (id_item) ON DELETE RESTRICT,
+    cantidad_requerida  NUMERIC(10, 3) NOT NULL CHECK (cantidad_requerida > 0),
+    PRIMARY KEY (id_producto, id_insumo)
+);
+
+-- ----------------------------------------------------------------------------
+-- 3. MÓDULO DE KARDEX (MOVIMIENTOS DE INVENTARIO)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS movimiento_inventario (
+    id_movimiento    SERIAL PRIMARY KEY,
+    id_item          INTEGER NOT NULL REFERENCES item_inventario(id_item),
+    id_usuario       INTEGER NOT NULL REFERENCES usuarios(id_usuario),
+    id_proveedor     INTEGER REFERENCES proveedor(id_proveedor),
+    tipo_movimiento  VARCHAR(10) NOT NULL,
+    motivo           VARCHAR(20) NOT NULL,
+    cantidad         INTEGER NOT NULL,
+    costo_unitario   INTEGER,
+    total            INTEGER,
+    stock_anterior   INTEGER NOT NULL,
+    stock_nuevo      INTEGER NOT NULL,
+    observaciones    VARCHAR(255),
+    fecha_hora       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT ck_mov_tipo CHECK (tipo_movimiento IN ('ENTRADA','SALIDA')),
+    CONSTRAINT ck_mov_motivo CHECK (motivo IN ('COMPRA','PRODUCCION','MERMA','CONSUMO_INTERNO')),
+    CONSTRAINT ck_mov_cantidad CHECK (cantidad > 0),
+    CONSTRAINT ck_mov_stock_anterior CHECK (stock_anterior >= 0),
+    CONSTRAINT ck_mov_stock_nuevo CHECK (stock_nuevo >= 0),
+    CONSTRAINT ck_mov_costos CHECK ((costo_unitario IS NULL OR costo_unitario >= 0) AND (total IS NULL OR total >= 0)),
+    CONSTRAINT ck_mov_total_coherente CHECK ((costo_unitario IS NULL AND total IS NULL) OR (costo_unitario IS NOT NULL AND total = cantidad::BIGINT * costo_unitario)),
+    CONSTRAINT ck_mov_proveedor_solo_compra CHECK (id_proveedor IS NULL OR motivo = 'COMPRA'),
+    CONSTRAINT ck_mov_coherencia CHECK (
+        (tipo_movimiento = 'ENTRADA' AND motivo IN ('COMPRA','PRODUCCION')) OR
+        (tipo_movimiento = 'SALIDA'  AND motivo IN ('MERMA','CONSUMO_INTERNO'))
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_mov_item ON movimiento_inventario (id_item);
+CREATE INDEX IF NOT EXISTS idx_mov_usuario ON movimiento_inventario (id_usuario);
+CREATE INDEX IF NOT EXISTS idx_mov_proveedor ON movimiento_inventario (id_proveedor);
+CREATE INDEX IF NOT EXISTS idx_mov_fecha ON movimiento_inventario (fecha_hora);
+
+-- ----------------------------------------------------------------------------
+-- 4. MÓDULO DE VENTAS (PEDIDOS, DETALLES Y COMANDAS)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS pedidos (
+    id_pedido             SERIAL PRIMARY KEY,
+    id_mesero             INTEGER NOT NULL REFERENCES usuarios(id_usuario),
+    numero_mesa           SMALLINT,
+    nombre_cliente        VARCHAR(100),
+    fecha_hora            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    estado_pedido         VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE',
+    total_calculado       INTEGER NOT NULL DEFAULT 0,
+    motivo_anulacion      TEXT,
+    id_usuario_anulacion  INTEGER REFERENCES usuarios(id_usuario),
+    fecha_anulacion       TIMESTAMPTZ,
+
+    CONSTRAINT ck_pedido_estado CHECK (
+        estado_pedido IN ('PENDIENTE', 'EN_PREPARACION', 'LISTO', 'ENTREGADO', 'PAGADO', 'ANULADO')
+    ),
+    CONSTRAINT ck_pedido_total CHECK (total_calculado >= 0),
+    CONSTRAINT ck_pedido_mesa CHECK (numero_mesa IS NULL OR (numero_mesa >= 1 AND numero_mesa <= 8))
+);
+
+ALTER TABLE pedidos
+    ADD COLUMN IF NOT EXISTS numero_mesa SMALLINT,
+    ADD COLUMN IF NOT EXISTS nombre_cliente VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS motivo_anulacion TEXT,
+    ADD COLUMN IF NOT EXISTS id_usuario_anulacion INTEGER REFERENCES usuarios(id_usuario),
+    ADD COLUMN IF NOT EXISTS fecha_anulacion TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_pedidos_mesero ON pedidos (id_mesero);
+CREATE INDEX IF NOT EXISTS idx_pedidos_fecha ON pedidos (fecha_hora);
+CREATE INDEX IF NOT EXISTS idx_pedidos_estado ON pedidos (estado_pedido);
+
+-- Control de mesa activa única
+CREATE UNIQUE INDEX IF NOT EXISTS ux_pedido_mesa_activa
+    ON pedidos (numero_mesa)
+    WHERE numero_mesa IS NOT NULL AND estado_pedido NOT IN ('PAGADO', 'ANULADO');
+
+-- Auditoría de anulación (HU-3.6)
+CREATE TABLE IF NOT EXISTS pedidos_anulaciones (
+    id_anulacion  SERIAL PRIMARY KEY,
+    id_pedido     INTEGER NOT NULL UNIQUE REFERENCES pedidos(id_pedido) ON DELETE CASCADE,
+    id_usuario    INTEGER NOT NULL REFERENCES usuarios(id_usuario),
+    motivo        TEXT NOT NULL,
+    fecha_hora    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Comandas de cocina versionadas (HU-4.3)
+CREATE TABLE IF NOT EXISTS comandas (
+    id_comanda        SERIAL PRIMARY KEY,
+    id_pedido         INTEGER NOT NULL REFERENCES pedidos(id_pedido) ON DELETE CASCADE,
+    version           INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+    cambios           JSONB NOT NULL DEFAULT '[]'::jsonb,
+    estado_impresion  VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE',
+    fecha_impresion   TIMESTAMPTZ DEFAULT NOW(),
+    fecha_creacion    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT ck_comandas_estado_impresion
+        CHECK (estado_impresion IN ('PENDIENTE', 'IMPRESA', 'ERROR', 'REEMPLAZADA'))
+);
+
+ALTER TABLE comandas
+    ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS cambios JSONB NOT NULL DEFAULT '[]'::jsonb,
+    ADD COLUMN IF NOT EXISTS estado_impresion VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE',
+    ADD COLUMN IF NOT EXISTS fecha_creacion TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_comandas_pedido_version ON comandas (id_pedido, version);
+CREATE INDEX IF NOT EXISTS idx_comandas_estado ON comandas (estado_impresion);
+
+-- Historial de impresión (HU-4.3 / agente de impresión)
+CREATE TABLE IF NOT EXISTS historial_impresion (
+    id_impresion  SERIAL PRIMARY KEY,
+    id_pedido     INTEGER NOT NULL REFERENCES pedidos (id_pedido) ON DELETE CASCADE,
+    id_comanda    INTEGER REFERENCES comandas (id_comanda) ON DELETE CASCADE,
+    tipo          VARCHAR(20) NOT NULL DEFAULT 'COMANDA' CHECK (tipo IN ('COMANDA', 'COMPROBANTE')),
+    version       INTEGER,
+    resultado     VARCHAR(10) NOT NULL CHECK (resultado IN ('OK', 'ERROR')),
+    fecha_hora    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_historial_impresion_pedido
+    ON historial_impresion (id_pedido, fecha_hora);
+
+-- Detalles de pedido
+CREATE TABLE IF NOT EXISTS detalles_pedido (
+    id_detalle          SERIAL PRIMARY KEY,
+    id_pedido           INTEGER NOT NULL REFERENCES pedidos(id_pedido) ON DELETE CASCADE,
+    id_item             INTEGER NOT NULL REFERENCES item_inventario(id_item),
+    id_comanda          INTEGER REFERENCES comandas(id_comanda),
+    cantidad            NUMERIC NOT NULL CHECK (cantidad > 0),
+    precio_unitario     INTEGER NOT NULL CHECK (precio_unitario >= 0),
+    notas_especiales    TEXT,
+    promocion_aplicada  VARCHAR(100)
+);
+
+ALTER TABLE detalles_pedido
+    ADD COLUMN IF NOT EXISTS id_comanda INTEGER REFERENCES comandas(id_comanda),
+    ADD COLUMN IF NOT EXISTS notas_especiales TEXT,
+    ADD COLUMN IF NOT EXISTS promocion_aplicada VARCHAR(100);
+
+CREATE INDEX IF NOT EXISTS idx_detalles_pedido_pedido ON detalles_pedido (id_pedido);
+CREATE INDEX IF NOT EXISTS idx_detalles_pedido_item ON detalles_pedido (id_item);
+
+-- ----------------------------------------------------------------------------
+-- 5. ADICIONALES, PROMOCIONES Y COMBOS (HU-3.2)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS adicionales (
+    id_adicional      SERIAL PRIMARY KEY,
+    nombre            VARCHAR(100) NOT NULL UNIQUE,
+    tipo              VARCHAR(20) NOT NULL DEFAULT 'EXTRA' CHECK (tipo IN ('PAN', 'ADEREZO', 'EXTRA')),
+    descripcion       VARCHAR(255),
+    id_insumo         INTEGER REFERENCES item_inventario (id_item) ON DELETE RESTRICT,
+    cantidad_insumo   NUMERIC(12,3) NOT NULL DEFAULT 1 CHECK (cantidad_insumo > 0),
+    precio_adicional  INTEGER NOT NULL DEFAULT 0 CHECK (precio_adicional >= 0),
+    id_categoria      INTEGER REFERENCES categoria (id_categoria),
+    orden             SMALLINT NOT NULL DEFAULT 0,
+    estado_activo     BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE INDEX IF NOT EXISTS idx_adicionales_tipo ON adicionales (tipo) WHERE estado_activo;
+
+CREATE TABLE IF NOT EXISTS promociones (
+    id_promocion          SERIAL PRIMARY KEY,
+    nombre                VARCHAR(100) NOT NULL,
+    descripcion           TEXT,
+    tipo                  VARCHAR(20) NOT NULL CHECK (tipo IN ('COMBO', 'DESCUENTO')),
+    precio_final          INTEGER CHECK (precio_final >= 0),
+    recargo               INTEGER NOT NULL DEFAULT 0 CHECK (recargo >= 0),
+    porcentaje_descuento  NUMERIC(5,2) NOT NULL DEFAULT 0 CHECK (porcentaje_descuento BETWEEN 0 AND 100),
+    id_categoria          INTEGER REFERENCES categoria (id_categoria),
+    id_insumo             INTEGER REFERENCES item_inventario (id_item) ON DELETE RESTRICT,
+    cantidad_insumo       NUMERIC(12,3) NOT NULL DEFAULT 1 CHECK (cantidad_insumo > 0),
+    vigente_desde         TIMESTAMPTZ NOT NULL,
+    vigente_hasta         TIMESTAMPTZ NOT NULL,
+    estado_activo         BOOLEAN NOT NULL DEFAULT TRUE,
+    CHECK (vigente_hasta > vigente_desde)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_promociones_nombre ON promociones (LOWER(TRIM(nombre)));
+CREATE INDEX IF NOT EXISTS idx_promociones_vigencia
+    ON promociones (vigente_desde, vigente_hasta) WHERE estado_activo;
+
+CREATE TABLE IF NOT EXISTS pedido_item_adicional (
+    id_pedido_item_adicional SERIAL PRIMARY KEY,
+    id_detalle        INTEGER NOT NULL REFERENCES detalles_pedido (id_detalle) ON DELETE CASCADE,
+    id_adicional      INTEGER NOT NULL REFERENCES adicionales (id_adicional) ON DELETE RESTRICT,
+    cantidad          INTEGER NOT NULL DEFAULT 1 CHECK (cantidad > 0),
+    precio_unitario   INTEGER NOT NULL CHECK (precio_unitario >= 0),
+    nombre_adicional  VARCHAR(100),
+    UNIQUE (id_detalle, id_adicional)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pia_detalle ON pedido_item_adicional (id_detalle);
+CREATE INDEX IF NOT EXISTS idx_pia_adicional ON pedido_item_adicional (id_adicional);
+
+-- ----------------------------------------------------------------------------
+-- 6. MÓDULO FINANCIERO (MOVIMIENTOS FINANCIEROS Y PAGOS)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS movimientos_financieros (
+    id_movimiento    SERIAL PRIMARY KEY,
+    id_usuario       INTEGER NOT NULL REFERENCES usuarios(id_usuario),
+    id_pedido        INTEGER REFERENCES pedidos(id_pedido),
+    tipo_movimiento  VARCHAR(10) NOT NULL CHECK (tipo_movimiento IN ('INGRESO', 'EGRESO')),
+    monto            INTEGER NOT NULL CHECK (monto > 0),
+    medio_pago       VARCHAR(15) NOT NULL CHECK (medio_pago IN ('EFECTIVO', 'TRANSFERENCIA', 'NEQUI', 'DAVIPLATA', 'TARJETA')),
+    fecha_hora       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Un solo pago de tipo INGRESO por pedido
+CREATE UNIQUE INDEX IF NOT EXISTS ux_movfin_pago_pedido
+    ON movimientos_financieros (id_pedido)
+    WHERE tipo_movimiento = 'INGRESO' AND id_pedido IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_movfin_fecha ON movimientos_financieros (fecha_hora);
+CREATE INDEX IF NOT EXISTS idx_movfin_usuario ON movimientos_financieros (id_usuario);
+
+-- ----------------------------------------------------------------------------
+-- 7. VISTAS DE COMPATIBILIDAD (SOPORTE PARA CÓDIGO O SCRIPTS EN SINGULAR)
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW pedido AS SELECT * FROM pedidos;
+CREATE OR REPLACE VIEW detalle_pedido AS SELECT * FROM detalles_pedido;
+CREATE OR REPLACE VIEW movimiento_financiero AS SELECT * FROM movimientos_financieros;
+
+-- ----------------------------------------------------------------------------
+-- 8. SEGURIDAD DE ACCESO (ROW LEVEL SECURITY - RLS)
+-- ----------------------------------------------------------------------------
+-- Bloquea el acceso no autorizado desde la API REST pública de Supabase
+-- (PostgREST / anon key). El backend NestJS (usuario postgres) opera con bypass
+-- automático de RLS manteniendo acceso administrativo completo y seguro.
+ALTER TABLE usuarios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categoria ENABLE ROW LEVEL SECURITY;
+ALTER TABLE proveedor ENABLE ROW LEVEL SECURITY;
+ALTER TABLE item_inventario ENABLE ROW LEVEL SECURITY;
+ALTER TABLE receta_escandallo ENABLE ROW LEVEL SECURITY;
+ALTER TABLE movimiento_inventario ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pedidos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pedidos_anulaciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comandas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE historial_impresion ENABLE ROW LEVEL SECURITY;
+ALTER TABLE detalles_pedido ENABLE ROW LEVEL SECURITY;
+ALTER TABLE adicionales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE promociones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pedido_item_adicional ENABLE ROW LEVEL SECURITY;
+ALTER TABLE movimientos_financieros ENABLE ROW LEVEL SECURITY;
+
+-- ----------------------------------------------------------------------------
+-- 9. DATOS INICIALES SEMILLA (SEED DATA)
+-- ----------------------------------------------------------------------------
+
+-- Categorías
+INSERT INTO categoria (nombre) VALUES
+    ('Choripanes'),
+    ('Bebidas'),
+    ('Adicionales'),
+    ('Insumos cárnicos'),
+    ('Panadería'),
+    ('Salsas y otros')
+ON CONFLICT (nombre) DO NOTHING;
+
+-- Proveedores
+INSERT INTO proveedor (nombre) VALUES
+    ('Carnes del Sur'),
+    ('Panadería La Espiga'),
+    ('Distribuidora Andina')
+ON CONFLICT DO NOTHING;
+
+-- Usuarios de prueba iniciales (Password hash bcrypt compatible)
+-- Contraseñas reales para iniciar sesión:
+-- * alejandrapinto@unicauca.edu.co -> Admin123* (Administrador)
+-- * admin@chori.com               -> admin123  (Administrador)
+-- * juan@chori.com                -> Cajero123* (Cajero)
+-- * cajero@chori.com              -> cajero123 (Cajero)
+-- * juli@chori.com                -> Mesero123* (Mesero)
+-- * mesero@chori.com              -> mesero123 (Mesero)
+INSERT INTO usuarios (nombre, credencial, password, rol, permisos, estado_activo)
+VALUES
+    ('Alejandra Pinto',       'alejandrapinto@unicauca.edu.co', '$2b$10$kQNR6IgFjg1iXMoSolGuSuJfNbVLPqT1YBYzolKL.mdjZ2kotCOIu', 'Administrador', ARRAY['productos', 'inventario', 'ventas', 'reportes', 'financiero'], TRUE),
+    ('Administrador General', 'admin@chori.com',                '$2b$10$uaITFL7k3zKyuoz8UM6EbOH1Q/zbWq3ZtxLCG32CQtdMbCHwzQ2I2', 'Administrador', ARRAY['productos', 'inventario', 'ventas', 'reportes', 'financiero'], TRUE),
+    ('Juan Cajero',           'juan@chori.com',                 '$2b$10$aqCm7rAnJh4Xbea60yCyUupio0Vf4PhPYkgWveaE7moC42f76L6K2', 'Cajero',        ARRAY['ventas', 'reportes', 'inventario'], TRUE),
+    ('Cajero Principal',      'cajero@chori.com',               '$2b$10$aqCm7rAnJh4Xbea60yCyUupio0Vf4PhPYkgWveaE7moC42f76L6K2', 'Cajero',        ARRAY['ventas', 'reportes', 'inventario'], TRUE),
+    ('Juliana Mesera',        'juli@chori.com',                 '$2b$10$SasMbwI2vV1DyKuAAx7BWegdljN.Ln1b8QVmMBccvM1UvYJ1xEggq', 'Mesero',        ARRAY['ventas'], TRUE),
+    ('Mesero de Turno',       'mesero@chori.com',               '$2b$10$SasMbwI2vV1DyKuAAx7BWegdljN.Ln1b8QVmMBccvM1UvYJ1xEggq', 'Mesero',        ARRAY['ventas'], TRUE)
+ON CONFLICT (credencial) DO UPDATE SET
+    nombre = EXCLUDED.nombre,
+    password = EXCLUDED.password,
+    rol = EXCLUDED.rol,
+    permisos = EXCLUDED.permisos,
+    estado_activo = EXCLUDED.estado_activo;
+
+-- Insumos y Productos iniciales
+INSERT INTO item_inventario (id_categoria, nombre, tipo_item, cantidad_stock, stock_minimo, costo_fabricacion, precio_venta)
+SELECT c.id_categoria, v.nombre, v.tipo, v.stock, v.minimo, v.costo, v.precio
+FROM (VALUES
+    ('Choripán Clásico',             'Choripanes',      'PRODUCTO', 25,  5, 6500, 16000),
+    ('Choripán Pampero',             'Choripanes',      'PRODUCTO', 20,  5, 7500, 18000),
+    ('Choripán Especial',            'Choripanes',      'PRODUCTO', 15,  4, 8500, 21000),
+    ('Gaseosa Cola 400ml',           'Bebidas',         'PRODUCTO', 40, 10, 2200,  5000),
+    ('Cerveza Artesanal 330ml',      'Bebidas',         'PRODUCTO', 30,  8, 4500,  9000),
+    ('Agua Mineral 500ml',           'Bebidas',         'PRODUCTO', 50, 10, 1200,  3500),
+    ('Pan ciabatta',                 'Panadería',       'INSUMO',   40, 10, 1200,     0),
+    ('Pan de orégano',               'Panadería',       'INSUMO',   40, 10, 1300,     0),
+    ('Chorizo tradicional',          'Insumos cárnicos','INSUMO',   50, 15, 3200,     0),
+    ('Chorizo de res picante',       'Insumos cárnicos','INSUMO',   35, 10, 3800,     0),
+    ('Chimichurri rojo',             'Salsas y otros',  'INSUMO',   15, 10,  400,     0),
+    ('Mayonesa de ajo negro',        'Salsas y otros',  'INSUMO',   30, 10,  500,     0),
+    ('Chucrut de gulupa',            'Salsas y otros',  'INSUMO',   30, 10,  600,     0),
+    ('Salsa BBQ de mango',           'Salsas y otros',  'INSUMO',   30, 10,  450,     0),
+    ('Salsa jalapeño',               'Salsas y otros',  'INSUMO',   30, 10,  450,     0),
+    ('Queso mozzarella (porción)',   'Adicionales',     'INSUMO',   25,  5,  900,     0),
+    ('Tocineta (porción)',           'Adicionales',     'INSUMO',   25,  5, 1100,     0),
+    ('Papa a la francesa (porción)', 'Adicionales',     'INSUMO',   50, 10, 1500,     0)
+) AS v (nombre, categoria, tipo, stock, minimo, costo, precio)
+JOIN categoria c ON c.nombre = v.categoria
+WHERE NOT EXISTS (
+    SELECT 1 FROM item_inventario i WHERE LOWER(TRIM(i.nombre)) = LOWER(TRIM(v.nombre))
+);
+
+-- Adicionales (HU-3.2)
+INSERT INTO adicionales
+    (nombre, tipo, descripcion, id_insumo, cantidad_insumo, precio_adicional, id_categoria, orden)
+SELECT v.nombre, v.tipo, v.descripcion, i.id_item, v.cantidad, v.precio, c.id_categoria, v.orden
+FROM (VALUES
+    ('Ciabatta',                'PAN',     'Pan artesanal de origen italiano, corteza fina y miga aireada.', 'Pan ciabatta',               1.0,    0, 1),
+    ('Orégano',                 'PAN',     'Pan aromático y esponjoso con orégano fresco.',                  'Pan de orégano',             1.0,    0, 2),
+    ('Chimi Rojo',              'ADEREZO', NULL,                                                             'Chimichurri rojo',           1.0,    0, 1),
+    ('Mayo Ajo Negro',          'ADEREZO', NULL,                                                             'Mayonesa de ajo negro',      1.0,    0, 2),
+    ('Chucrut de Gulupa',       'ADEREZO', NULL,                                                             'Chucrut de gulupa',          1.0,    0, 3),
+    ('BBQ Mango',               'ADEREZO', NULL,                                                             'Salsa BBQ de mango',         1.0,    0, 4),
+    ('Salsa Jalapeño',          'ADEREZO', NULL,                                                             'Salsa jalapeño',             1.0,    0, 5),
+    ('Aderezo adicional extra', 'EXTRA',   'Porción extra del aderezo elegido.',                             NULL,                         1.0, 1500, 1),
+    ('Queso fundido',           'EXTRA',   NULL,                                                             'Queso mozzarella (porción)', 1.0, 2500, 2),
+    ('Tocineta',                'EXTRA',   NULL,                                                             'Tocineta (porción)',         1.0, 3000, 3)
+) AS v (nombre, tipo, descripcion, insumo, cantidad, precio, orden)
+LEFT JOIN item_inventario i ON LOWER(TRIM(i.nombre)) = LOWER(TRIM(v.insumo))
+LEFT JOIN categoria c ON c.nombre = 'Choripanes'
+ON CONFLICT (nombre) DO NOTHING;
+
+-- Promociones vigentes (HU-3.2)
+INSERT INTO promociones
+    (nombre, descripcion, tipo, recargo, id_categoria, id_insumo, cantidad_insumo, vigente_desde, vigente_hasta, estado_activo)
+SELECT v.nombre, v.descripcion, 'COMBO', v.recargo, c.id_categoria, i.id_item, 1,
+       NOW() - INTERVAL '1 day', NOW() + INTERVAL '365 days', v.activo
+FROM (VALUES
+    ('Combo con papa',    'Choripán + porción de papa a la francesa', 3000, TRUE),
+    ('Combo con gaseosa', 'Choripán + gaseosa (temporada terminada)', 4000, FALSE)
+) AS v (nombre, descripcion, recargo, activo)
+LEFT JOIN categoria c ON c.nombre = 'Choripanes'
+LEFT JOIN item_inventario i ON LOWER(TRIM(i.nombre)) = 'papa a la francesa (porción)'
+WHERE NOT EXISTS (
+    SELECT 1 FROM promociones p WHERE LOWER(TRIM(p.nombre)) = LOWER(TRIM(v.nombre))
+);
+
+COMMIT;

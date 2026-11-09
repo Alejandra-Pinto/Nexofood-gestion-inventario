@@ -2,13 +2,13 @@
  * Controlador: QueriesReportsController
  * ------------------------------------------------------------------
  * Endpoints:
- *   GET /queries-reports/historial  -> HU-5.2 historial de pedidos y ventas con filtros
- *       ?fecha=AAAA-MM-DD | ?desde=AAAA-MM-DD&hasta=AAAA-MM-DD | ?id_item=N (combinables)
+ *   GET /queries-reports/historial            -> HU-5.1 y HU-5.2 historial de pedidos y ventas
+ *   GET /queries-reports/reportes/inventario  -> HU-6.1 reporte consolidado de inventario
  *
- * Solo el Administrador consulta el historial: los demás roles reciben 403.
+ * Solo el Administrador tiene acceso: los demás roles reciben 403.
  */
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { QueriesReportsService, ResultadoHistorial } from './queries-reports.service';
+import { QueriesReportsService, ReporteInventarioResultado, ResultadoHistorial } from './queries-reports.service';
 import { FiltrosHistorialDto } from './dto/filtros-historial.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -24,5 +24,10 @@ export class QueriesReportsController {
   @Get('historial')
   historial(@Query() filtros: FiltrosHistorialDto): Promise<ResultadoHistorial> {
     return this.service.historial(filtros);
+  }
+
+  @Get('reportes/inventario')
+  reporteInventario(): Promise<ReporteInventarioResultado> {
+    return this.service.reporteInventario();
   }
 }

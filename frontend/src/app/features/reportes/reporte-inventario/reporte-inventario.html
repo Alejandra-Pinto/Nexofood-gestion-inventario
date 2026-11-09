@@ -1,0 +1,235 @@
+<header class="encabezado no-print">
+  <div>
+    <h1>Reporte de inventario</h1>
+    <p class="subtitulo">Consolidado de existencias de productos e insumos en tiempo real.</p>
+  </div>
+  <div class="acciones-reporte">
+    <button
+      type="button"
+      class="btn btn-secundario"
+      [disabled]="cargando() || inventarioVacio()"
+      (click)="imprimir()"
+      title="Imprimir formato limpio"
+    >
+      <svg class="icono-btn" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M6 14h12v8H6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+      </svg>
+      Imprimir
+    </button>
+    <button
+      type="button"
+      class="btn btn-primario"
+      [disabled]="cargando() || inventarioVacio()"
+      (click)="descargarPdf()"
+      title="Descargar archivo en PDF"
+    >
+      <svg class="icono-btn" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      Descargar PDF
+    </button>
+  </div>
+</header>
+
+<!-- Cabecera membretada exclusiva para formato de impresión (HU-6.6) -->
+<div class="membrete-impresion solo-print" aria-hidden="true">
+  <div class="membrete-fila">
+    <div>
+      <h1 class="membrete-titulo">CHORI COMPANY</h1>
+      <p class="membrete-sub">Sistema de Gestión de Restaurante — CORVSOFT</p>
+    </div>
+    <div class="membrete-meta">
+      <strong>REPORTE CONSOLIDADO DE INVENTARIO</strong>
+      <span class="criterio-print">Criterio: {{ descripcionFiltroActual() }}</span>
+      @if (fechaGeneracion()) {
+        <span>Generado el: {{ fechaGeneracion() | date: 'dd/MM/yyyy h:mm a' }}</span>
+      }
+      <span>Usuario: Administrador</span>
+    </div>
+  </div>
+</div>
+
+<div class="pagina">
+  @if (errorCarga()) {
+    <div class="alerta alerta-error" role="alert">
+      <span>⚠ {{ errorCarga() }}</span>
+      <button type="button" class="btn btn-secundario btn-sm" (click)="cargarReporte()">Reintentar</button>
+    </div>
+  } @else if (cargando()) {
+    <div class="cargando-wrap card">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Cargando reporte de inventario…</p>
+    </div>
+  } @else {
+    <!-- Tarjetas de métricas consolidadas -->
+    @if (resumen(); as r) {
+      <section class="metricas-grid" aria-label="Resumen consolidado">
+        <div class="tarjeta-metrica">
+          <span class="metrica-label">Total Ítems</span>
+          <span class="metrica-valor">{{ r.total_items }}</span>
+          <span class="metrica-pie">Registros consolidados</span>
+        </div>
+        <div class="tarjeta-metrica">
+          <span class="metrica-label">Productos para venta</span>
+          <span class="metrica-valor">{{ r.total_productos }}</span>
+          <span class="metrica-pie">Para venta directa</span>
+        </div>
+        <div class="tarjeta-metrica">
+          <span class="metrica-label">Insumos y materia prima</span>
+          <span class="metrica-valor">{{ r.total_insumos }}</span>
+          <span class="metrica-pie">Preparaciones y cocina</span>
+        </div>
+        <div class="tarjeta-metrica" [class.alerta-borde]="r.items_bajo_stock > 0">
+          <span class="metrica-label">Stock bajo</span>
+          <span class="metrica-valor valor-alerta">{{ r.items_bajo_stock }}</span>
+          <span class="metrica-pie">Cerca al stock mínimo</span>
+        </div>
+        <div class="tarjeta-metrica" [class.error-borde]="r.items_agotados > 0">
+          <span class="metrica-label">Agotados</span>
+          <span class="metrica-valor valor-error">{{ r.items_agotados }}</span>
+          <span class="metrica-pie">Existencias en 0</span>
+        </div>
+      </section>
+    }
+
+    <!-- Barra interactiva de filtros y búsqueda (pantalla) -->
+    <section class="card barra-controles no-print" aria-label="Controles de visualización">
+      <div class="pestanas" role="group" aria-label="Filtrar por tipo de ítem">
+        <button
+          type="button"
+          class="pestana"
+          [class.activa]="filtroSeleccionado() === 'TODOS'"
+          (click)="cambiarFiltro('TODOS')"
+        >
+          Todos ({{ resumen()?.total_items ?? 0 }})
+        </button>
+        <button
+          type="button"
+          class="pestana"
+          [class.activa]="filtroSeleccionado() === 'PRODUCTO'"
+          (click)="cambiarFiltro('PRODUCTO')"
+        >
+          Productos ({{ resumen()?.total_productos ?? 0 }})
+        </button>
+        <button
+          type="button"
+          class="pestana"
+          [class.activa]="filtroSeleccionado() === 'INSUMO'"
+          (click)="cambiarFiltro('INSUMO')"
+        >
+          Insumos ({{ resumen()?.total_insumos ?? 0 }})
+        </button>
+        <button
+          type="button"
+          class="pestana"
+          [class.activa]="filtroSeleccionado() === 'BAJO_STOCK'"
+          (click)="cambiarFiltro('BAJO_STOCK')"
+        >
+          Bajo stock ({{ resumen()?.items_bajo_stock ?? 0 }})
+        </button>
+        <button
+          type="button"
+          class="pestana"
+          [class.activa]="filtroSeleccionado() === 'AGOTADOS'"
+          (click)="cambiarFiltro('AGOTADOS')"
+        >
+          Agotados ({{ resumen()?.items_agotados ?? 0 }})
+        </button>
+      </div>
+
+      <div class="campo-busqueda">
+        <label for="buscar-inventario" class="visually-hidden">Buscar en inventario</label>
+        <input
+          id="buscar-inventario"
+          type="text"
+          placeholder="Buscar por nombre, categoría o ID…"
+          [value]="terminoBusqueda()"
+          (input)="actualizarBusqueda($any($event.target).value)"
+        />
+      </div>
+    </section>
+
+    <!-- Tabla consolidada de existencias -->
+    <section class="card tabla-card" aria-label="Listado consolidado de inventario">
+      @if (inventarioVacio()) {
+        <div class="vacio" data-test="inventario-vacio">
+          <span class="vacio-icono" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8" fill="none" stroke="currentColor" stroke-width="1.8" />
+            </svg>
+          </span>
+          <strong>No hay productos ni insumos registrados en el inventario.</strong>
+          <p>El inventario no tiene existencias registradas en la base de datos.</p>
+        </div>
+      } @else if (itemsFiltrados().length === 0) {
+        <div class="vacio" data-test="filtro-vacio">
+          <span class="vacio-icono" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16M21 21l-4.3-4.3" fill="none" stroke="currentColor" stroke-width="1.8" />
+            </svg>
+          </span>
+          <strong>No se encontraron ítems para el criterio seleccionado.</strong>
+          <p>Pruebe cambiando la pestaña de filtro o borrando el texto de búsqueda.</p>
+          <button type="button" class="btn btn-secundario btn-sm" (click)="cambiarFiltro('TODOS'); actualizarBusqueda('')">
+            Ver todos los ítems
+          </button>
+        </div>
+      } @else {
+        <div class="tabla-wrap">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th class="col-id">ID</th>
+                <th>Nombre del Ítem</th>
+                <th>Tipo</th>
+                <th>Categoría</th>
+                <th class="num">Stock Actual</th>
+                <th class="num">Stock Mínimo</th>
+                <th>Estado</th>
+                <th class="num">Precio Venta</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of itemsFiltrados(); track item.id_item) {
+                <tr [class.fila-alerta]="item.estado_stock === 'BAJO'" [class.fila-error]="item.estado_stock === 'AGOTADO'">
+                  <td class="col-id">#{{ item.id_item }}</td>
+                  <td class="col-nombre">
+                    <strong>{{ item.nombre }}</strong>
+                  </td>
+                  <td>
+                    <span class="badge" [class.badge-producto]="item.tipo_item === 'PRODUCTO'" [class.badge-insumo]="item.tipo_item === 'INSUMO'">
+                      {{ item.tipo_item === 'PRODUCTO' ? 'Producto' : 'Insumo' }}
+                    </span>
+                  </td>
+                  <td>{{ item.categoria }}</td>
+                  <td class="num col-stock">
+                    <strong>{{ item.cantidad_stock }}</strong>
+                  </td>
+                  <td class="num">{{ item.stock_minimo }}</td>
+                  <td>
+                    <span
+                      class="badge"
+                      [class.badge-ok]="item.estado_stock === 'NORMAL'"
+                      [class.badge-alerta]="item.estado_stock === 'BAJO'"
+                      [class.badge-error]="item.estado_stock === 'AGOTADO'"
+                    >
+                      {{ item.estado_stock === 'NORMAL' ? 'Normal' : item.estado_stock === 'BAJO' ? 'Bajo stock' : 'Agotado' }}
+                    </span>
+                  </td>
+                  <td class="num">
+                    @if (item.tipo_item === 'PRODUCTO') {
+                      {{ item.precio_venta | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}
+                    } @else {
+                      <span class="text-muted">-</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
+</div>

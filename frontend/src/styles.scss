@@ -104,22 +104,23 @@ input.invalido, select.invalido { border-color: var(--error); background: var(--
 }
 .badge-ok { background: var(--ok-suave); color: var(--ok); }
 .badge-bajo { background: var(--error-suave); color: var(--error); }
-/* ==========================================
-   REGLAS PARA IMPRESIÓN TÉRMICA (HU-4.1)
-   ========================================== */
+
+/* =====================================================================
+   REGLAS GLOBALES DE IMPRESIÓN (HU-4.1 Comanda térmica y HU-6.6 Reportes)
+   ===================================================================== */
 @media print {
-  /* Ocultar todo el cuerpo de la app */
-  body * {
+  /* -------------------------------------------------------------------
+     1. Impresión de Ticket Térmico de Comanda (HU-4.1)
+     Solo aplica si el elemento #ticket-print existe en el DOM
+     ------------------------------------------------------------------- */
+  body:has(#ticket-print) * {
     visibility: hidden;
   }
-  
-  /* Hacer visible SOLO el ticket y sus hijos */
-  #ticket-print, #ticket-print * {
+  body:has(#ticket-print) #ticket-print,
+  body:has(#ticket-print) #ticket-print * {
     visibility: visible;
   }
-  
-  /* Posicionar y limitar el tamaño para simular impresora térmica (80mm) */
-  #ticket-print {
+  body:has(#ticket-print) #ticket-print {
     position: absolute;
     left: 0;
     top: 0;
@@ -127,8 +128,79 @@ input.invalido, select.invalido { border-color: var(--error); background: var(--
     max-width: var(--ancho-ticket, 72mm);
     margin: 0;
     padding: 10px;
-    font-size: 12px; /* Letra un poco más pequeña para que quepa */
+    font-size: 12px;
+  }
+
+  /* -------------------------------------------------------------------
+     2. Impresión General de Reportes y Documentos (HU-6.6)
+     Aplica a reportes y vistas del sistema cuando no es un ticket térmico
+     ------------------------------------------------------------------- */
+  body:not(:has(#ticket-print)) {
+    background: #ffffff !important;
+    color: #000000 !important;
+
+    * {
+      visibility: visible;
+    }
+
+    /* Ocultar elementos de navegación, menús laterales, botones y filtros */
+    .sidebar,
+    .no-print,
+    .acciones-reporte,
+    .acciones-historial,
+    .barra-controles,
+    .barra,
+    .filtros-wrap,
+    .barra-filtros,
+    app-toast-container,
+    .toast,
+    button {
+      display: none !important;
+      visibility: hidden !important;
+    }
+
+    /* Ajustar layout a ancho completo */
+    .layout {
+      display: block !important;
+      min-height: auto !important;
+      height: auto !important;
+    }
+
+    .contenido {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+
+    .solo-print {
+      display: block !important;
+      visibility: visible !important;
+    }
+
+    .card {
+      box-shadow: none !important;
+      border: none !important;
+    }
+
+    .tabla {
+      width: 100% !important;
+      border-collapse: collapse !important;
+
+      thead {
+        display: table-header-group;
+      }
+
+      tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      th, td {
+        border: 1px solid #d1d5db !important;
+        color: #000000 !important;
+        background: transparent !important;
+      }
+    }
   }
 }
-
-

@@ -107,6 +107,21 @@ export const routes: Routes = [
           ),
       },
       {
+        // HU-6.1 Reporte consolidado de inventario (exclusivo Administrador)
+        path: 'reportes',
+        canActivate: [adminGuard],
+        children: [
+          { path: '', redirectTo: 'inventario', pathMatch: 'full' },
+          {
+            path: 'inventario',
+            loadComponent: () =>
+              import('./features/reportes/reporte-inventario/reporte-inventario').then(
+                (m) => m.ReporteInventario,
+              ),
+          },
+        ],
+      },
+      {
         // HU-3.3, HU-3.4, HU-3.6 Detalle, modificación y anulación del pedido
         path: 'pedidos/:id',
         loadComponent: () =>
