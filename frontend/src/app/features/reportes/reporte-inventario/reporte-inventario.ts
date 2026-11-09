@@ -7,6 +7,7 @@
  */
 import { Component, computed, inject, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ReportesService } from '../../../core/services/reportes.service';
 import { ToastService } from '../../../core/services/toast.service';
@@ -18,7 +19,7 @@ export type FiltroReporte = 'TODOS' | 'PRODUCTO' | 'INSUMO' | 'BAJO_STOCK' | 'AG
 @Component({
   selector: 'app-reporte-inventario',
   standalone: true,
-  imports: [CurrencyPipe, DatePipe],
+  imports: [CurrencyPipe, DatePipe, RouterLink],
   templateUrl: './reporte-inventario.html',
   styleUrl: './reporte-inventario.scss',
 })

@@ -35,8 +35,8 @@ export class MainLayout {
     { texto: 'Inventario', ruta: '/inventario', permiso: 'inventario', icono: 'M12 3 2 8l10 5 10-5zM2 12.5l10 5 10-5M2 17l10 5 10-5' },
     { texto: 'Historial', ruta: '/historial', soloAdmin: true, icono: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2' }, // HU-5.2
     { texto: 'Usuarios', ruta: '/usuarios', soloAdmin: true, icono: 'M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.3M15.5 4.2a3.5 3.5 0 0 1 0 6.6' },
-    { texto: 'Reportes', ruta: '/reportes/inventario', soloAdmin: true, icono: 'M14 3H6v18h12V7zM14 3v4h4M9 13h6M9 17h6' },
-    { texto: 'Financiero', permiso: 'financiero', icono: 'M3 6h18v12H3zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M6 9h.01M18 15h.01' },
+    { texto: 'Reportes', ruta: '/reportes', soloAdmin: true, permiso: 'reportes', icono: 'M14 3H6v18h12V7zM14 3v4h4M9 13h6M9 17h6' },
+    { texto: 'Financiero', ruta: '/financiero', soloAdmin: true, permiso: 'financiero', icono: 'M3 6h18v12H3zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M6 9h.01M18 15h.01' },
     { texto: 'Configuración', soloAdmin: true, icono: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1' },
   ];
 

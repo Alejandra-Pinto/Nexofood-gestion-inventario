@@ -1,11 +1,4 @@
-/**
- * Entidad: MovimientoFinanciero
- * ------------------------------------------------------------------
- * Implementar selección y registro del método de pago
- *
- * Registra la entrada o salida de dinero con su medio de pago.
- * Al cobrar un pedido se guarda un INGRESO ligado al pedido (id_pedido).
- */
+/** Entidad: MovimientoFinanciero - Entrada o salida de dinero con su medio de pago */
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Pedido } from '../../orders/entities/pedido.entity';
@@ -13,6 +6,12 @@ import { Pedido } from '../../orders/entities/pedido.entity';
 export enum TipoMovimientoFinanciero {
   INGRESO = 'INGRESO',
   EGRESO = 'EGRESO',
+}
+
+/** Origen del dinero */
+export enum OrigenMovimiento {
+  VENTA = 'VENTA',
+  MANUAL = 'MANUAL',
 }
 
 /** Medios de pago del prototipo (deben coincidir con ck_movfin_medio en la BD) */
@@ -24,7 +23,7 @@ export enum MedioPago {
   TARJETA = 'TARJETA',
 }
 
-// synchronize: false -> la tabla es movimientos_financieros
+// Synchronize: false -> la tabla es movimientos_financieros
 @Entity({ name: 'movimientos_financieros', synchronize: false })
 export class MovimientoFinanciero {
   @PrimaryGeneratedColumn({ name: 'id_movimiento' })
@@ -58,4 +57,18 @@ export class MovimientoFinanciero {
 
   @Column({ type: 'timestamptz', name: 'fecha_hora', default: () => 'NOW()' })
   fecha_hora: Date;
+
+  // Columnas de backend/database/011_ingresos_no_ventas.sql
+  @Column({ type: 'varchar', length: 10, default: OrigenMovimiento.VENTA })
+  origen: OrigenMovimiento;
+
+  // Concepto del ingreso manual (ej. "Aporte de socios para base de caja")
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  concepto: string | null;
+
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  categoria: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  observaciones: string | null;
 }
