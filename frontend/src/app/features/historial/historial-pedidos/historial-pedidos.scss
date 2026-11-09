@@ -1,13 +1,36 @@
 /* Encabezado blanco de la pantalla (igual que Productos y Usuarios) */
 .encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
   padding: 22px 32px;
   background: var(--superficie);
   border-bottom: 1px solid var(--borde);
-  h1 { font-size: 1.5rem; }
+  h1 { font-size: 1.5rem; margin: 0; }
 }
 .subtitulo { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
 .pagina { display: flex; flex-direction: column; gap: 20px; padding: 24px 32px; }
 .centro { text-align: center; }
+
+.acciones-historial {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.icono-btn {
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
 
 /* ---------- SCRUM-201 Barra de filtros ---------- */
 .barra { padding: 18px 24px; }
@@ -94,8 +117,130 @@
   svg { width: 22px; height: 22px; fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; }
 }
 
+.solo-print { display: none; }
+
+/* =========================================================
+   HU-6.6: Formato de impresión limpio para Historial
+   ========================================================= */
+@media print {
+  .no-print,
+  .sidebar,
+  .barra,
+  .acciones-historial,
+  button {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 10pt;
+  }
+
+  .pagina {
+    padding: 0 !important;
+    gap: 12pt !important;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  .solo-print {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .pagina,
+  .pagina *,
+  .membrete-impresion,
+  .membrete-impresion *,
+  .tabla-wrap,
+  .tabla,
+  .tabla * {
+    visibility: visible !important;
+  }
+
+  .membrete-impresion {
+    border-bottom: 2px solid #6b1f22;
+    padding-bottom: 8pt;
+    margin-bottom: 12pt;
+  }
+
+  .membrete-fila {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .membrete-titulo {
+    font-size: 16pt;
+    font-weight: 800;
+    color: #6b1f22;
+    margin: 0;
+  }
+
+  .membrete-sub {
+    font-size: 8.5pt;
+    color: #555555;
+    margin: 2pt 0 0;
+  }
+
+  .membrete-meta {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+    font-size: 8pt;
+    color: #333333;
+    line-height: 1.3;
+
+    strong {
+      font-size: 9pt;
+      color: #000000;
+    }
+  }
+
+  .tabla {
+    width: 100% !important;
+    border: 1px solid #cccccc !important;
+    font-size: 8.5pt !important;
+
+    thead {
+      display: table-header-group;
+    }
+
+    th {
+      background: #eeeeee !important;
+      color: #000000 !important;
+      border: 1px solid #cccccc !important;
+      padding: 5pt 6pt !important;
+    }
+
+    td {
+      border: 1px solid #e0e0e0 !important;
+      padding: 4pt 6pt !important;
+      color: #000000 !important;
+      background: transparent !important;
+    }
+
+    tr {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+  }
+
+  .badge {
+    border: 1px solid #888888;
+    background: transparent !important;
+    color: #000000 !important;
+  }
+}
+
 @media (max-width: 640px) {
   .encabezado, .pagina { padding: 16px; }
   .barra .campo, .acciones { width: 100%; }
   .acciones .btn { flex: 1; }
+  .acciones-historial { width: 100%; justify-content: flex-end; }
 }

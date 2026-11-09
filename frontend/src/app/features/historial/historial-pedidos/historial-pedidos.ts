@@ -1,7 +1,9 @@
 /**
  * Pantalla: HistorialPedidos (opción "Historial" del menú, solo Administrador)
  * ------------------------------------------------------------------
+ * HU-5.1 · Consultar historial de pedidos
  * HU-5.2 · Historial con filtros (fecha, rango, producto)
+ * HU-6.6 · Descargar y/o imprimir reportes
  *   SCRUM-201 Diseñar barra de filtros
  *   SCRUM-202 Filtro por fecha y rango de fechas
  *   SCRUM-203 Filtro por producto y combinación de filtros
@@ -16,9 +18,11 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { HistorialService } from '../../../core/services/historial.service';
 import { InventarioService } from '../../../core/services/inventario.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { ItemInventario } from '../../../core/models/item-inventario.model';
 import { ETIQUETA_ESTADO } from '../../../core/models/pedido.model';
 import { FiltrosHistorial, PedidoHistorial, ResultadoHistorial } from '../../../core/models/historial.model';
+import { descargarHistorialPedidosPdf } from '../../../core/utils/reporte-pdf.util';
 
 /** Filtrar por un día o por un rango de fechas */
 type ModoFecha = 'fecha' | 'rango';
@@ -34,6 +38,7 @@ export const MSJ_SIN_RESULTADOS = 'No existen operaciones para los criterios sel
 export class HistorialPedidos {
   private service = inject(HistorialService);
   private inventario = inject(InventarioService);
+  private toast = inject(ToastService);
 
   protected readonly etiquetaEstado = ETIQUETA_ESTADO;
   protected readonly msjSinResultados = MSJ_SIN_RESULTADOS;
@@ -94,6 +99,35 @@ export class HistorialPedidos {
     this.idItem.set('');
     this.errorFiltro.set(null);
     this.consultar({});
+  }
+
+  /** HU-6.6 · Impresión directa del historial de pedidos */
+  protected imprimir(): void {
+    if (this.pedidos().length === 0) {
+      this.toast.error('No hay pedidos en el historial para imprimir.');
+      return;
+    }
+    window.print();
+  }
+
+  /** HU-6.6 · Descarga del historial de pedidos en PDF */
+  protected descargarPdf(): void {
+    if (this.pedidos().length === 0 || !this.resultado()) {
+      this.toast.error('No hay pedidos en el historial para exportar a PDF.');
+      return;
+    }
+
+    const ok = descargarHistorialPedidosPdf(
+      this.pedidos(),
+      this.resultado()!.resumen,
+      this.descripcionFiltros() || 'Todos los pedidos',
+    );
+
+    if (ok) {
+      this.toast.exito('Historial de pedidos descargado en PDF correctamente.');
+    } else {
+      this.toast.error('No se pudo generar el archivo PDF.');
+    }
   }
 
   /** Valida la barra y devuelve los filtros, o null si hay un error */

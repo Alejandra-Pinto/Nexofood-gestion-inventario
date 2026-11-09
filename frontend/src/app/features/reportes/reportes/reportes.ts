@@ -1,9 +1,10 @@
 /** Pantalla: Reportes - Resumen del período y reporte de ventas */
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ReportesService } from '../../../core/services/reportes.service';
+import { ToastService } from '../../../core/services/toast.service';
 import {
   fechaColombia,
   MSJ_SIN_OPERACIONES,
@@ -14,6 +15,10 @@ import {
   ResumenPeriodo,
   TEXTO_MEDIO,
 } from '../../../core/models/reportes.model';
+import {
+  descargarReporteResumenPdf,
+  descargarReporteVentasPdf,
+} from '../../../core/utils/reporte-pdf.util';
 
 /** Pestañas del reporte (como en el prototipo de Reportes) */
 type Pestana = 'resumen' | 'ventas';
@@ -26,6 +31,8 @@ type Pestana = 'resumen' | 'ventas';
 })
 export class Reportes {
   private service = inject(ReportesService);
+  private toast = inject(ToastService);
+  private route = inject(ActivatedRoute);
 
   protected readonly msjSinOperaciones = MSJ_SIN_OPERACIONES;
   protected readonly msjSinVentas = MSJ_SIN_VENTAS;
@@ -49,6 +56,8 @@ export class Reportes {
     return null;
   });
 
+  protected rangoTexto = computed(() => `${this.desde()} al ${this.hasta()}`);
+
   // Resumen
   protected resumen = signal<ResumenPeriodo | null>(null);
   protected cargando = signal(false);
@@ -61,7 +70,20 @@ export class Reportes {
   /** Para las barras de "Ventas por medio de pago" */
   protected maxPorMedio = computed(() => Math.max(1, ...(this.reporteVentas()?.por_medio_pago ?? []).map((m) => m.total)));
 
+  protected sinDatosReporte = computed(() => {
+    if (this.pestana() === 'ventas') {
+      const v = this.reporteVentas();
+      return !v || v.sin_ventas || (v.ventas || []).length === 0;
+    }
+    const r = this.resumen();
+    return !r || r.sin_operaciones;
+  });
+
   constructor() {
+    const tabParam = this.route.snapshot.queryParamMap.get('tab');
+    if (tabParam === 'ventas') {
+      this.pestana.set('ventas');
+    }
     this.consultar();
   }
 
@@ -112,6 +134,56 @@ export class Reportes {
         this.errorCarga.set(this.mensajeError(e));
       },
     });
+  }
+
+  /**
+   * HU-6.6 · Impresión directa del reporte actual respetando el período consultado.
+   */
+  imprimir(): void {
+    if (this.sinDatosReporte()) {
+      this.toast.error('No hay datos en el período seleccionado para imprimir.');
+      return;
+    }
+    window.print();
+  }
+
+  /**
+   * HU-6.6 · Descarga del reporte actual en formato PDF estándar.
+   */
+  descargarPdf(): void {
+    if (this.sinDatosReporte()) {
+      this.toast.error('No hay datos en el período seleccionado para exportar a PDF.');
+      return;
+    }
+
+    if (this.pestana() === 'ventas') {
+      const v = this.reporteVentas();
+      if (!v) return;
+      try {
+        const ok = descargarReporteVentasPdf(v, this.rangoTexto());
+        if (ok) {
+          this.toast.exito('Reporte de ventas descargado en PDF correctamente.');
+        } else {
+          this.toast.error('No se pudo generar el archivo PDF de ventas.');
+        }
+      } catch {
+        this.toast.error('Ocurrió un error al preparar el PDF de ventas.');
+      }
+      return;
+    }
+
+    const r = this.resumen();
+    if (!r) return;
+    try {
+      const ok = descargarReporteResumenPdf(r, this.rangoTexto());
+      if (ok) {
+        this.toast.exito('Reporte de resumen descargado en PDF correctamente.');
+      } else {
+        this.toast.error('No se pudo generar el archivo PDF del resumen.');
+      }
+    } catch {
+      this.toast.error('Ocurrió un error al preparar el PDF del resumen.');
+    }
   }
 
   protected mensajeError(e: HttpErrorResponse): string {

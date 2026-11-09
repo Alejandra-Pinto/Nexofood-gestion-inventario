@@ -1,13 +1,47 @@
-<header class="encabezado">
+<header class="encabezado no-print">
   <div>
     <h1>Historial de pedidos</h1>
     <p class="subtitulo">Consulta los pedidos y ventas registrados filtrando por fecha, rango de fechas o producto.</p>
   </div>
+  @if (pedidos().length > 0) {
+    <div class="acciones-historial">
+      <button type="button" class="btn btn-secundario btn-sm" (click)="imprimir()" title="Imprimir historial">
+        <svg class="icono-btn" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M6 14h12v8H6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+        </svg>
+        Imprimir
+      </button>
+      <button type="button" class="btn btn-primario btn-sm" (click)="descargarPdf()" title="Descargar PDF">
+        <svg class="icono-btn" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Descargar PDF
+      </button>
+    </div>
+  }
 </header>
+
+<!-- Cabecera membretada exclusiva para formato de impresión (HU-6.6) -->
+<div class="membrete-impresion solo-print" aria-hidden="true">
+  <div class="membrete-fila">
+    <div>
+      <h1 class="membrete-titulo">CHORI COMPANY</h1>
+      <p class="membrete-sub">Sistema de Gestión de Restaurante — CORVSOFT</p>
+    </div>
+    <div class="membrete-meta">
+      <strong>HISTORIAL DE PEDIDOS Y VENTAS</strong>
+      @if (descripcionFiltros()) {
+        <span>Criterio: {{ descripcionFiltros() }}</span>
+      }
+      <span>Usuario: Administrador</span>
+    </div>
+  </div>
+</div>
 
 <div class="pagina">
   <!-- ===== SCRUM-201 Barra de filtros ===== -->
-  <section class="card barra" aria-label="Filtros del historial">
+  <section class="card barra no-print" aria-label="Filtros del historial">
     <div class="barra-fila">
       <div class="campo campo-modo">
         <span class="etiqueta">Filtrar por</span>

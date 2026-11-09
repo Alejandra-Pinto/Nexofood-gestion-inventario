@@ -1,6 +1,6 @@
 /**
  * Pruebas unitarias: QueriesReportsController
- * HU-5.2 · SCRUM-205 Pruebas de filtros
+ * HU-5.1, HU-5.2 y HU-6.1
  */
 import { Test, TestingModule } from '@nestjs/testing';
 import { ValidationPipe } from '@nestjs/common';
@@ -12,7 +12,7 @@ import { RolUsuario } from '../users/entities/user.entity';
 
 describe('QueriesReportsController', () => {
   let controller: QueriesReportsController;
-  const service = { historial: jest.fn() };
+  const service = { historial: jest.fn(), reporteInventario: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -29,7 +29,13 @@ describe('QueriesReportsController', () => {
     expect(service.historial).toHaveBeenCalledWith({ fecha: '2026-11-04', id_item: 5 });
   });
 
-  it('solo el Administrador puede consultar el historial', () => {
+  it('delega el reporte de inventario al servicio', async () => {
+    service.reporteInventario.mockResolvedValue({ items: [], resumen: {} });
+    await controller.reporteInventario();
+    expect(service.reporteInventario).toHaveBeenCalled();
+  });
+
+  it('solo el Administrador puede consultar el historial y reportes', () => {
     expect(Reflect.getMetadata(ROLES_KEY, QueriesReportsController)).toEqual([RolUsuario.ADMINISTRADOR]);
   });
 

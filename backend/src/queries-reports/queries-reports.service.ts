@@ -16,7 +16,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EstadoPedido, Pedido } from '../orders/entities/pedido.entity';
-import { ItemInventario } from '../products/entities/item-inventario.entity';
+import { ItemInventario, TipoItem } from '../products/entities/item-inventario.entity';
 import { FiltrosHistorialDto } from './dto/filtros-historial.dto';
 
 /** Las fechas del negocio se cuentan en la hora de Colombia */
@@ -47,6 +47,33 @@ export interface ResultadoHistorial {
   };
   resumen: { pedidos: number; ventas: number; total_vendido: number };
   pedidos: PedidoHistorial[];
+}
+
+export type EstadoStock = 'NORMAL' | 'BAJO' | 'AGOTADO';
+
+export interface ItemReporteInventario {
+  id_item: number;
+  nombre: string;
+  tipo_item: TipoItem;
+  id_categoria: number;
+  categoria: string;
+  cantidad_stock: number;
+  stock_minimo: number;
+  precio_venta: number;
+  estado_activo: boolean;
+  estado_stock: EstadoStock;
+}
+
+export interface ReporteInventarioResultado {
+  resumen: {
+    total_items: number;
+    total_productos: number;
+    total_insumos: number;
+    items_bajo_stock: number;
+    items_agotados: number;
+  };
+  items: ItemReporteInventario[];
+  fecha_generacion: string;
 }
 
 /** true si la fecha no existe en el calendario (p. ej. 2026-02-30) */
@@ -146,6 +173,70 @@ export class QueriesReportsService {
         total_vendido: ventas.reduce((s, p) => s + p.total_calculado, 0),
       },
       pedidos: lista,
+    };
+  }
+
+  /**
+   * HU-6.1 · Consulta consolidada de existencias de inventario (productos e insumos).
+   * Solo el Administrador puede generar este reporte.
+   */
+  async reporteInventario(): Promise<ReporteInventarioResultado> {
+    const items = await this.itemsRepo
+      .createQueryBuilder('item')
+      .leftJoinAndSelect('item.categoria', 'cat')
+      .orderBy('item.tipo_item', 'ASC')
+      .addOrderBy('cat.nombre', 'ASC')
+      .addOrderBy('item.nombre', 'ASC')
+      .getMany();
+
+    let totalProductos = 0;
+    let totalInsumos = 0;
+    let bajoStock = 0;
+    let agotados = 0;
+
+    const lista: ItemReporteInventario[] = items.map((item) => {
+      let estadoStock: EstadoStock = 'NORMAL';
+      const stock = Number(item.cantidad_stock);
+      const min = Number(item.stock_minimo);
+
+      if (stock <= 0) {
+        estadoStock = 'AGOTADO';
+        agotados++;
+      } else if (stock <= min) {
+        estadoStock = 'BAJO';
+        bajoStock++;
+      }
+
+      if (item.tipo_item === TipoItem.PRODUCTO) {
+        totalProductos++;
+      } else {
+        totalInsumos++;
+      }
+
+      return {
+        id_item: item.id_item,
+        nombre: item.nombre,
+        tipo_item: item.tipo_item,
+        id_categoria: item.id_categoria,
+        categoria: item.categoria?.nombre ?? 'Sin categoría',
+        cantidad_stock: stock,
+        stock_minimo: min,
+        precio_venta: Number(item.precio_venta),
+        estado_activo: item.estado_activo,
+        estado_stock: estadoStock,
+      };
+    });
+
+    return {
+      resumen: {
+        total_items: lista.length,
+        total_productos: totalProductos,
+        total_insumos: totalInsumos,
+        items_bajo_stock: bajoStock,
+        items_agotados: agotados,
+      },
+      items: lista,
+      fecha_generacion: new Date().toISOString(),
     };
   }
 }

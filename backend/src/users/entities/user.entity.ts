@@ -29,13 +29,22 @@ export class User {
   @PrimaryGeneratedColumn()
   id_usuario: number;
 
-  @Column({ type: 'varchar', length: 150 })
+  /**
+   * En la base de datos la columna es 'nombre'.
+   * En el backend y frontend se expone como 'nombre_completo'.
+   */
+  @Column({ name: 'nombre', type: 'varchar', length: 150 })
   nombre_completo: string;
 
   @Column({ type: 'varchar', length: 150, unique: true })
   credencial: string;
 
-  @Column({ type: 'varchar' })
+  /**
+   * En la base de datos la columna es únicamente 'password' (almacena el hash bcrypt).
+   * Mapeamos la propiedad password_hash a la columna 'password' para que en la BD exista
+   * una sola columna de contraseña y en el backend todo funcione transparentemente.
+   */
+  @Column({ name: 'password', type: 'varchar', length: 255 })
   password_hash: string;
 
   @Column({ type: 'enum', enum: RolUsuario, default: RolUsuario.MESERO })
