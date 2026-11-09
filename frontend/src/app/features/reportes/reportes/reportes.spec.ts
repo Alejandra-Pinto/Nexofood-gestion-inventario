@@ -1,4 +1,4 @@
-/** Pruebas unitarias: Reportes - Pruebas del resumen */
+/** Pruebas unitarias: Reportes - Pruebas del resumen y exportación */
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -6,9 +6,11 @@ import { Reportes } from './reportes';
 import { MSJ_SIN_OPERACIONES, MSJ_SIN_VENTAS, rangoDe, ReporteVentas, ResumenPeriodo } from '../../../core/models/reportes.model';
 import { provideRouter } from '@angular/router';
 import { environment } from '../../../../environments/environment';
+import { ToastService } from '../../../core/services/toast.service';
 
 describe('Reportes · resumen por período', () => {
   let http: HttpTestingController;
+  let toastMock: { exito: any; error: any; advertencia: any; info: any };
   const urlResumen = `${environment.apiUrl}/queries-reports/resumen`;
   const urlVentas = `${environment.apiUrl}/queries-reports/ventas`;
 
@@ -52,9 +54,21 @@ describe('Reportes · resumen por período', () => {
   };
 
   beforeEach(() => {
+    toastMock = {
+      exito: vi.fn(),
+      error: vi.fn(),
+      advertencia: vi.fn(),
+      info: vi.fn(),
+    };
+
     TestBed.configureTestingModule({
       imports: [Reportes],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: ToastService, useValue: toastMock },
+      ],
     });
     http = TestBed.inject(HttpTestingController);
   });
@@ -119,5 +133,46 @@ describe('Reportes · resumen por período', () => {
     cmp.consultar();
     http.expectNone((x) => x.url === urlResumen);
     expect(cmp.errorPeriodo()).toContain('posterior');
+  });
+
+  it('HU-6.6: imprimir y descargar PDF funcionan en la pestaña Resumen', async () => {
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
+    const { cmp } = await crear(resumen());
+
+    cmp.imprimir();
+    expect(printSpy).toHaveBeenCalled();
+
+    cmp.descargarPdf();
+    expect(toastMock.exito).toHaveBeenCalledWith('Reporte de resumen descargado en PDF correctamente.');
+    printSpy.mockRestore();
+  });
+
+  it('HU-6.6: imprimir y descargar PDF funcionan en la pestaña Ventas', async () => {
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
+    const { fixture, cmp } = await crear(resumen());
+
+    cmp.cambiarPestana('ventas');
+    http.expectOne((x) => x.url === urlVentas).flush(reporteVentas());
+    await fixture.whenStable();
+
+    cmp.imprimir();
+    expect(printSpy).toHaveBeenCalled();
+
+    cmp.descargarPdf();
+    expect(toastMock.exito).toHaveBeenCalledWith('Reporte de ventas descargado en PDF correctamente.');
+    printSpy.mockRestore();
+  });
+
+  it('HU-6.6: no permite imprimir ni descargar si no hay datos', async () => {
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
+    const { cmp } = await crear(resumen({ sin_operaciones: true, por_dia: [] }));
+
+    cmp.imprimir();
+    expect(printSpy).not.toHaveBeenCalled();
+    expect(toastMock.error).toHaveBeenCalledWith('No hay datos en el período seleccionado para imprimir.');
+
+    cmp.descargarPdf();
+    expect(toastMock.error).toHaveBeenCalledWith('No hay datos en el período seleccionado para exportar a PDF.');
+    printSpy.mockRestore();
   });
 });

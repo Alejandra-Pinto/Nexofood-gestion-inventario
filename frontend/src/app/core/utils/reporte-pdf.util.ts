@@ -345,3 +345,232 @@ export function descargarHistorialPedidosPdf(
   dispararDescargaBlob(blob, nombreFinal);
   return true;
 }
+
+
+import { ReporteVentas, ResumenPeriodo, TEXTO_MEDIO } from '../models/reportes.model';
+
+/**
+ * Descarga el resumen de operaciones por período en formato PDF estándar.
+ */
+export function descargarReporteResumenPdf(
+  resumen: ResumenPeriodo,
+  rangoTexto = '',
+  nombreArchivo?: string,
+): boolean {
+  if (!resumen || resumen.sin_operaciones) {
+    return false;
+  }
+
+  const pageStreams: string[] = [];
+  let currentStream: string[] = [];
+  let y = 740;
+
+  function write(cmd: string) {
+    currentStream.push(cmd);
+  }
+
+  function startPage(isFirst = false) {
+    if (!isFirst) {
+      pageStreams.push(currentStream.join('\n'));
+      currentStream = [];
+      y = 740;
+    }
+
+    // Encabezado corporativo
+    write('0.42 0.12 0.13 rg'); // #6b1f22
+    write('BT /F2 14 Tf 40 750 Td (CHORI COMPANY - SISTEMA DE GESTION) Tj ET');
+    write('0 0 0 rg');
+    write('BT /F2 10 Tf 40 735 Td (REPORTE RESUMEN DE OPERACIONES POR PERIODO) Tj ET');
+    write('0.4 0.4 0.4 rg');
+    const ahora = new Date().toLocaleString('es-CO');
+    const periodoTxt = rangoTexto || `${resumen.desde} a ${resumen.hasta}`;
+    write(`BT /F1 8 Tf 40 722 Td (Generado el: ${sanitizarTextoPdf(ahora)} | Periodo: ${sanitizarTextoPdf(periodoTxt)}) Tj ET`);
+    write('0 0 0 rg');
+
+    if (isFirst) {
+      // Caja de cifras clave
+      write('0.95 0.95 0.95 rg');
+      write('40 660 532 50 re f');
+      write('0.8 0.8 0.8 RG 0.5 w');
+      write('40 660 532 50 re s');
+      write('0 0 0 rg');
+
+      const fila1 = `Ventas Acumuladas: $${resumen.ventas.total.toLocaleString('es-CO')} (${resumen.ventas.cantidad} pedidos)  |  Ticket Promedio: $${resumen.ventas.ticket_promedio.toLocaleString('es-CO')}`;
+      const fila2 = `Pedidos Registrados: ${resumen.pedidos.total} (${resumen.pedidos.en_curso} en curso)  |  Pedidos Anulados: ${resumen.anulados.cantidad} ($${resumen.anulados.total.toLocaleString('es-CO')})`;
+      const fila3 = resumen.otros_ingresos.cantidad > 0
+        ? `Otros Ingresos: $${resumen.otros_ingresos.total.toLocaleString('es-CO')} (${resumen.otros_ingresos.cantidad} movimientos manuales)`
+        : '';
+
+      write(`BT /F2 8.5 Tf 48 694 Td (${sanitizarTextoPdf(fila1)}) Tj ET`);
+      write(`BT /F2 8.5 Tf 48 678 Td (${sanitizarTextoPdf(fila2)}) Tj ET`);
+      if (fila3) {
+        write(`BT /F1 8 Tf 48 664 Td (${sanitizarTextoPdf(fila3)}) Tj ET`);
+      }
+      y = 635;
+    } else {
+      y = 705;
+    }
+
+    // Cabecera de tabla
+    write('0.9 0.9 0.9 rg');
+    write(`40 ${y - 14} 532 16 re f`);
+    write('0.7 0.7 0.7 RG 0.5 w');
+    write(`40 ${y - 14} 532 16 re s`);
+    write('0.2 0.2 0.2 rg');
+    write(`BT /F2 7.5 Tf 44 ${y - 10} Td (FECHA) Tj ET`);
+    write(`BT /F2 7.5 Tf 170 ${y - 10} Td (PEDIDOS) Tj ET`);
+    write(`BT /F2 7.5 Tf 260 ${y - 10} Td (VENTAS COBRADAS) Tj ET`);
+    write(`BT /F2 7.5 Tf 380 ${y - 10} Td (TOTAL VENDIDO) Tj ET`);
+    write(`BT /F2 7.5 Tf 490 ${y - 10} Td (ANULADOS) Tj ET`);
+    write('0 0 0 rg');
+    y -= 26;
+  }
+
+  startPage(true);
+
+  const dias = (resumen.por_dia || []).filter((d) => d.pedidos > 0);
+  for (let i = 0; i < dias.length; i++) {
+    const d = dias[i];
+    if (y < 55) {
+      startPage(false);
+    }
+
+    if (i % 2 === 1) {
+      write('0.98 0.98 0.98 rg');
+      write(`40 ${y - 3} 532 14 re f`);
+      write('0 0 0 rg');
+    }
+
+    write('0.9 0.9 0.9 RG 0.3 w');
+    write(`40 ${y - 3} m 572 ${y - 3} l S`);
+
+    write(`BT /F2 7.5 Tf 44 ${y} Td (${sanitizarTextoPdf(d.fecha)}) Tj ET`);
+    write(`BT /F1 7.5 Tf 170 ${y} Td (${d.pedidos}) Tj ET`);
+    write(`BT /F1 7.5 Tf 260 ${y} Td (${d.ventas}) Tj ET`);
+    write(`BT /F2 7.5 Tf 380 ${y} Td ($${Number(d.total_vendido).toLocaleString('es-CO')}) Tj ET`);
+    write(`BT /F1 7.5 Tf 490 ${y} Td (${d.anulados}) Tj ET`);
+
+    y -= 14;
+  }
+
+  pageStreams.push(currentStream.join('\n'));
+  const blob = ensamblarPdf(pageStreams);
+  const nombreFinal = nombreArchivo || `reporte-resumen-${resumen.desde}-al-${resumen.hasta}.pdf`;
+  dispararDescargaBlob(blob, nombreFinal);
+  return true;
+}
+
+/**
+ * Descarga el reporte general de ventas en formato PDF estándar.
+ */
+export function descargarReporteVentasPdf(
+  reporte: ReporteVentas,
+  rangoTexto = '',
+  nombreArchivo?: string,
+): boolean {
+  if (!reporte || reporte.sin_ventas || !reporte.ventas || reporte.ventas.length === 0) {
+    return false;
+  }
+
+  const pageStreams: string[] = [];
+  let currentStream: string[] = [];
+  let y = 740;
+
+  function write(cmd: string) {
+    currentStream.push(cmd);
+  }
+
+  function startPage(isFirst = false) {
+    if (!isFirst) {
+      pageStreams.push(currentStream.join('\n'));
+      currentStream = [];
+      y = 740;
+    }
+
+    // Encabezado corporativo
+    write('0.42 0.12 0.13 rg'); // #6b1f22
+    write('BT /F2 14 Tf 40 750 Td (CHORI COMPANY - SISTEMA DE GESTION) Tj ET');
+    write('0 0 0 rg');
+    write('BT /F2 10 Tf 40 735 Td (REPORTE GENERAL DE VENTAS FINALIZADAS) Tj ET');
+    write('0.4 0.4 0.4 rg');
+    const ahora = new Date().toLocaleString('es-CO');
+    const periodoTxt = rangoTexto || `${reporte.desde} a ${reporte.hasta}`;
+    write(`BT /F1 8 Tf 40 722 Td (Generado el: ${sanitizarTextoPdf(ahora)} | Periodo: ${sanitizarTextoPdf(periodoTxt)}) Tj ET`);
+    write('0 0 0 rg');
+
+    if (isFirst) {
+      write('0.95 0.95 0.95 rg');
+      write('40 660 532 50 re f');
+      write('0.8 0.8 0.8 RG 0.5 w');
+      write('40 660 532 50 re s');
+      write('0 0 0 rg');
+
+      const resTxt = `Total Vendido: $${reporte.resumen.total_vendido.toLocaleString('es-CO')}  |  Ventas Pagadas: ${reporte.resumen.ventas}  |  Ticket Promedio: $${reporte.resumen.ticket_promedio.toLocaleString('es-CO')}`;
+      write(`BT /F2 8.5 Tf 48 692 Td (${sanitizarTextoPdf(resTxt)}) Tj ET`);
+
+      const mediosTxt = (reporte.por_medio_pago || [])
+        .map((m) => `${TEXTO_MEDIO[m.medio_pago] || m.medio_pago}: $${m.total.toLocaleString('es-CO')} (${m.ventas})`)
+        .join('  |  ');
+      if (mediosTxt) {
+        const mediosSafe = mediosTxt.length > 95 ? mediosTxt.substring(0, 92) + '...' : mediosTxt;
+        write(`BT /F1 7.5 Tf 48 672 Td (Por medio: ${sanitizarTextoPdf(mediosSafe)}) Tj ET`);
+      }
+      y = 635;
+    } else {
+      y = 705;
+    }
+
+    // Cabecera de tabla
+    write('0.9 0.9 0.9 rg');
+    write(`40 ${y - 14} 532 16 re f`);
+    write('0.7 0.7 0.7 RG 0.5 w');
+    write(`40 ${y - 14} 532 16 re s`);
+    write('0.2 0.2 0.2 rg');
+    write(`BT /F2 7.5 Tf 44 ${y - 10} Td (PEDIDO) Tj ET`);
+    write(`BT /F2 7.5 Tf 95 ${y - 10} Td (FECHA / HORA) Tj ET`);
+    write(`BT /F2 7.5 Tf 205 ${y - 10} Td (MESA) Tj ET`);
+    write(`BT /F2 7.5 Tf 285 ${y - 10} Td (MESERO) Tj ET`);
+    write(`BT /F2 7.5 Tf 395 ${y - 10} Td (MEDIO DE PAGO) Tj ET`);
+    write(`BT /F2 7.5 Tf 495 ${y - 10} Td (TOTAL) Tj ET`);
+    write('0 0 0 rg');
+    y -= 26;
+  }
+
+  startPage(true);
+
+  for (let i = 0; i < (reporte.ventas || []).length; i++) {
+    const v = reporte.ventas[i];
+    if (y < 55) {
+      startPage(false);
+    }
+
+    if (i % 2 === 1) {
+      write('0.98 0.98 0.98 rg');
+      write(`40 ${y - 3} 532 14 re f`);
+      write('0 0 0 rg');
+    }
+
+    write('0.9 0.9 0.9 RG 0.3 w');
+    write(`40 ${y - 3} m 572 ${y - 3} l S`);
+
+    write(`BT /F2 7.5 Tf 44 ${y} Td (#${v.id_pedido}) Tj ET`);
+    const fh = new Date(v.fecha_hora).toLocaleDateString('es-CO');
+    write(`BT /F1 7.5 Tf 95 ${y} Td (${sanitizarTextoPdf(fh)}) Tj ET`);
+    const mesa = v.numero_mesa ? `Mesa ${v.numero_mesa}` : 'Para llevar';
+    write(`BT /F1 7.5 Tf 205 ${y} Td (${sanitizarTextoPdf(mesa)}) Tj ET`);
+    const mesero = (v.mesero || '-').substring(0, 18);
+    write(`BT /F1 7.5 Tf 285 ${y} Td (${sanitizarTextoPdf(mesero)}) Tj ET`);
+    const medio = TEXTO_MEDIO[v.medio_pago] || v.medio_pago;
+    write(`BT /F1 7.5 Tf 395 ${y} Td (${sanitizarTextoPdf(medio)}) Tj ET`);
+    const tot = `$${Number(v.total).toLocaleString('es-CO')}`;
+    write(`BT /F2 7.5 Tf 495 ${y} Td (${sanitizarTextoPdf(tot)}) Tj ET`);
+
+    y -= 14;
+  }
+
+  pageStreams.push(currentStream.join('\n'));
+  const blob = ensamblarPdf(pageStreams);
+  const nombreFinal = nombreArchivo || `reporte-ventas-${reporte.desde}-al-${reporte.hasta}.pdf`;
+  dispararDescargaBlob(blob, nombreFinal);
+  return true;
+}

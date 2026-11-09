@@ -1,13 +1,6 @@
-<!-- Pestañas generales de reportes -->
-<nav class="tabs-reportes no-print" aria-label="Tipo de reporte">
-  <a class="tab-reporte" routerLink="/reportes">Resumen del período</a>
-  <a class="tab-reporte" routerLink="/reportes">Ventas</a>
-  <span class="tab-reporte activa">Inventario</span>
-</nav>
-
 <header class="encabezado no-print">
   <div>
-    <h1>Reporte de inventario</h1>
+    <h1>Reportes y estadísticas</h1>
     <p class="subtitulo">Consolidado de existencias de productos e insumos en tiempo real.</p>
   </div>
   <div class="acciones-reporte">
@@ -38,6 +31,13 @@
     </button>
   </div>
 </header>
+
+<!-- Pestañas del reporte -->
+<nav class="tabs no-print" aria-label="Tipo de reporte">
+  <a class="tab" [routerLink]="['/reportes']" [queryParams]="{ tab: 'resumen' }">Resumen del período</a>
+  <a class="tab" [routerLink]="['/reportes']" [queryParams]="{ tab: 'ventas' }">Ventas</a>
+  <span class="tab activa">Inventario</span>
+</nav>
 
 <!-- Cabecera membretada exclusiva para formato de impresión (HU-6.6) -->
 <div class="membrete-impresion solo-print" aria-hidden="true">

@@ -1,16 +1,39 @@
-/* Encabezado blanco (igual que las demás pantallas) */
+/* Encabezado blanco con acciones */
 .encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
   padding: 22px 32px;
   background: var(--superficie);
   border-bottom: 1px solid var(--borde);
-  h1 { font-size: 1.5rem; }
+
+  h1 {
+    font-size: 1.5rem;
+    margin: 0;
+  }
 }
+
+.acciones-reporte {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.icono-btn {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
 .subtitulo { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
 .pagina { display: flex; flex-direction: column; gap: 20px; padding: 24px 32px; }
 .centro { text-align: center; padding: 24px 0; }
 h2 { font-size: 1.1rem; margin-bottom: 12px; }
 
-/* ---------- Pestañas Resumen / Ventas ---------- */
+/* ---------- Pestañas Resumen / Ventas / Inventario ---------- */
 .tabs {
   display: flex;
   gap: 4px;
@@ -123,6 +146,76 @@ tr:last-child td { border-bottom: none; }
   background: var(--fondo);
   color: var(--muted);
   font-size: 1.4rem;
+}
+
+/* Membrete oculto en pantalla */
+.solo-print {
+  display: none;
+}
+
+/* =========================================================
+   Estilos específicos de impresión (HU-6.6)
+   ========================================================= */
+@media print {
+  .no-print {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  .solo-print {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .membrete-impresion {
+    border-bottom: 2px solid #6b1f22;
+    padding-bottom: 8pt;
+    margin-bottom: 12pt;
+  }
+
+  .membrete-fila {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .membrete-titulo {
+    font-size: 16pt;
+    font-weight: 800;
+    color: #6b1f22;
+    margin: 0;
+  }
+
+  .membrete-sub {
+    font-size: 8pt;
+    color: #555555;
+    margin: 2pt 0 0;
+  }
+
+  .membrete-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 8pt;
+    color: #333333;
+    gap: 2pt;
+  }
+
+  .criterio-print {
+    font-weight: 600;
+    color: #6b1f22 !important;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  .pagina {
+    padding: 0 !important;
+    gap: 12pt !important;
+  }
 }
 
 @media (max-width: 900px) {

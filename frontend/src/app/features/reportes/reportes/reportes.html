@@ -1,13 +1,56 @@
 <!-- Reportes: resumen del período y ventas -->
-<header class="encabezado">
+<header class="encabezado no-print">
   <div>
     <h1>Reportes y estadísticas</h1>
     <p class="subtitulo">Resumen de pedidos, ventas y anulaciones del período seleccionado.</p>
   </div>
+  <div class="acciones-reporte">
+    <button
+      type="button"
+      class="btn btn-secundario"
+      [disabled]="cargando() || sinDatosReporte()"
+      (click)="imprimir()"
+      title="Imprimir formato limpio"
+    >
+      <svg class="icono-btn" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M6 14h12v8H6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+      </svg>
+      Imprimir
+    </button>
+    <button
+      type="button"
+      class="btn btn-primario"
+      [disabled]="cargando() || sinDatosReporte()"
+      (click)="descargarPdf()"
+      title="Descargar archivo en PDF"
+    >
+      <svg class="icono-btn" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      Descargar PDF
+    </button>
+  </div>
 </header>
 
+<!-- Cabecera membretada exclusiva para formato de impresión (HU-6.6) -->
+<div class="membrete-impresion solo-print" aria-hidden="true">
+  <div class="membrete-fila">
+    <div>
+      <h1 class="membrete-titulo">CHORI COMPANY</h1>
+      <p class="membrete-sub">Sistema de Gestión de Restaurante — CORVSOFT</p>
+    </div>
+    <div class="membrete-meta">
+      <strong>{{ pestana() === 'ventas' ? 'REPORTE GENERAL DE VENTAS' : 'REPORTE RESUMEN DEL PERÍODO' }}</strong>
+      <span class="criterio-print">Período: {{ desde() | date: 'dd/MM/yyyy' }} – {{ hasta() | date: 'dd/MM/yyyy' }}</span>
+      <span>Generado el: {{ hoy | date: 'dd/MM/yyyy' }}</span>
+      <span>Usuario: Administrador</span>
+    </div>
+  </div>
+</div>
+
 <!-- Pestañas del reporte -->
-<nav class="tabs" aria-label="Tipo de reporte">
+<nav class="tabs no-print" aria-label="Tipo de reporte">
   <button type="button" class="tab" [class.activa]="pestana() === 'resumen'" (click)="cambiarPestana('resumen')">Resumen del período</button>
   <button type="button" class="tab" [class.activa]="pestana() === 'ventas'" (click)="cambiarPestana('ventas')">Ventas</button>
   <a class="tab" routerLink="/reportes/inventario">Inventario</a>
@@ -15,7 +58,7 @@
 
 <div class="pagina">
   <!-- Selector de período -->
-  <section class="card barra" aria-label="Período del reporte">
+  <section class="card barra no-print" aria-label="Período del reporte">
     <div class="barra-fila">
       <div class="campo">
         <span class="etiqueta">Rango</span>
@@ -81,7 +124,7 @@
 
         <div class="ventas-grid">
           <!-- Ventas por medio de pago -->
-          <section class="card medios-card">
+          <section class="card medios-card no-print">
             <h2>Por medio de pago</h2>
             <ul class="medios-lista">
               @for (m of rv.por_medio_pago; track m.medio_pago) {
@@ -100,7 +143,7 @@
           <section class="card tabla-card">
             <h2>Ventas finalizadas</h2>
             <div class="tabla-scroll">
-              <table>
+              <table class="tabla">
                 <thead>
                   <tr>
                     <th>Pedido</th>
@@ -173,7 +216,7 @@
       <section class="card tabla-card">
         <h2>Detalle por día</h2>
         <div class="tabla-scroll">
-          <table>
+          <table class="tabla">
             <thead>
               <tr>
                 <th>Fecha</th>
