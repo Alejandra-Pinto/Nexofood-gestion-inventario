@@ -1,6 +1,6 @@
 {
   "URL_BACKEND": "http://localhost:3000",
-  "NOMBRE_IMPRESORA": "",
+  "NOMBRE_IMPRESORA": "SAT SAT38TUSE",
   "ANCHO_TICKET": "72mm",
   "INTERVALO_POLLING_MS": 4000
 }
