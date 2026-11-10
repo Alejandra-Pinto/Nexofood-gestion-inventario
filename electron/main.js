@@ -43,10 +43,11 @@ try {
   console.warn('[WARN] No se pudo leer config.json; usando valores por defecto.', err.message);
 }
 
-const API_URL = config.URL_BACKEND;
-const PRINTER_NAME = config.NOMBRE_IMPRESORA;
-const TICKET_WIDTH = config.ANCHO_TICKET;
-const POLL_INTERVAL = config.INTERVALO_POLLING_MS;
+// Variables de entorno tienen precedencia; si no, archivo de configuración
+const API_URL = (process.env.URL_BACKEND || config.URL_BACKEND || 'http://localhost:3000').trim();
+const PRINTER_NAME = (process.env.NOMBRE_IMPRESORA !== undefined ? process.env.NOMBRE_IMPRESORA : config.NOMBRE_IMPRESORA || '').trim();
+const TICKET_WIDTH = (process.env.ANCHO_TICKET || config.ANCHO_TICKET || '72mm').trim();
+const POLL_INTERVAL = Number(process.env.INTERVALO_POLLING_MS) || config.INTERVALO_POLLING_MS || 4000;
 
 function obtenerRutaBoveda() {
   return path.join(app.getPath('userData'), 'session.vault');
@@ -156,6 +157,19 @@ function actualizarTray() {
       enabled: false,
     },
     { type: 'separator' },
+    {
+      label: '🧾 Imprimir comanda de prueba',
+      click: async () => {
+        try {
+          console.log('[TEST] Enviando comanda de prueba desde la bandeja...');
+          await imprimirComanda(obtenerComandaPrueba());
+          notificar('NexoFood Printer', 'Comanda de prueba enviada a la impresora.');
+        } catch (err) {
+          console.error('[ERROR] Error en comanda de prueba:', err.message);
+          notificar('NexoFood — Error de Impresión', err.message);
+        }
+      },
+    },
     {
       label: '🔄 Reintentar conexión',
       click: () => {
@@ -334,24 +348,41 @@ function generarTicketHTML(comanda) {
 <head>
   <meta charset="UTF-8">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
+    @page {
+      margin: 0;
+      size: auto;
+    }
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
       width: ${TICKET_WIDTH};
+      max-width: ${TICKET_WIDTH};
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+      color: #000000;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    body {
       font-family: 'Courier New', Courier, monospace;
       font-size: 13px;
+      font-weight: 600;
       line-height: 1.25;
-      color: #000000;
-      padding: 4px;
+      padding: 2px 4px 2px 4px;
     }
     .centrado { text-align: center; }
-    .bold { font-weight: bold; }
+    .bold { font-weight: 900; }
     .small { font-size: 11px; }
-    .fila { display: flex; justify-content: space-between; margin: 3px 0; word-break: break-word; }
+    .fila { display: flex; justify-content: space-between; margin: 2px 0; word-break: break-word; }
     .nota { font-size: 11px; margin-left: 8px; font-style: italic; }
     .adicional { font-size: 12px; margin: 1px 0 1px 10px; }
-    .cambios { border: 1px dashed #000000; padding: 4px; }
-    .nota-cocina { font-size: 13px; font-weight: bold; margin: 2px 0 2px 10px; }
-    hr { border: none; border-top: 1px dashed #000000; margin: 8px 0; }
+    .cambios { border: 1px dashed #000000; padding: 3px; margin: 3px 0; }
+    .nota-cocina { font-size: 13px; font-weight: 900; margin: 2px 0 2px 10px; }
+    hr { border: none; border-top: 1px dashed #000000; margin: 6px 0; }
   </style>
 </head>
 <body>
@@ -371,31 +402,97 @@ function generarTicketHTML(comanda) {
 </html>`;
 }
 
+// ─── Verificación de Impresora en el Sistema ────────────────────────
+async function verificarImpresora(printerWindow) {
+  if (!PRINTER_NAME) {
+    console.log('[IMPRESORA] No se configuró NOMBRE_IMPRESORA. Se usará la impresora predeterminada del sistema.');
+    return { ok: true, deviceName: null };
+  }
+
+  try {
+    const impresoras = await printerWindow.webContents.getPrintersAsync();
+    const nombres = impresoras.map((p) => p.name || p.displayName).filter(Boolean);
+    const encontrada = impresoras.find(
+      (p) =>
+        (p.name && p.name.trim().toLowerCase() === PRINTER_NAME.toLowerCase()) ||
+        (p.displayName && p.displayName.trim().toLowerCase() === PRINTER_NAME.toLowerCase()),
+    );
+
+    if (!encontrada) {
+      const lista = nombres.length > 0 ? nombres.map((n) => `"${n}"`).join(', ') : '(ninguna detectada)';
+      const errorMsg = `La impresora configurada "${PRINTER_NAME}" no existe entre las impresoras del sistema. Impresoras disponibles: [${lista}].`;
+      console.error(`[ERROR] [IMPRESORA] ${errorMsg}`);
+      notificar('NexoFood — Error de Impresora', errorMsg);
+      return { ok: false, error: errorMsg, deviceName: null };
+    }
+
+    console.log(`[OK] [IMPRESORA] Impresora encontrada: "${encontrada.name}" (predeterminada: ${encontrada.isDefault ? 'Sí' : 'No'})`);
+    return { ok: true, deviceName: encontrada.name };
+  } catch (err) {
+    console.warn('[WARN] [IMPRESORA] No se pudo consultar la lista de impresoras del sistema:', err.message);
+    return { ok: true, deviceName: PRINTER_NAME };
+  }
+}
+
+// ─── Comanda de Prueba con Datos Ficticios ──────────────────────────
+function obtenerComandaPrueba() {
+  return {
+    id_comanda: 999,
+    id_pedido: 99,
+    version: 1,
+    fecha_impresion: new Date().toISOString(),
+    pedido: {
+      id_pedido: 99,
+      numero_mesa: 1,
+      nombre_cliente: 'Cliente de Prueba',
+      fecha_hora: new Date().toISOString(),
+      mesero: { nombre: 'Mesero Prueba' },
+      detalles: [
+        {
+          cantidad: 2,
+          lineas_cocina: [
+            '2x CHORIPAN PAMPERO',
+            '+ Chimi Rojo',
+            '+ Combo con papa',
+            '** SIN CEBOLLA **',
+          ],
+        },
+        {
+          cantidad: 1,
+          lineas_cocina: ['1x GASEOSA 400ML'],
+        },
+      ],
+    },
+  };
+}
+
 // ─── Impresión Silenciosa ───────────────────────────────────────────
-function imprimirComanda(comanda) {
+async function imprimirComanda(comanda) {
+  const verificacion = await verificarImpresora(printWindow);
+  if (!verificacion.ok) {
+    throw new Error(verificacion.error);
+  }
+
+  const html = generarTicketHTML(comanda);
+  await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
   return new Promise((resolve, reject) => {
-    const html = generarTicketHTML(comanda);
+    const printOptions = {
+      silent: true,
+      printBackground: false,
+      margins: { marginType: 'none' },
+    };
+    if (verificacion.deviceName) {
+      printOptions.deviceName = verificacion.deviceName;
+    }
 
-    printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
-      .then(() => {
-        const printOptions = {
-          silent: true,
-          printBackground: false,
-          margins: { marginType: 'none' },
-        };
-        if (PRINTER_NAME) {
-          printOptions.deviceName = PRINTER_NAME;
-        }
-
-        printWindow.webContents.print(printOptions, (success, failureReason) => {
-          if (success) {
-            resolve();
-          } else {
-            reject(new Error(failureReason || 'Error al enviar a la impresora'));
-          }
-        });
-      })
-      .catch(reject);
+    printWindow.webContents.print(printOptions, (success, failureReason) => {
+      if (success) {
+        resolve();
+      } else {
+        reject(new Error(failureReason || 'Error al enviar a la impresora'));
+      }
+    });
   });
 }
 
@@ -461,6 +558,12 @@ function iniciarAgenteImpresion() {
   console.log(`  Ancho:     ${TICKET_WIDTH}`);
   console.log(`  Intervalo: ${POLL_INTERVAL / 1000}s`);
   console.log('══════════════════════════════════════════════════');
+
+  if (printWindow) {
+    verificarImpresora(printWindow).catch((err) => {
+      console.warn('[WARN] Error al verificar impresora:', err.message);
+    });
+  }
 
   procesarPendientes();
   pollingInterval = setInterval(procesarPendientes, POLL_INTERVAL);
@@ -540,6 +643,24 @@ app.whenReady().then(async () => {
       contextIsolation: true,
     },
   });
+
+  const esTestPrint = process.argv.includes('--test-print');
+  if (esTestPrint) {
+    console.log('══════════════════════════════════════════════════');
+    console.log('  NexoFood Printer — Ejecutando comanda de prueba');
+    console.log(`  Impresora configurada: ${PRINTER_NAME || '(predeterminada del sistema)'}`);
+    console.log(`  Ancho del ticket:      ${TICKET_WIDTH}`);
+    console.log('══════════════════════════════════════════════════');
+    try {
+      await imprimirComanda(obtenerComandaPrueba());
+      console.log('✅ Impresión de prueba completada exitosamente.');
+    } catch (err) {
+      console.error('❌ Error en comanda de prueba:', err.message);
+    }
+    app.isQuitting = true;
+    app.quit();
+    return;
+  }
 
   const credsGuardadas = leerCredencialesSeguras();
   if (credsGuardadas) {
