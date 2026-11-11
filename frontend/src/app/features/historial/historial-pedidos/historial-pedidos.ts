@@ -20,7 +20,7 @@ import { HistorialService } from '../../../core/services/historial.service';
 import { InventarioService } from '../../../core/services/inventario.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { ItemInventario } from '../../../core/models/item-inventario.model';
-import { ETIQUETA_ESTADO } from '../../../core/models/pedido.model';
+import { EstadoPedido, ETIQUETA_ESTADO } from '../../../core/models/pedido.model';
 import { FiltrosHistorial, PedidoHistorial, ResultadoHistorial } from '../../../core/models/historial.model';
 import { descargarHistorialPedidosPdf } from '../../../core/utils/reporte-pdf.util';
 
@@ -49,6 +49,10 @@ export class HistorialPedidos {
   protected desde = signal('');
   protected hasta = signal('');
   protected idItem = signal('');
+  protected estado = signal<EstadoPedido | ''>('');
+  protected readonly opcionesEstado: { valor: EstadoPedido; etiqueta: string }[] = (
+    Object.entries(ETIQUETA_ESTADO) as [EstadoPedido, string][]
+  ).map(([valor, etiqueta]) => ({ valor, etiqueta }));
   protected productos = signal<ItemInventario[]>([]);
   protected errorFiltro = signal<string | null>(null);
 
@@ -97,6 +101,7 @@ export class HistorialPedidos {
     this.desde.set('');
     this.hasta.set('');
     this.idItem.set('');
+    this.estado.set('');
     this.errorFiltro.set(null);
     this.consultar({});
   }

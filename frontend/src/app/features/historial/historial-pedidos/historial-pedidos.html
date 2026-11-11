@@ -77,6 +77,16 @@
         </select>
       </div>
 
+      <div class="campo campo-estado">
+        <label for="f-estado">Estado</label>
+        <select id="f-estado" [value]="estado()" (change)="estado.set($any($event.target).value)">
+          <option value="">Todos los estados</option>
+          @for (opt of opcionesEstado; track opt.valor) {
+            <option [value]="opt.valor" [selected]="estado() === opt.valor">{{ opt.etiqueta }}</option>
+          }
+        </select>
+      </div>
+
       <div class="acciones">
         <button type="button" class="btn btn-secundario" [disabled]="buscando()" (click)="limpiar()">Limpiar</button>
         <button type="button" class="btn btn-primario" [disabled]="buscando()" (click)="buscar()">
