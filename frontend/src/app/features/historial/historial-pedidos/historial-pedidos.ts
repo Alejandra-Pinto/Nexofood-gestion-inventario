@@ -63,10 +63,10 @@ export class HistorialPedidos {
   protected pedidos = computed<PedidoHistorial[]>(() => this.resultado()?.pedidos ?? []);
   protected hayFiltros = computed(() => {
     const f = this.resultado()?.filtros;
-    return !!(f && (f.fecha || f.desde || f.producto));
+    return !!(f && (f.fecha || f.desde || f.producto || f.estado));
   });
 
-  /** Texto de los filtros aplicados: "04/11/2026 · Choripán Pampero" */
+  /** Texto de los filtros aplicados: "04/11/2026 · Choripán Pampero · Pagado" */
   protected descripcionFiltros = computed(() => {
     const f = this.resultado()?.filtros;
     if (!f) return '';
@@ -74,6 +74,7 @@ export class HistorialPedidos {
     if (f.fecha) partes.push(aTexto(f.fecha));
     if (f.desde && f.hasta) partes.push(`del ${aTexto(f.desde)} al ${aTexto(f.hasta)}`);
     if (f.producto) partes.push(f.producto.nombre);
+    if (f.estado) partes.push(this.etiquetaEstado[f.estado] ?? f.estado);
     return partes.join(' · ');
   });
 
@@ -160,6 +161,7 @@ export class HistorialPedidos {
     }
 
     if (this.idItem()) filtros.id_item = Number(this.idItem());
+    if (this.estado()) filtros.estado = this.estado() as EstadoPedido;
     return filtros;
   }
 

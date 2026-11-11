@@ -48,7 +48,7 @@ describe('QueriesReportsController', () => {
     await expect(validar({ id_item: '5', fecha: '2026-11-04' })).resolves.toEqual({ id_item: 5, fecha: '2026-11-04' });
   });
 
-  it.each([{ fecha: '04/11/2026' }, { id_item: 'abc' }, { id_item: '0' }, { estado: 'PAGADO' }])(
+  it.each([{ fecha: '04/11/2026' }, { id_item: 'abc' }, { id_item: '0' }, { estado: 'INVALIDO' }])(
     'rechaza el filtro %j',
     async (query) => {
       await expect(validar(query)).rejects.toThrow();

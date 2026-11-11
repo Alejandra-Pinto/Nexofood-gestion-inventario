@@ -11,7 +11,8 @@
  * Las fechas van en formato AAAA-MM-DD y se interpretan en la hora de Colombia.
  */
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Matches, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, Matches, Min } from 'class-validator';
+import { EstadoPedido } from '../../orders/entities/pedido.entity';
 
 const FORMATO_FECHA = /^\d{4}-\d{2}-\d{2}$/;
 const MENSAJE_FECHA = 'debe tener el formato AAAA-MM-DD';
@@ -34,4 +35,8 @@ export class FiltrosHistorialDto {
   @IsInt({ message: 'El producto debe ser un número entero' })
   @Min(1, { message: 'El producto no es válido' })
   id_item?: number;
+
+  @IsOptional()
+  @IsEnum(EstadoPedido, { message: 'El estado del pedido no es válido' })
+  estado?: EstadoPedido;
 }
