@@ -124,14 +124,14 @@
       </div>
 
       @if (pedidos().length === 0) {
-        <!-- SCRUM-204 Sin resultados -->
+        <!-- SCRUM-204 / SCRUM-213 Sin resultados -->
         <div class="vacio" data-test="sin-resultados">
           <span class="vacio-icono" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16M21 21l-4.3-4.3" /></svg>
           </span>
-          <strong>{{ hayFiltros() ? msjSinResultados : 'Aún no hay pedidos registrados.' }}</strong>
+          <strong>{{ hayFiltros() ? mensajeSinResultados() : 'Aún no hay pedidos registrados.' }}</strong>
           @if (hayFiltros()) {
-            <p>Pruebe con otra fecha, otro rango u otro producto.</p>
+            <p>{{ soloFiltroEstado() ? 'Pruebe seleccionando otro estado.' : 'Pruebe con otra fecha, otro rango, otro producto u otro estado.' }}</p>
             <button type="button" class="btn btn-secundario" (click)="limpiar()">Limpiar filtros</button>
           }
         </div>

@@ -28,6 +28,7 @@ import { descargarHistorialPedidosPdf } from '../../../core/utils/reporte-pdf.ut
 type ModoFecha = 'fecha' | 'rango';
 
 export const MSJ_SIN_RESULTADOS = 'No existen operaciones para los criterios seleccionados.';
+export const MSJ_ESTADO_SIN_RESULTADOS = 'No existen pedidos que coincidan con el estado indicado.';
 
 @Component({
   selector: 'app-historial-pedidos',
@@ -42,6 +43,7 @@ export class HistorialPedidos {
 
   protected readonly etiquetaEstado = ETIQUETA_ESTADO;
   protected readonly msjSinResultados = MSJ_SIN_RESULTADOS;
+  protected readonly msjEstadoSinResultados = MSJ_ESTADO_SIN_RESULTADOS;
 
   // Barra de filtros
   protected modo = signal<ModoFecha>('fecha');
@@ -64,6 +66,13 @@ export class HistorialPedidos {
   protected hayFiltros = computed(() => {
     const f = this.resultado()?.filtros;
     return !!(f && (f.fecha || f.desde || f.producto || f.estado));
+  });
+  protected soloFiltroEstado = computed(() => {
+    const f = this.resultado()?.filtros;
+    return !!(f && f.estado && !f.fecha && !f.desde && !f.producto);
+  });
+  protected mensajeSinResultados = computed(() => {
+    return this.soloFiltroEstado() ? this.msjEstadoSinResultados : this.msjSinResultados;
   });
 
   /** Texto de los filtros aplicados: "04/11/2026 · Choripán Pampero · Pagado" */
