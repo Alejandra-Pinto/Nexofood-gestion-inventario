@@ -179,6 +179,43 @@ describe('QueriesReportsService', () => {
     });
   });
 
+  describe('filtrar pedidos por estado (HU-5.4, SCRUM-214)', () => {
+    it('E1 filtra por estado válido y aplica la condición en la consulta', async () => {
+      await service.historial({ estado: EstadoPedido.PENDIENTE });
+      const c = condiciones.find((x) => x.params?.estado);
+      expect(c?.sql).toContain('p.estado_pedido = :estado');
+      expect(c?.params).toEqual({ estado: EstadoPedido.PENDIENTE });
+    });
+
+    it('E2 filtra por estado PAGADO y devuelve el filtro aplicado', async () => {
+      const r = await service.historial({ estado: EstadoPedido.PAGADO });
+      expect(condiciones.find((x) => x.params?.estado)?.params).toEqual({ estado: EstadoPedido.PAGADO });
+      expect(r.filtros.estado).toBe(EstadoPedido.PAGADO);
+    });
+
+    it('E3 filtra por estado ANULADO y devuelve el filtro aplicado', async () => {
+      const r = await service.historial({ estado: EstadoPedido.ANULADO });
+      expect(condiciones.find((x) => x.params?.estado)?.params).toEqual({ estado: EstadoPedido.ANULADO });
+      expect(r.filtros.estado).toBe(EstadoPedido.ANULADO);
+    });
+
+    it('combina filtro de estado con fecha y producto', async () => {
+      await service.historial({ estado: EstadoPedido.PAGADO, fecha: '2026-11-04', id_item: 5 });
+      const params = condiciones.map((c) => Object.keys(c.params ?? {})).flat();
+      expect(params).toContain('estado');
+      expect(params).toContain('fecha');
+      expect(params).toContain('idItem');
+    });
+
+    it('E4 maneja estado sin resultados devolviendo lista vacía y filtros consistentes', async () => {
+      pedidos = [];
+      const r = await service.historial({ estado: EstadoPedido.ANULADO });
+      expect(r.pedidos).toEqual([]);
+      expect(r.resumen.pedidos).toBe(0);
+      expect(r.filtros.estado).toBe(EstadoPedido.ANULADO);
+    });
+  });
+
   describe('reporte de inventario consolidado (HU-6.1)', () => {
     it('retorna existencias consolidadas y clasifica stock normal, bajo y agotado', async () => {
       const r = await service.reporteInventario();

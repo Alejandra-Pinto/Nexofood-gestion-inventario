@@ -6,7 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { HistorialPedidos, MSJ_SIN_RESULTADOS } from './historial-pedidos';
+import { HistorialPedidos, MSJ_SIN_RESULTADOS, MSJ_ESTADO_SIN_RESULTADOS } from './historial-pedidos';
 import { ResultadoHistorial } from '../../../core/models/historial.model';
 import { environment } from '../../../../environments/environment';
 
@@ -139,10 +139,83 @@ describe('HistorialPedidos', () => {
     const { cmp } = await crear();
     cmp.fecha.set('2026-11-04');
     cmp.idItem.set('5');
+    cmp.estado.set('PAGADO');
     cmp.limpiar();
     const req = http.expectOne(esHistorial);
     expect(req.request.params.keys()).toEqual([]);
     req.flush(resultado(pedidos));
     expect(cmp.fecha()).toBe('');
+    expect(cmp.estado()).toBe('');
+  });
+
+  // ---------- HU-5.4 · Filtrar pedidos por estado (SCRUM-214) ----------
+  it('HU-5.4 E1: BUSCAR por estado envía ?estado al backend', async () => {
+    const { cmp } = await crear();
+    cmp.estado.set('PENDIENTE');
+    cmp.buscar();
+    const req = http.expectOne(esHistorial);
+    expect(req.request.params.get('estado')).toBe('PENDIENTE');
+    expect(req.request.params.keys()).toEqual(['estado']);
+    req.flush(resultado([pedidos[1]], { estado: 'PENDIENTE' }));
+  });
+
+  it('HU-5.4 E2: BUSCAR por estado PAGADO muestra únicamente los pedidos pagados y su resumen', async () => {
+    const { fixture, cmp, html } = await crear();
+    cmp.estado.set('PAGADO');
+    cmp.buscar();
+    const req = http.expectOne(esHistorial);
+    expect(req.request.params.get('estado')).toBe('PAGADO');
+    await responder(fixture, req, resultado([pedidos[0]], { estado: 'PAGADO' }));
+    expect(html.querySelector('[data-test=filtros-aplicados]')?.textContent).toContain('Pagado');
+    expect(html.querySelectorAll('tbody tr').length).toBe(1);
+    expect(html.querySelector('tbody tr')?.textContent).toContain('#2');
+    expect(html.querySelector('tbody tr')?.textContent).toContain('Pagado');
+  });
+
+  it('HU-5.4 E3: BUSCAR por estado ANULADO envía estado ANULADO y muestra pedidos anulados', async () => {
+    const { fixture, cmp, html } = await crear();
+    const pedidoAnulado = {
+      id_pedido: 3,
+      fecha_hora: '2026-11-04T16:00:00.000Z',
+      numero_mesa: 2,
+      estado_pedido: 'ANULADO' as const,
+      total_calculado: 18000,
+      mesero: 'Mesero QA',
+      productos: [{ id_item: 5, nombre: 'Choripán Pampero', cantidad: 1 }],
+    };
+    cmp.estado.set('ANULADO');
+    cmp.buscar();
+    const req = http.expectOne(esHistorial);
+    expect(req.request.params.get('estado')).toBe('ANULADO');
+    await responder(fixture, req, resultado([pedidoAnulado], { estado: 'ANULADO' }));
+    expect(html.querySelector('[data-test=filtros-aplicados]')?.textContent).toContain('Anulado');
+    expect(html.querySelector('tbody tr')?.textContent).toContain('Anulado');
+  });
+
+  it('HU-5.4 E4: cuando no existen pedidos con el estado seleccionado informa mensaje específico', async () => {
+    const { fixture, cmp, html } = await crear();
+    cmp.estado.set('EN_PREPARACION');
+    cmp.buscar();
+    const req = http.expectOne(esHistorial);
+    expect(req.request.params.get('estado')).toBe('EN_PREPARACION');
+    await responder(fixture, req, resultado([], { estado: 'EN_PREPARACION' }));
+    expect(html.querySelector('[data-test=sin-resultados]')?.textContent).toContain(MSJ_ESTADO_SIN_RESULTADOS);
+    expect(html.querySelector('[data-test=sin-resultados]')?.textContent).toContain('Pruebe seleccionando otro estado.');
+    expect(html.querySelectorAll('tbody tr').length).toBe(0);
+  });
+
+  it('HU-5.4 combina filtro de estado con producto y fecha', async () => {
+    const { fixture, cmp, html } = await crear();
+    cmp.fecha.set('2026-11-04');
+    cmp.idItem.set('5');
+    cmp.estado.set('PAGADO');
+    cmp.buscar();
+    const req = http.expectOne(esHistorial);
+    expect(req.request.params.keys().sort()).toEqual(['estado', 'fecha', 'id_item']);
+    expect(req.request.params.get('estado')).toBe('PAGADO');
+    expect(req.request.params.get('fecha')).toBe('2026-11-04');
+    expect(req.request.params.get('id_item')).toBe('5');
+    await responder(fixture, req, resultado([pedidos[0]], { fecha: '2026-11-04', producto: { id_item: 5, nombre: 'Choripán Pampero' }, estado: 'PAGADO' }));
+    expect(html.querySelector('[data-test=filtros-aplicados]')?.textContent).toContain('04/11/2026 · Choripán Pampero · Pagado');
   });
 });
