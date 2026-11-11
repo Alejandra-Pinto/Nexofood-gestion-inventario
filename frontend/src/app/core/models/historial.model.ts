@@ -10,6 +10,7 @@ export interface FiltrosHistorial {
   desde?: string;
   hasta?: string;
   id_item?: number;
+  estado?: EstadoPedido;
 }
 
 export interface ProductoHistorial {
@@ -34,6 +35,7 @@ export interface ResultadoHistorial {
     desde: string | null;
     hasta: string | null;
     producto: { id_item: number; nombre: string } | null;
+    estado?: EstadoPedido | null;
   };
   /** ventas = pedidos pagados */
   resumen: { pedidos: number; ventas: number; total_vendido: number };

@@ -37,6 +37,7 @@
 .barra-fila { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
 .barra .campo { margin-bottom: 0; min-width: 160px; }
 .campo-producto { flex: 1 1 220px; }
+.campo-estado { flex: 0 1 180px; }
 .acciones { display: flex; gap: 10px; margin-left: auto; }
 .error-txt { margin: 12px 0 0; }
 

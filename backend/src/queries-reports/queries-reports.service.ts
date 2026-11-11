@@ -44,6 +44,7 @@ export interface ResultadoHistorial {
     desde: string | null;
     hasta: string | null;
     producto: { id_item: number; nombre: string } | null;
+    estado?: EstadoPedido | null;
   };
   resumen: { pedidos: number; ventas: number; total_vendido: number };
   pedidos: PedidoHistorial[];
@@ -93,7 +94,7 @@ export class QueriesReportsService {
   ) {}
 
   async historial(filtros: FiltrosHistorialDto = {}): Promise<ResultadoHistorial> {
-    const { fecha, desde, hasta, id_item } = filtros;
+    const { fecha, desde, hasta, id_item, estado } = filtros;
 
     // ---------- Validaciones de los filtros ----------
     if (fecha && (desde || hasta)) {
@@ -130,6 +131,7 @@ export class QueriesReportsService {
     const dia = `(p.fecha_hora AT TIME ZONE '${ZONA_HORARIA}')::date`;
     if (fecha) q.andWhere(`${dia} = :fecha`, { fecha });
     if (desde && hasta) q.andWhere(`${dia} BETWEEN :desde AND :hasta`, { desde, hasta });
+    if (estado) q.andWhere('p.estado_pedido = :estado', { estado });
     // EXISTS en vez de filtrar el JOIN: así el pedido se muestra con todos sus productos
     if (producto) {
       q.andWhere(
@@ -166,6 +168,7 @@ export class QueriesReportsService {
         desde: desde ?? null,
         hasta: hasta ?? null,
         producto: producto ? { id_item: producto.id_item, nombre: producto.nombre } : null,
+        estado: estado ?? null,
       },
       resumen: {
         pedidos: lista.length,

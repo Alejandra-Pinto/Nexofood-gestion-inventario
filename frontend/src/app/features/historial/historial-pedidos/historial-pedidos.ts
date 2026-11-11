@@ -20,7 +20,7 @@ import { HistorialService } from '../../../core/services/historial.service';
 import { InventarioService } from '../../../core/services/inventario.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { ItemInventario } from '../../../core/models/item-inventario.model';
-import { ETIQUETA_ESTADO } from '../../../core/models/pedido.model';
+import { EstadoPedido, ETIQUETA_ESTADO } from '../../../core/models/pedido.model';
 import { FiltrosHistorial, PedidoHistorial, ResultadoHistorial } from '../../../core/models/historial.model';
 import { descargarHistorialPedidosPdf } from '../../../core/utils/reporte-pdf.util';
 
@@ -28,6 +28,7 @@ import { descargarHistorialPedidosPdf } from '../../../core/utils/reporte-pdf.ut
 type ModoFecha = 'fecha' | 'rango';
 
 export const MSJ_SIN_RESULTADOS = 'No existen operaciones para los criterios seleccionados.';
+export const MSJ_ESTADO_SIN_RESULTADOS = 'No existen pedidos que coincidan con el estado indicado.';
 
 @Component({
   selector: 'app-historial-pedidos',
@@ -42,6 +43,7 @@ export class HistorialPedidos {
 
   protected readonly etiquetaEstado = ETIQUETA_ESTADO;
   protected readonly msjSinResultados = MSJ_SIN_RESULTADOS;
+  protected readonly msjEstadoSinResultados = MSJ_ESTADO_SIN_RESULTADOS;
 
   // Barra de filtros
   protected modo = signal<ModoFecha>('fecha');
@@ -49,6 +51,10 @@ export class HistorialPedidos {
   protected desde = signal('');
   protected hasta = signal('');
   protected idItem = signal('');
+  protected estado = signal<EstadoPedido | ''>('');
+  protected readonly opcionesEstado: { valor: EstadoPedido; etiqueta: string }[] = (
+    Object.entries(ETIQUETA_ESTADO) as [EstadoPedido, string][]
+  ).map(([valor, etiqueta]) => ({ valor, etiqueta }));
   protected productos = signal<ItemInventario[]>([]);
   protected errorFiltro = signal<string | null>(null);
 
@@ -59,10 +65,17 @@ export class HistorialPedidos {
   protected pedidos = computed<PedidoHistorial[]>(() => this.resultado()?.pedidos ?? []);
   protected hayFiltros = computed(() => {
     const f = this.resultado()?.filtros;
-    return !!(f && (f.fecha || f.desde || f.producto));
+    return !!(f && (f.fecha || f.desde || f.producto || f.estado));
+  });
+  protected soloFiltroEstado = computed(() => {
+    const f = this.resultado()?.filtros;
+    return !!(f && f.estado && !f.fecha && !f.desde && !f.producto);
+  });
+  protected mensajeSinResultados = computed(() => {
+    return this.soloFiltroEstado() ? this.msjEstadoSinResultados : this.msjSinResultados;
   });
 
-  /** Texto de los filtros aplicados: "04/11/2026 · Choripán Pampero" */
+  /** Texto de los filtros aplicados: "04/11/2026 · Choripán Pampero · Pagado" */
   protected descripcionFiltros = computed(() => {
     const f = this.resultado()?.filtros;
     if (!f) return '';
@@ -70,6 +83,7 @@ export class HistorialPedidos {
     if (f.fecha) partes.push(aTexto(f.fecha));
     if (f.desde && f.hasta) partes.push(`del ${aTexto(f.desde)} al ${aTexto(f.hasta)}`);
     if (f.producto) partes.push(f.producto.nombre);
+    if (f.estado) partes.push(this.etiquetaEstado[f.estado] ?? f.estado);
     return partes.join(' · ');
   });
 
@@ -97,6 +111,7 @@ export class HistorialPedidos {
     this.desde.set('');
     this.hasta.set('');
     this.idItem.set('');
+    this.estado.set('');
     this.errorFiltro.set(null);
     this.consultar({});
   }
@@ -155,6 +170,7 @@ export class HistorialPedidos {
     }
 
     if (this.idItem()) filtros.id_item = Number(this.idItem());
+    if (this.estado()) filtros.estado = this.estado() as EstadoPedido;
     return filtros;
   }
 
