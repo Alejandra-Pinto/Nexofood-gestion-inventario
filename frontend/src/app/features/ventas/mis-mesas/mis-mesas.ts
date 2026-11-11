@@ -35,6 +35,8 @@ export class MisMesas {
   protected nombreUsuario = computed(() => this.auth.usuarioActual()?.nombre ?? 'Mesero');
   /** El cajero y el administrador también pueden tomar pedidos para llevar */
   protected puedeParaLlevar = computed(() => this.auth.usuarioActual()?.rol !== 'Mesero');
+  /** Solo Cajero y Administrador cobran: el mesero no ve el acceso (O-03) */
+  protected puedeCobrar = computed(() => this.auth.usuarioActual()?.rol !== 'Mesero');
 
   constructor() {
     this.cargar();

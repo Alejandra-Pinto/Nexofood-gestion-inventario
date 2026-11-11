@@ -9,7 +9,9 @@
       @if (puedeParaLlevar()) {
         <a routerLink="/ventas/nuevo-pedido">Para llevar</a>
       }
-      <a routerLink="/ventas/cobrar">Cobrar</a>
+      @if (puedeCobrar()) {
+        <a routerLink="/ventas/cobrar">Cobrar</a>
+      }
     </nav>
   </header>
 
