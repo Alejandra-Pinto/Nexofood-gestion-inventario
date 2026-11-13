@@ -18,7 +18,6 @@ export const routes: Routes = [
       { path: '', redirectTo: 'productos', pathMatch: 'full' },
 
       {
-        // HU-2.1 Catálogo de productos e insumos (consulta permitida a roles autorizados)
         path: 'productos',
         loadComponent: () =>
           import('./features/productos/items-lista/items-lista').then(
@@ -26,13 +25,11 @@ export const routes: Routes = [
           ),
       },
       {
-        // Módulo Inventario: solo usuarios con permiso o Administrador
         path: 'inventario',
         canActivate: [permisoGuard('inventario')],
         children: [
           { path: '', redirectTo: 'ingresos', pathMatch: 'full' },
           {
-            // HU-2.3 Ajuste de stock: registrar ingresos (compra / producción)
             path: 'ingresos',
             loadComponent: () =>
               import('./features/inventario/ingreso-form/ingreso-form').then(
@@ -40,7 +37,6 @@ export const routes: Routes = [
               ),
           },
           {
-            // HU-2.4 Registrar salidas manuales de inventario
             path: 'salidas',
             loadComponent: () =>
               import('./features/inventario/salida-form/salida-form').then(
@@ -50,19 +46,16 @@ export const routes: Routes = [
         ],
       },
       {
-        // Módulo Ventas: solo usuarios con permiso ventas o Administrador
         path: 'ventas',
         canActivate: [permisoGuard('ventas')],
         children: [
           { path: '', redirectTo: 'mesas', pathMatch: 'full' },
           {
-            // HU-3.1 Mis mesas: el mesero elige la mesa
             path: 'mesas',
             loadComponent: () =>
               import('./features/ventas/mis-mesas/mis-mesas').then((m) => m.MisMesas),
           },
           {
-            // HU-3.1 Pedido de una mesa (/ventas/mesa/4)
             path: 'mesa/:numero',
             loadComponent: () =>
               import('./features/ventas/nuevo-pedido/nuevo-pedido').then(
@@ -70,7 +63,6 @@ export const routes: Routes = [
               ),
           },
           {
-            // HU-3.1 Pedido sin mesa (para llevar / tomado en caja)
             path: 'nuevo-pedido',
             loadComponent: () =>
               import('./features/ventas/nuevo-pedido/nuevo-pedido').then(
@@ -78,7 +70,6 @@ export const routes: Routes = [
               ),
           },
           {
-            // HU-3.5 Registrar método de pago (solo Cajero o Administrador)
             path: 'cobrar',
             canActivate: [rolGuard(['Administrador', 'Cajero'])],
             loadComponent: () =>
@@ -89,7 +80,6 @@ export const routes: Routes = [
         ],
       },
       {
-        // HU-1.4 Modificar permisos de usuarios (exclusivo Administrador)
         path: 'usuarios',
         canActivate: [adminGuard],
         loadComponent: () =>
@@ -98,7 +88,6 @@ export const routes: Routes = [
           ),
       },
       {
-        // HU-5.2 Historial de pedidos y ventas con filtros (exclusivo Administrador)
         path: 'historial',
         canActivate: [adminGuard],
         loadComponent: () =>
@@ -107,7 +96,6 @@ export const routes: Routes = [
           ),
       },
       {
-        // HU-6.1 Reporte consolidado de inventario (exclusivo Administrador)
         path: 'reportes/inventario',
         canActivate: [adminGuard],
         loadComponent: () =>
@@ -116,23 +104,40 @@ export const routes: Routes = [
           ),
       },
       {
-        // HU-6.7 Resumen de operaciones por período · HU-6.2 Reporte general de ventas
         path: 'reportes',
         canActivate: [adminGuard],
         loadComponent: () =>
           import('./features/reportes/reportes/reportes').then((m) => m.Reportes),
       },
+      
+      // ==========================================================
+      // MÓDULO FINANCIERO (Padre con Rutas Anidadas)
+      // ==========================================================
       {
-        // HU-7.2 Registrar ingresos no provenientes de ventas (exclusivo Administrador)
         path: 'financiero',
         canActivate: [adminGuard],
-        loadComponent: () =>
-          import('./features/financiero/ingreso-financiero/ingreso-financiero').then(
-            (m) => m.IngresoFinanciero,
-          ),
+        children: [
+          { path: '', redirectTo: 'ingresos', pathMatch: 'full' },
+          {
+            // HU-7.2 Registrar ingresos
+            path: 'ingresos',
+            loadComponent: () =>
+              import('./features/financiero/ingreso-financiero/ingreso-financiero').then(
+                (m) => m.IngresoFinanciero,
+              ),
+          },
+          {
+            // HU-7.1 Registrar egresos
+            path: 'egresos',
+            loadComponent: () =>
+              import('./features/financiero/egreso-form/egreso-form').then(
+                (m) => m.EgresoFormComponent,
+              ),
+          },
+        ],
       },
+
       {
-        // HU-3.3, HU-3.4, HU-3.6 Detalle, modificación y anulación del pedido
         path: 'pedidos/:id',
         loadComponent: () =>
           import('./features/pedidos/pedido-detalle/pedido-detalle').then(
@@ -142,6 +147,5 @@ export const routes: Routes = [
     ],
   },
 
-  // Cualquier ruta desconocida vuelve al login
   { path: '**', redirectTo: 'login' },
 ];
