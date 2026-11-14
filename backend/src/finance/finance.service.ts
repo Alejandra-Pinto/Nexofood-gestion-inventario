@@ -50,6 +50,41 @@ export interface ListaEgresos {
   egresos: EgresoFinanciero[];
 }
 
+// ==========================================================
+// HU-7.3 Historial de ingresos y egresos
+// ==========================================================
+export interface MovimientoHistorial {
+  id_movimiento: number;
+  fecha_hora: Date;
+  tipo_movimiento: TipoMovimientoFinanciero;
+  origen: OrigenMovimiento;
+  concepto: string;
+  monto: number;
+  medio_pago: string;
+  id_pedido: number | null;
+  registrado_por: string | null;
+}
+
+export interface TotalesFinancieros {
+  ingresos: number;
+  egresos: number;
+  /** Ingresos - Egresos */
+  saldo: number;
+}
+
+export interface HistorialFinanciero {
+  resumen: TotalesFinancieros;
+  /** Saldo por medio de pago, para cuadrar la caja (efectivo) y las cuentas */
+  por_medio: (TotalesFinancieros & { medio_pago: string })[];
+  movimientos: MovimientoHistorial[];
+}
+
+/** Concepto de un cobro de pedido: "Venta · Pedido #12 · Mesa 3" */
+function conceptoVenta(m: MovimientoFinanciero): string {
+  const mesa = m.pedido?.numero_mesa;
+  return `Venta · Pedido #${m.id_pedido}${mesa ? ` · Mesa ${mesa}` : ' · Para llevar'}`;
+}
+
 @Injectable()
 export class FinanceService {
   constructor(
@@ -162,6 +197,56 @@ export class FinanceService {
 
     const egresos = filas.map((m) => this.aEgreso(m, m.usuario?.nombre_completo ?? null));
     return { desde: d, hasta: h, total: egresos.reduce((s, i) => s + i.monto, 0), egresos };
+  }
+
+  // ==========================================================
+  // HU-7.3 HISTORIAL DE INGRESOS Y EGRESOS
+  // ==========================================================
+  /**
+   * Lista todos los movimientos (cobros de pedidos, ingresos manuales y egresos)
+   * y calcula el saldo neto actual: Ingresos - Egresos.
+   */
+  async historial(): Promise<HistorialFinanciero> {
+    const filas = await this.movimientosRepo
+      .createQueryBuilder('m')
+      .leftJoin('m.usuario', 'u')
+      .addSelect(['u.id_usuario', 'u.nombre_completo']) // nunca el password_hash
+      .leftJoin('m.pedido', 'p')
+      .addSelect(['p.id_pedido', 'p.numero_mesa'])
+      .orderBy('m.fecha_hora', 'DESC')
+      .addOrderBy('m.id_movimiento', 'DESC')
+      .getMany();
+
+    const movimientos = filas.map<MovimientoHistorial>((m) => ({
+      id_movimiento: m.id_movimiento,
+      fecha_hora: m.fecha_hora,
+      tipo_movimiento: m.tipo_movimiento,
+      origen: m.origen ?? (m.id_pedido ? OrigenMovimiento.VENTA : OrigenMovimiento.MANUAL),
+      concepto: m.concepto?.trim() || (m.id_pedido ? conceptoVenta(m) : 'Sin concepto'),
+      monto: Number(m.monto),
+      medio_pago: m.medio_pago,
+      id_pedido: m.id_pedido ?? null,
+      registrado_por: m.usuario?.nombre_completo ?? null,
+    }));
+
+    const vacio = (): TotalesFinancieros => ({ ingresos: 0, egresos: 0, saldo: 0 });
+    const resumen = vacio();
+    const porMedio = new Map<string, TotalesFinancieros>();
+    for (const m of movimientos) {
+      const medio = porMedio.get(m.medio_pago) ?? vacio();
+      porMedio.set(m.medio_pago, medio);
+      for (const t of [resumen, medio]) {
+        if (m.tipo_movimiento === TipoMovimientoFinanciero.EGRESO) t.egresos += m.monto;
+        else t.ingresos += m.monto;
+        t.saldo = t.ingresos - t.egresos;
+      }
+    }
+
+    return {
+      resumen,
+      por_medio: [...porMedio].map(([medio_pago, t]) => ({ medio_pago, ...t })),
+      movimientos,
+    };
   }
 
   // --- Métodos de mapeo ---
