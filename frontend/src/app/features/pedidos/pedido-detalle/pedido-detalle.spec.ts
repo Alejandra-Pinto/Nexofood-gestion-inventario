@@ -226,7 +226,11 @@ describe('PedidoDetalleComponent', () => {
     });
   });
 
+  // ===========================================================================
+  // Líneas con adicionales o combo: editables (cantidad y notas)
+  // ===========================================================================
   describe('Modificar líneas con adicionales o combo', () => {
+    /** Pedido #13 de la captura: 1x choripan clasico + Orégano + Combo con papa ($13.000) */
     const pedidoConCombo = (estado: EstadoPedido = 'EN_PREPARACION'): Pedido => {
       const p = pedido(estado);
       p.detalles = [
@@ -270,6 +274,7 @@ describe('PedidoDetalleComponent', () => {
 
       const linea = component.lineasEdicion().find((l) => l.clave === 'det:5')!;
       component.cambiarCantidadLinea(linea, 1);
+      // (precio base o combo + Σ adicionales) × nueva cantidad + cerveza
       expect(component.totalEdicion()).toBe(2 * 13000 + 5000);
 
       component.lineasEdicion().find((l) => l.clave === 'det:5')!.notas_especiales = 'sin cebolla';
@@ -277,6 +282,7 @@ describe('PedidoDetalleComponent', () => {
 
       const patch = httpMock.expectOne(`${api}/orders/24`);
       expect(patch.request.body.detalles).toContainEqual({ id_detalle: 5, id_item: 1, cantidad: 2, notas_especiales: 'sin cebolla' });
+      // La línea simple no lleva id_detalle ni se envía la promoción como texto
       expect(patch.request.body.detalles).toContainEqual({ id_item: 9, cantidad: 1, notas_especiales: undefined });
       patch.flush(pedidoConCombo());
       httpMock.expectOne(`${api}/kitchen/pedidos/24/comandas`).flush(resumen());
@@ -294,7 +300,7 @@ describe('PedidoDetalleComponent', () => {
 
     it('respeta el stock del insumo de sus adicionales', async () => {
       await cargar(pedidoConCombo(), sinVersion());
-      entrarAEdicion(opciones(1));
+      entrarAEdicion(opciones(1)); // solo queda 1 pan de orégano
 
       component.cambiarCantidadLinea(component.lineasEdicion().find((l) => l.clave === 'det:5')!, 1);
       expect(component.lineasEdicion().find((l) => l.clave === 'det:5')!.cantidad).toBe(1);
@@ -311,7 +317,11 @@ describe('PedidoDetalleComponent', () => {
     });
   });
 
+  // ===========================================================================
+  // Editar adicionales y formato de una línea que ya está en el pedido
+  // ===========================================================================
   describe('Editar adicionales / formato de una línea existente', () => {
+    /** 1x choripan clasico + Orégano + Combo con papa ($13.000) y 1x Cerveza */
     const pedidoConCombo = (): Pedido => {
       const p = pedido('EN_PREPARACION');
       p.detalles = [
@@ -371,6 +381,7 @@ describe('PedidoDetalleComponent', () => {
       fixture.detectChanges();
 
       expect(modal()).toBeNull();
+      // base 10.000 + combo 3.000 + Orégano 0 + Queso 2.500
       expect(linea('det:5').precio_unitario).toBe(15500);
       expect(linea('det:5').extras).toEqual(['+ Orégano', '+ Queso fundido', '+ Combo con papa']);
       expect(component.totalEdicion()).toBe(15500 + 5000);
@@ -438,7 +449,7 @@ describe('PedidoDetalleComponent', () => {
       httpMock.expectOne(`${api}/kitchen/pedidos/24/comandas`).flush(resumen());
     });
   });
-
+  
   // ===========================================================================
   // HU-5.3 · Mostrar Información de Pago y Anulación (SCRUM-208)
   // ===========================================================================
@@ -474,3 +485,4 @@ describe('PedidoDetalleComponent', () => {
     });
   });
 });
+
