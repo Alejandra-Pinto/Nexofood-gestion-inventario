@@ -115,20 +115,31 @@ export const routes: Routes = [
       // ==========================================================
       {
         path: 'financiero',
-        canActivate: [adminGuard],
+        // HU-7.3: el historial lo consultan Administrador y Cajero
+        canActivate: [rolGuard(['Administrador', 'Cajero'])],
         children: [
-          { path: '', redirectTo: 'ingresos', pathMatch: 'full' },
+          { path: '', redirectTo: 'historial', pathMatch: 'full' },
           {
-            // HU-7.2 Registrar ingresos
+            // HU-7.3 Historial de ingresos y egresos con saldo neto
+            path: 'historial',
+            loadComponent: () =>
+              import('./features/financiero/historial-financiero/historial-financiero').then(
+                (m) => m.HistorialFinanciero,
+              ),
+          },
+          {
+            // HU-7.2 Registrar ingresos (solo Administrador)
             path: 'ingresos',
+            canActivate: [adminGuard],
             loadComponent: () =>
               import('./features/financiero/ingreso-financiero/ingreso-financiero').then(
                 (m) => m.IngresoFinanciero,
               ),
           },
           {
-            // HU-7.1 Registrar egresos
+            // HU-7.1 Registrar egresos (solo Administrador)
             path: 'egresos',
+            canActivate: [adminGuard],
             loadComponent: () =>
               import('./features/financiero/egreso-form/egreso-form').then(
                 (m) => m.EgresoFormComponent,
