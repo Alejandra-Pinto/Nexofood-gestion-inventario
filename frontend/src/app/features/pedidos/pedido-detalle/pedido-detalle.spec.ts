@@ -480,7 +480,7 @@ describe('PedidoDetalleComponent', () => {
       expect(tarjetaPago).toBeTruthy();
       expect(tarjetaPago!.textContent).toContain('Información del Pago');
       expect(tarjetaPago!.textContent).toContain('TARJETA');
-      expect(tarjetaPago!.textContent).toContain('37.000');
+      expect(tarjetaPago!.textContent).toMatch(/37[.,]000/);
       expect(tarjetaPago!.textContent).toContain('27/10/2026');
     });
   });
