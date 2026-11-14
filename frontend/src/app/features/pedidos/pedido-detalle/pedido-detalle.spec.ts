@@ -62,7 +62,6 @@ describe('PedidoDetalleComponent', () => {
 
   const texto = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
 
-  /** Entra a edición y responde el catálogo de productos y las opciones (stock de insumos) */
   const entrarAEdicion = (opciones: OpcionesPedido = { adicionales: [], promociones: [] }) => {
     component.iniciarEdicion();
     httpMock.expectOne((r) => r.url === `${api}/products`).flush([item(1, 'Choripán Pampero', 16000), item(9, 'Cerveza', 5000)]);
@@ -71,7 +70,6 @@ describe('PedidoDetalleComponent', () => {
   };
   const $ = (sel: string) => (fixture.nativeElement as HTMLElement).querySelector(sel);
 
-  /** Carga el pedido #24 y responde las dos peticiones (pedido + versiones de comanda) */
   const cargar = async (p: Pedido = pedido(), r: ResumenComandas | null = resumen()) => {
     component.cargarPedido(24);
     httpMock.expectOne(`${api}/orders/24`).flush(p);
@@ -88,17 +86,14 @@ describe('PedidoDetalleComponent', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        // Suple ActivatedRoute/Router/RouterLink que usa el componente
         provideRouter([]),
       ],
     }).compileComponents();
 
     httpMock = TestBed.inject(HttpTestingController);
-    // Rol que modifica pedidos (HU-3.3)
     TestBed.inject(AuthService).usuarioActual.set({ nombre: 'Juan S.', rol: 'Mesero', permisos: ['ventas'] });
     fixture = TestBed.createComponent(PedidoDetalleComponent);
     component = fixture.componentInstance;
-    // Sin :id en la ruta, ngOnInit no hace peticiones; cada prueba llama a cargar()
     fixture.detectChanges();
   });
 
@@ -231,11 +226,7 @@ describe('PedidoDetalleComponent', () => {
     });
   });
 
-  // ===========================================================================
-  // Líneas con adicionales o combo: editables (cantidad y notas)
-  // ===========================================================================
   describe('Modificar líneas con adicionales o combo', () => {
-    /** Pedido #13 de la captura: 1x choripan clasico + Orégano + Combo con papa ($13.000) */
     const pedidoConCombo = (estado: EstadoPedido = 'EN_PREPARACION'): Pedido => {
       const p = pedido(estado);
       p.detalles = [
@@ -279,7 +270,6 @@ describe('PedidoDetalleComponent', () => {
 
       const linea = component.lineasEdicion().find((l) => l.clave === 'det:5')!;
       component.cambiarCantidadLinea(linea, 1);
-      // (precio base o combo + Σ adicionales) × nueva cantidad + cerveza
       expect(component.totalEdicion()).toBe(2 * 13000 + 5000);
 
       component.lineasEdicion().find((l) => l.clave === 'det:5')!.notas_especiales = 'sin cebolla';
@@ -287,7 +277,6 @@ describe('PedidoDetalleComponent', () => {
 
       const patch = httpMock.expectOne(`${api}/orders/24`);
       expect(patch.request.body.detalles).toContainEqual({ id_detalle: 5, id_item: 1, cantidad: 2, notas_especiales: 'sin cebolla' });
-      // La línea simple no lleva id_detalle ni se envía la promoción como texto
       expect(patch.request.body.detalles).toContainEqual({ id_item: 9, cantidad: 1, notas_especiales: undefined });
       patch.flush(pedidoConCombo());
       httpMock.expectOne(`${api}/kitchen/pedidos/24/comandas`).flush(resumen());
@@ -305,7 +294,7 @@ describe('PedidoDetalleComponent', () => {
 
     it('respeta el stock del insumo de sus adicionales', async () => {
       await cargar(pedidoConCombo(), sinVersion());
-      entrarAEdicion(opciones(1)); // solo queda 1 pan de orégano
+      entrarAEdicion(opciones(1));
 
       component.cambiarCantidadLinea(component.lineasEdicion().find((l) => l.clave === 'det:5')!, 1);
       expect(component.lineasEdicion().find((l) => l.clave === 'det:5')!.cantidad).toBe(1);
@@ -322,11 +311,7 @@ describe('PedidoDetalleComponent', () => {
     });
   });
 
-  // ===========================================================================
-  // Editar adicionales y formato de una línea que ya está en el pedido
-  // ===========================================================================
   describe('Editar adicionales / formato de una línea existente', () => {
-    /** 1x choripan clasico + Orégano + Combo con papa ($13.000) y 1x Cerveza */
     const pedidoConCombo = (): Pedido => {
       const p = pedido('EN_PREPARACION');
       p.detalles = [
@@ -386,7 +371,6 @@ describe('PedidoDetalleComponent', () => {
       fixture.detectChanges();
 
       expect(modal()).toBeNull();
-      // base 10.000 + combo 3.000 + Orégano 0 + Queso 2.500
       expect(linea('det:5').precio_unitario).toBe(15500);
       expect(linea('det:5').extras).toEqual(['+ Orégano', '+ Queso fundido', '+ Combo con papa']);
       expect(component.totalEdicion()).toBe(15500 + 5000);
@@ -452,6 +436,41 @@ describe('PedidoDetalleComponent', () => {
       });
       patch.flush(pedidoConCombo());
       httpMock.expectOne(`${api}/kitchen/pedidos/24/comandas`).flush(resumen());
+    });
+  });
+
+  // ===========================================================================
+  // HU-5.3 · Mostrar Información de Pago y Anulación (SCRUM-208)
+  // ===========================================================================
+  describe('HU-5.3 · Información de Pago', () => {
+    
+    it('no debe mostrar la tarjeta de pago si el pedido no tiene pago asociado', async () => {
+      const pedidoSinPago = pedido();
+      pedidoSinPago.pago = null;
+      
+      await cargar(pedidoSinPago);
+      
+      const tarjetaPago = $('.alerta-pago');
+      expect(tarjetaPago).toBeNull();
+    });
+
+    it('debe mostrar la tarjeta de pago con los datos correctos si el pedido fue pagado', async () => {
+      const pedidoPagado = pedido('PAGADO');
+      pedidoPagado.pago = {
+        id_movimiento: 1,
+        monto: 37000,
+        medio_pago: 'TARJETA',
+        fecha_hora: '2026-10-27T18:00:00Z'
+      };
+      
+      await cargar(pedidoPagado);
+      
+      const tarjetaPago = $('.alerta-pago');
+      expect(tarjetaPago).toBeTruthy();
+      expect(tarjetaPago!.textContent).toContain('Información del Pago');
+      expect(tarjetaPago!.textContent).toContain('TARJETA');
+      expect(tarjetaPago!.textContent).toContain('37.000');
+      expect(tarjetaPago!.textContent).toContain('27/10/2026');
     });
   });
 });

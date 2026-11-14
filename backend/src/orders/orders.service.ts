@@ -67,7 +67,7 @@ export const CODIGO_PEDIDO_NO_MODIFICABLE = 'PEDIDO_NO_MODIFICABLE';
 /** HU-4.3 · SCRUM-183: estados en los que el pedido ya no se puede modificar */
 export const ESTADOS_NO_MODIFICABLES: EstadoPedido[] = [
   EstadoPedido.LISTO,
-
+  EstadoPedido.ENTREGADO,
   EstadoPedido.PAGADO,
   EstadoPedido.ANULADO,
 ];
