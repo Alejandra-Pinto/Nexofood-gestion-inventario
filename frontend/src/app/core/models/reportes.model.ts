@@ -41,6 +41,26 @@ export interface ReporteVentas {
 }
 
 export const MSJ_SIN_VENTAS = 'No hay ventas finalizadas en el período seleccionado.';
+export const MSJ_SIN_PRODUCTOS_VENDIDOS = 'No se registraron productos vendidos en el período seleccionado.';
+
+/** Fila del ranking de productos más vendidos (HU-6.3) */
+export interface ProductoRanking {
+  posicion: number;
+  id_item: number;
+  nombre: string;
+  unidades_vendidas: number;
+  total_recaudado: number;
+}
+
+/** Respuesta de GET /queries-reports/productos-mas-vendidos (HU-6.3) */
+export interface ReporteProductosMasVendidos {
+  desde: string;
+  hasta: string;
+  sin_ventas: boolean;
+  total_unidades: number;
+  total_recaudado: number;
+  productos: ProductoRanking[];
+}
 
 /** Texto de cada medio de pago */
 export const TEXTO_MEDIO: Record<string, string> = {

@@ -127,6 +127,33 @@ td { padding: 12px; border-bottom: 1px solid var(--borde); }
 tr:last-child td { border-bottom: none; }
 .num { text-align: right; white-space: nowrap; }
 
+/* Badge de posición ranking (HU-6.3) */
+.posicion-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  background: var(--fondo);
+  color: var(--texto);
+
+  &.oro {
+    background: #fef3c7;
+    color: #92400e;
+  }
+  &.plata {
+    background: #f1f5f9;
+    color: #475569;
+  }
+  &.bronce {
+    background: #ffedd5;
+    color: #9a3412;
+  }
+}
+
 /* ---------- Período sin operaciones ---------- */
 .vacio {
   display: flex;

@@ -3,7 +3,16 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Reportes } from './reportes';
-import { MSJ_SIN_OPERACIONES, MSJ_SIN_VENTAS, rangoDe, ReporteVentas, ResumenPeriodo } from '../../../core/models/reportes.model';
+import {
+  MSJ_SIN_OPERACIONES,
+  MSJ_SIN_PRODUCTOS_VENDIDOS,
+  MSJ_SIN_VENTAS,
+  ProductoRanking,
+  rangoDe,
+  ReporteProductosMasVendidos,
+  ReporteVentas,
+  ResumenPeriodo,
+} from '../../../core/models/reportes.model';
 import { provideRouter } from '@angular/router';
 import { environment } from '../../../../environments/environment';
 import { ToastService } from '../../../core/services/toast.service';
@@ -13,6 +22,21 @@ describe('Reportes · resumen por período', () => {
   let toastMock: { exito: any; error: any; advertencia: any; info: any };
   const urlResumen = `${environment.apiUrl}/queries-reports/resumen`;
   const urlVentas = `${environment.apiUrl}/queries-reports/ventas`;
+  const urlProductos = `${environment.apiUrl}/queries-reports/productos-mas-vendidos`;
+
+  const reporteProductos = (cambios: Partial<ReporteProductosMasVendidos> = {}): ReporteProductosMasVendidos => ({
+    desde: '2026-11-01',
+    hasta: '2026-11-06',
+    sin_ventas: false,
+    total_unidades: 7,
+    total_recaudado: 84000,
+    productos: [
+      { posicion: 1, id_item: 10, nombre: 'Choripán Clásico', unidades_vendidas: 4, total_recaudado: 48000 },
+      { posicion: 2, id_item: 11, nombre: 'Choripán Especial', unidades_vendidas: 2, total_recaudado: 28000 },
+      { posicion: 3, id_item: 12, nombre: 'Gaseosa Postobón', unidades_vendidas: 1, total_recaudado: 8000 },
+    ],
+    ...cambios,
+  });
 
   const reporteVentas = (cambios: Partial<ReporteVentas> = {}): ReporteVentas => ({
     desde: '2026-11-01',
@@ -173,6 +197,52 @@ describe('Reportes · resumen por período', () => {
 
     cmp.descargarPdf();
     expect(toastMock.error).toHaveBeenCalledWith('No hay datos en el período seleccionado para exportar a PDF.');
+    printSpy.mockRestore();
+  });
+
+  it('la pestaña Productos más vendidos muestra total de unidades, total recaudado y la tabla de ranking (HU-6.3)', async () => {
+    const { fixture, cmp, html } = await crear(resumen());
+    cmp.cambiarPestana('productos');
+    const req = http.expectOne((x) => x.url === urlProductos);
+    expect(req.request.params.get('desde')).toBe(rangoDe('mes').desde);
+    req.flush(reporteProductos());
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const texto = html.textContent!;
+    expect(texto).toContain('Unidades vendidas');
+    expect(texto).toContain('Choripán Clásico');
+    expect(texto).toContain('Producto líder');
+
+    const filas = html.querySelectorAll('tbody tr');
+    expect(filas.length).toBe(3);
+    expect(filas[0].textContent).toContain('#1');
+    expect(filas[0].textContent).toContain('Choripán Clásico');
+    expect(filas[0].textContent).toContain('4');
+  });
+
+  it('sin productos vendidos en el período muestra el mensaje de vacío (HU-6.3)', async () => {
+    const { fixture, cmp, html } = await crear(resumen());
+    cmp.cambiarPestana('productos');
+    http.expectOne((x) => x.url === urlProductos).flush(reporteProductos({ sin_ventas: true, productos: [], total_unidades: 0, total_recaudado: 0 }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(html.textContent).toContain(MSJ_SIN_PRODUCTOS_VENDIDOS);
+  });
+
+  it('HU-6.6: imprimir y descargar PDF funcionan en la pestaña Productos más vendidos', async () => {
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
+    const { fixture, cmp } = await crear(resumen());
+
+    cmp.cambiarPestana('productos');
+    http.expectOne((x) => x.url === urlProductos).flush(reporteProductos());
+    await fixture.whenStable();
+
+    cmp.imprimir();
+    expect(printSpy).toHaveBeenCalled();
+
+    cmp.descargarPdf();
+    expect(toastMock.exito).toHaveBeenCalledWith('Reporte de productos más vendidos descargado en PDF correctamente.');
     printSpy.mockRestore();
   });
 });
