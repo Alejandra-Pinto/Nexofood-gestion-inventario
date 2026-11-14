@@ -1,0 +1,104 @@
+<div class="contenedor-financiero">
+  <header class="encabezado-pagina">
+    <h1>Registrar egreso</h1>
+    <p>Registra los gastos operativos del negocio para mantener actualizado el flujo de caja.</p>
+  </header>
+
+  <div class="layout-dos-columnas">
+    <!-- Formulario -->
+    <div class="card formulario-card">
+      <div class="card-header">
+        <h2>Nuevo egreso</h2>
+        <span class="badge-egreso">Egreso</span>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="guardar()" class="formulario" novalidate>
+        
+        <div class="campo">
+          <label for="concepto">Concepto <span class="obligatorio">*</span></label>
+          <input id="concepto" type="text" formControlName="concepto" placeholder="Ej: Pago de servicios públicos" [class.invalido]="campoInvalido('concepto')">
+          @if (campoInvalido('concepto')) {
+            <small class="error-texto">El concepto es obligatorio (máx. 120 caracteres).</small>
+          }
+        </div>
+
+        <div class="fila">
+          <div class="campo">
+            <label for="monto">Monto <span class="obligatorio">*</span></label>
+            <div class="input-moneda" [class.invalido]="campoInvalido('monto')">
+              <span>$</span>
+              <input id="monto" type="number" formControlName="monto" placeholder="0">
+            </div>
+            @if (campoInvalido('monto')) {
+              <small class="error-texto">El monto debe ser mayor a 0.</small>
+            }
+          </div>
+
+          <div class="campo">
+            <label for="medio_pago">Medio de pago <span class="obligatorio">*</span></label>
+            <select id="medio_pago" formControlName="medio_pago">
+              @for (medio of mediosPago; track medio) {
+                <option [value]="medio">{{ medio }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="categoria">Categoría</label>
+          <select id="categoria" formControlName="categoria">
+            @for (cat of categorias; track cat.valor) {
+              <option [value]="cat.valor">{{ cat.texto }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="observaciones">Observaciones (opcional)</label>
+          <textarea id="observaciones" formControlName="observaciones" rows="2" placeholder="Ej: Recibo #123" [class.invalido]="campoInvalido('observaciones')"></textarea>
+          @if (campoInvalido('observaciones')) {
+            <small class="error-texto">Máximo 255 caracteres.</small>
+          }
+        </div>
+
+        <div class="acciones">
+          <button type="submit" class="btn-primario" [disabled]="isSaving()">
+            {{ isSaving() ? 'Guardando...' : 'Registrar egreso' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Panel Derecho (Reactivo a los Signals) -->
+    <div class="card info-card">
+      <div class="info-header">
+        <h3>Egresos del mes</h3>
+        <!-- Usamos el pipe de Angular para formatear a pesos -->
+        <span class="monto">{{ totalEgresosMes() | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+      </div>
+      
+      @if (listaEgresos().length === 0) {
+        <div class="empty-state">
+          <p>Aún no hay egresos este mes</p>
+          <span>Los gastos que registre aparecerán aquí.</span>
+        </div>
+      } @else {
+        <div class="lista-egresos">
+                    @for (egreso of listaEgresos(); track egreso.id_movimiento) {
+            <div class="egreso-item">
+              <div class="egreso-info">
+                <span class="egreso-concepto">{{ egreso.concepto }}</span>
+                <!-- Agregamos la categoría o la observación si existe -->
+                @if (egreso.observaciones) {
+                  <span class="egreso-observacion">{{ egreso.observaciones }}</span>
+                }
+                <span class="egreso-fecha">{{ egreso.fecha_hora | date:'dd/MM/yyyy' }}</span>
+              </div>
+              <span class="egreso-monto">- {{ egreso.monto | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>

@@ -654,7 +654,7 @@ export class OrdersService {
     });
   }
 
-  async buscarPorId(id: number): Promise<Pedido> {
+    async buscarPorId(id: number): Promise<Pedido> {
     const pedido = await this.pedidosRepo.findOne({
       where: { id_pedido: id },
       relations: {
@@ -664,7 +664,16 @@ export class OrdersService {
       },
     });
     if (!pedido) throw new NotFoundException(`El pedido #${id} no existe`);
-    return pedido;
+
+    // HU-5.3 · SCRUM-208: Traer la información del pago si existe
+    const pago = await this.dataSource.getRepository(MovimientoFinanciero).findOne({
+      where: { 
+        id_pedido: id, 
+        tipo_movimiento: TipoMovimientoFinanciero.INGRESO 
+      }
+    });
+
+    return { ...pedido, pago } as Pedido;
   }
 
   // =========================================================================
