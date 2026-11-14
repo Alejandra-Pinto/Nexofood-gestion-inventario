@@ -1,7 +1,7 @@
 /** Controlador: ReportesController - Endpoints (solo Administrador) */
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ReportesService } from './reportes.service';
-import { ReporteVentas, ResumenPeriodo } from './reportes';
+import { ReporteProductosMasVendidos, ReporteVentas, ResumenPeriodo } from './reportes';
 import { FiltrosPeriodoDto } from './dto/filtros-periodo.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -24,5 +24,11 @@ export class ReportesController {
   @Get('ventas')
   ventas(@Query() f: FiltrosPeriodoDto): Promise<ReporteVentas> {
     return this.reportes.ventas(f.desde, f.hasta);
+  }
+
+  /** HU-6.3 · 200 con el ranking de productos más vendidos del período (sin_ventas = true si no hubo) · 400 período inválido */
+  @Get('productos-mas-vendidos')
+  productosMasVendidos(@Query() f: FiltrosPeriodoDto): Promise<ReporteProductosMasVendidos> {
+    return this.reportes.productosMasVendidos(f.desde, f.hasta);
   }
 }

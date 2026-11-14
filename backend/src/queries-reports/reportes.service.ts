@@ -10,8 +10,11 @@ import {
 } from '../finance/entities/movimiento-financiero.entity';
 import {
   calcularResumen,
+  construirReporteProductosMasVendidos,
   construirReporteVentas,
+  FilaProductoVendido,
   FilaVenta,
+  ReporteProductosMasVendidos,
   ReporteVentas,
   ResumenPeriodo,
   validarPeriodo,
@@ -75,5 +78,33 @@ export class ReportesService {
       .getRawMany<FilaVenta>();
 
     return construirReporteVentas(desde, hasta, filas);
+  }
+
+  /** GET /queries-reports/productos-mas-vendidos?desde=&hasta= (HU-6.3) */
+  async productosMasVendidos(desdeTxt?: string, hastaTxt?: string): Promise<ReporteProductosMasVendidos> {
+    const { desde, hasta } = validarPeriodo(desdeTxt, hastaTxt);
+    const fechaVenta = 'COALESCE(mf.fecha_hora, p.fecha_hora)';
+
+    const filas = await this.pedidosRepo
+      .createQueryBuilder('p')
+      .innerJoin('p.detalles', 'd')
+      .innerJoin('d.item', 'item')
+      .leftJoin(MovimientoFinanciero, 'mf', 'mf.id_pedido = p.id_pedido AND mf.tipo_movimiento = :ingreso', {
+        ingreso: TipoMovimientoFinanciero.INGRESO,
+      })
+      .select('d.id_item', 'id_item')
+      .addSelect('item.nombre', 'nombre')
+      .addSelect('SUM(d.cantidad)', 'unidades_vendidas')
+      .addSelect('SUM(d.cantidad * d.precio_unitario)', 'total_recaudado')
+      .where('UPPER(p.estado_pedido) = :pagado', { pagado: 'PAGADO' })
+      .andWhere(`${dia(fechaVenta)} BETWEEN :desde AND :hasta`, { desde, hasta })
+      .groupBy('d.id_item')
+      .addGroupBy('item.nombre')
+      .orderBy('SUM(d.cantidad)', 'DESC')
+      .addOrderBy('SUM(d.cantidad * d.precio_unitario)', 'DESC')
+      .addOrderBy('item.nombre', 'ASC')
+      .getRawMany<FilaProductoVendido>();
+
+    return construirReporteProductosMasVendidos(desde, hasta, filas);
   }
 }

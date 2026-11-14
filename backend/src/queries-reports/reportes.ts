@@ -168,3 +168,77 @@ export function construirReporteVentas(desde: string, hasta: string, filas: Fila
     ventas,
   };
 }
+
+// Reporte de productos más vendidos (HU-6.3)
+
+export interface FilaProductoVendido {
+  id_item: number | string;
+  nombre: string;
+  unidades_vendidas: number | string;
+  total_recaudado: number | string;
+}
+
+export interface ProductoRanking {
+  posicion: number;
+  id_item: number;
+  nombre: string;
+  unidades_vendidas: number;
+  total_recaudado: number;
+}
+
+export interface ReporteProductosMasVendidos {
+  desde: string;
+  hasta: string;
+  sin_ventas: boolean;
+  total_unidades: number;
+  total_recaudado: number;
+  productos: ProductoRanking[];
+}
+
+/** SCRUM-222: construye el ranking ordenado por unidades vendidas DESC, total recaudado DESC, nombre ASC */
+export function construirReporteProductosMasVendidos(
+  desde: string,
+  hasta: string,
+  filas: FilaProductoVendido[],
+): ReporteProductosMasVendidos {
+  const items = filas.map((f) => ({
+    id_item: Number(f.id_item),
+    nombre: f.nombre || 'Sin nombre',
+    unidades_vendidas: Math.round(Number(f.unidades_vendidas) || 0),
+    total_recaudado: Math.round(Number(f.total_recaudado) || 0),
+  }));
+
+  // Ordenamiento con reglas de desempate acordadas:
+  // 1º Unidades vendidas (DESC)
+  // 2º Total recaudado (DESC)
+  // 3º Nombre del producto (ASC)
+  items.sort((a, b) => {
+    if (b.unidades_vendidas !== a.unidades_vendidas) {
+      return b.unidades_vendidas - a.unidades_vendidas;
+    }
+    if (b.total_recaudado !== a.total_recaudado) {
+      return b.total_recaudado - a.total_recaudado;
+    }
+    return a.nombre.localeCompare(b.nombre, 'es');
+  });
+
+  const productos: ProductoRanking[] = items.map((item, index) => ({
+    posicion: index + 1,
+    id_item: item.id_item,
+    nombre: item.nombre,
+    unidades_vendidas: item.unidades_vendidas,
+    total_recaudado: item.total_recaudado,
+  }));
+
+  const totalUnidades = productos.reduce((acc, p) => acc + p.unidades_vendidas, 0);
+  const totalRecaudado = productos.reduce((acc, p) => acc + p.total_recaudado, 0);
+
+  return {
+    desde,
+    hasta,
+    sin_ventas: productos.length === 0,
+    total_unidades: totalUnidades,
+    total_recaudado: totalRecaudado,
+    productos,
+  };
+}
