@@ -110,11 +110,9 @@
         @if (invalido('costo_unitario')) {
           <small class="error-txt">⚠ Ingresa un costo entero mayor a 0.</small>
         } @else if (!esCompra()) {
+          <!-- HU-2.2: el valor del costo de fabricación solo se muestra si el backend lo envió (Administrador) -->
           <small class="ayuda">
-            Opcional. Si lo dejas vacío se usa el costo de fabricación del producto
-            @if (itemSeleccionado(); as sel) {
-              ({{ sel.costo_fabricacion | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}).
-            }
+            Opcional. Si lo dejas vacío se usa el costo de fabricación registrado del producto@if (itemSeleccionado(); as sel) {@if (tieneCosto(sel)) { ({{ sel.costo_fabricacion | currency: 'COP' : 'symbol-narrow' : '1.0-0' }})}}.
           </small>
         }
       </div>
@@ -143,12 +141,15 @@
         }
       </div>
 
-      <div class="campo">
-        <span class="etiqueta">Total del ingreso</span>
-        <div class="total" aria-live="polite" data-testid="total">
-          {{ total() | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}
+      <!-- HU-2.2: sin costo conocido el total revelaría el costo de fabricación: el bloque no se muestra -->
+      @if (total() !== null) {
+        <div class="campo">
+          <span class="etiqueta">Total del ingreso</span>
+          <div class="total" aria-live="polite" data-testid="total">
+            {{ total() | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}
+          </div>
         </div>
-      </div>
+      }
     </div>
 
     <!-- Observaciones -->

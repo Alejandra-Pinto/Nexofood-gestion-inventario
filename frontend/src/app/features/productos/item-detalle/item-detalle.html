@@ -1,0 +1,56 @@
+<section class="card detalle-card" aria-labelledby="detalle-titulo">
+  <div class="detalle-encabezado">
+    <h2 id="detalle-titulo">Detalle del ítem</h2>
+    <button type="button" class="btn btn-secundario" (click)="cerrado.emit()">Cerrar</button>
+  </div>
+
+  @if (cargando()) {
+    <p class="muted">Cargando…</p>
+  } @else if (error()) {
+    <div class="alerta alerta-error">⚠ No se pudo cargar el detalle del ítem.</div>
+  } @else if (item(); as i) {
+    <h3 class="detalle-nombre">{{ i.nombre }}</h3>
+
+    <dl class="detalle-datos">
+      <div>
+        <dt>Tipo</dt>
+        <dd>{{ i.tipo_item === 'PRODUCTO' ? 'Producto' : 'Insumo' }}</dd>
+      </div>
+      <div>
+        <dt>Categoría</dt>
+        <dd>{{ categoria() }}</dd>
+      </div>
+      <div>
+        <dt>Cantidad disponible</dt>
+        <dd><strong>{{ i.cantidad_stock }}</strong></dd>
+      </div>
+      <div>
+        <dt>Stock mínimo</dt>
+        <dd>{{ i.stock_minimo }}</dd>
+      </div>
+      @if (i.tipo_item === 'PRODUCTO') {
+        <div>
+          <dt>Precio de venta</dt>
+          <dd>{{ i.precio_venta | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</dd>
+        </div>
+      }
+      <!-- HU-2.2: el bloque solo existe para el Administrador y si el costo llegó del backend -->
+      @if (costo() !== null) {
+        <div class="detalle-costo" data-testid="costo-fabricacion">
+          <dt>Costo (solo admin)</dt>
+          <dd>{{ costo() | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</dd>
+        </div>
+      }
+      <div>
+        <dt>Estado</dt>
+        <dd>
+          @if (!i.estado_activo) {
+            <span class="badge">Inactivo</span>
+          } @else {
+            <app-stock-badge [item]="i" />
+          }
+        </dd>
+      </div>
+    </dl>
+  }
+</section>

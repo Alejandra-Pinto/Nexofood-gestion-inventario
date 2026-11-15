@@ -51,9 +51,11 @@
 // export class AppModule {}
 
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { ConfidencialidadInterceptor } from './common/confidencialidad/confidencialidad.interceptor';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ProductsModule } from './products/products.module';
@@ -99,6 +101,10 @@ import { QueriesReportsModule } from './queries-reports/queries-reports.module';
     KitchenModule,
     FinanceModule,
     QueriesReportsModule,
+  ],
+  providers: [
+    // HU-2.2 · SCRUM-193: el costo de fabricación solo sale en respuestas al Administrador
+    { provide: APP_INTERCEPTOR, useClass: ConfidencialidadInterceptor },
   ],
 })
 export class AppModule {}

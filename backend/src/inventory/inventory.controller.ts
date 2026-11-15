@@ -21,6 +21,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RolUsuario } from '../users/entities/user.entity';
 import type { UsuarioAutenticado } from '../auth/strategies/jwt.strategy';
 import { MovimientoInventario } from './entities/movimiento-inventario.entity';
+import { OcultarANoAdmin } from '../common/confidencialidad/ocultar-a-no-admin.decorator';
 
 @Controller('inventory')
 export class InventoryController {
@@ -38,10 +39,17 @@ export class InventoryController {
    *   401 -> sin token o token inválido
    *   403 -> rol no autorizado
    *   404 -> ítem o proveedor no existe
+   *
+   * HU-2.2 (SCRUM-193): en producción sin costo el servidor copia el
+   * costo_fabricacion del ítem en costo_unitario/total. Para no filtrarlo por
+   * derivación, esos dos campos no se devuelven a quien no sea Administrador
+   * (tampoco en COMPRA: el Cajero ya conoce lo que digitó y una regla única es
+   * más difícil de romper que una que dependa del motivo).
    */
   @Post('ingresos')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(RolUsuario.ADMINISTRADOR, RolUsuario.CAJERO)
+  @OcultarANoAdmin('costo_unitario', 'total')
   registrarIngreso(
     @Body() dto: CreateIngresoDto,
     @CurrentUser() usuario: UsuarioAutenticado,

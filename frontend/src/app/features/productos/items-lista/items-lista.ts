@@ -14,6 +14,7 @@ import { forkJoin } from 'rxjs';
 import { InventarioService } from '../../../core/services/inventario.service';
 import { Categoria, ItemInventario, TipoItem, tieneStockBajo } from '../../../core/models/item-inventario.model';
 import { ItemForm } from '../item-form/item-form';
+import { ItemDetalle } from '../item-detalle/item-detalle';
 import { StockBadge } from '../../../shared/components/stock-badge/stock-badge';
 import { nivelStock } from '../../../core/models/item-inventario.model';
 
@@ -24,7 +25,7 @@ type FiltroTipo = TipoItem | '';
 
 @Component({
   selector: 'app-items-lista',
-  imports: [ItemForm, CurrencyPipe, StockBadge],
+  imports: [ItemForm, ItemDetalle, CurrencyPipe, StockBadge],
   templateUrl: './items-lista.html',
   styleUrl: './items-lista.scss',
 })
@@ -44,6 +45,13 @@ export class ItemsLista {
   protected cargando = signal(true);
   protected error = signal(false);
   protected mostrarForm = signal(false);
+
+  /** HU-2.2: ítem abierto en la tarjeta "Ver detalles" (null = cerrada) */
+  protected detalleId = signal<number | null>(null);
+  protected categoriaDetalle = computed(() => {
+    const item = this.items().find((i) => i.id_item === this.detalleId());
+    return item ? this.nombreCategoria(item.id_categoria) : '—';
+  });
 
   // Filtros de la tabla
   protected filtroTipo = signal<FiltroTipo>('');
