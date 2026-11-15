@@ -3,6 +3,8 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ReportesService } from './reportes.service';
 import { ReporteProductosMasVendidos, ReporteVentas, ResumenPeriodo } from './reportes';
 import { FiltrosPeriodoDto } from './dto/filtros-periodo.dto';
+import { FiltrosPeriodoOpcionalDto } from './dto/filtros-periodo-opcional.dto';
+import { ReporteFinanciero } from './reporte-financiero';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -30,5 +32,11 @@ export class ReportesController {
   @Get('productos-mas-vendidos')
   productosMasVendidos(@Query() f: FiltrosPeriodoDto): Promise<ReporteProductosMasVendidos> {
     return this.reportes.productosMasVendidos(f.desde, f.hasta);
+  }
+
+  /** HU-6.4 · 200 con ingresos, egresos, saldo neto y consumo interno (sin fechas = mes en curso) · 400 período inválido */
+  @Get('financiero')
+  financiero(@Query() f: FiltrosPeriodoOpcionalDto): Promise<ReporteFinanciero> {
+    return this.reportes.financiero(f.desde, f.hasta);
   }
 }
