@@ -588,4 +588,53 @@ describe('IngresoForm', () => {
       http.expectNone(`${api}/inventory/ingresos`);
     });
   });
+  // ======================================================================
+  // HU-2.2 · SCRUM-196: Cajero (el backend no envía costo_fabricacion)
+  // ======================================================================
+  describe('HU-2.2 · sin costo de fabricación en la respuesta (Cajero)', () => {
+    /** Mismos ítems, pero como los recibe un no-admin: sin la propiedad */
+    const itemsSinCosto = items.map(({ costo_fabricacion: _c, ...resto }) => resto);
+
+    const crearSinCosto = async () => {
+      fixture = TestBed.createComponent(IngresoForm);
+      http.expectOne(`${api}/products`).flush(itemsSinCosto);
+      http.expectOne(`${api}/inventory/proveedores`).flush(proveedores);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return { cmp: fixture.componentInstance as any, html: fixture.nativeElement as HTMLElement };
+    };
+
+    it('los ítems quedan sin la propiedad (no NaN tras normalizar)', async () => {
+      const { cmp } = await crearSinCosto();
+      for (const i of cmp.items()) expect(i).not.toHaveProperty('costo_fabricacion');
+    });
+
+    it('PRODUCCION sin costo digitado: no calcula ni muestra el Total, ni el valor del costo', async () => {
+      const { cmp, html } = await crearSinCosto();
+      cmp.form.controls.motivo.setValue('PRODUCCION');
+      cmp.form.patchValue({ id_item: 1, cantidad: 30 });
+      await refrescar();
+
+      expect(cmp.total()).toBeNull();
+      expect(html.querySelector('[data-testid="total"]')).toBeNull();
+      expect(html.textContent).not.toContain('8,400');
+      expect(html.textContent).not.toContain('NaN');
+    });
+
+    it('PRODUCCION con costo digitado por el Cajero: el Total sí se muestra', async () => {
+      const { cmp, html } = await crearSinCosto();
+      cmp.form.controls.motivo.setValue('PRODUCCION');
+      cmp.form.patchValue({ id_item: 1, cantidad: 2, costo_unitario: 1000 });
+      await refrescar();
+
+      expect(cmp.total()).toBe(2000);
+      expect(html.querySelector('[data-testid="total"]')).not.toBeNull();
+    });
+
+    it('COMPRA sigue funcionando igual para el Cajero', async () => {
+      const { cmp } = await crearSinCosto();
+      llenarCompra(cmp);
+      expect(cmp.total()).toBe(2160000);
+    });
+  });
 });
