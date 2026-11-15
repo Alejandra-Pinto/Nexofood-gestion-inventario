@@ -1,0 +1,33 @@
+/* Tarjeta "Ver detalles" (Prototipo 12 · Productos e inventario) */
+.detalle-card { padding: 20px 24px; }
+
+.detalle-encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+
+  h2 { font-size: 1.05rem; }
+}
+
+.detalle-nombre { margin: 0 0 14px; font-size: 1.2rem; color: var(--primario); }
+
+.detalle-datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px 20px;
+  margin: 0;
+
+  dt {
+    font-size: 0.72rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  dd { margin: 4px 0 0; font-size: 0.95rem; }
+}
+
+/* Bloque exclusivo del Administrador */
+.detalle-costo dd { font-weight: 700; }

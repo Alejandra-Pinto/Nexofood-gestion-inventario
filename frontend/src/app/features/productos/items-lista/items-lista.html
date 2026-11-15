@@ -15,6 +15,11 @@
     <app-item-form (creado)="agregar($event)" (cancelado)="mostrarForm.set(false)" />
   }
 
+  <!-- HU-2.2 · Tarjeta "Ver detalles" (Prototipo 12). El costo solo aparece al Administrador -->
+  @if (detalleId(); as id) {
+    <app-item-detalle [idItem]="id" [categoria]="categoriaDetalle()" (cerrado)="detalleId.set(null)" />
+  }
+
   <!-- ===== Tarjeta con la tabla de ítems ===== -->
   <section class="card tabla-card">
     <div class="tabla-encabezado">
@@ -98,6 +103,7 @@
               <th>Categoría</th>
               <th class="num">Precio</th>
               <th>Estado</th>
+              <th>Detalle</th>
             </tr>
           </thead>
           <tbody>
@@ -120,11 +126,14 @@
                     <app-stock-badge [item]="i" />
                   }
                 </td>
+                <td data-label="Detalle">
+                  <button type="button" class="link" (click)="detalleId.set(i.id_item)">Ver detalles</button>
+                </td>
               </tr>
             } @empty {
               <!-- Hay ítems, pero ninguno coincide con el filtro -->
               <tr>
-                <td colspan="6" class="centro muted">
+                <td colspan="7" class="centro muted">
                   Sin resultados para el filtro.
                   <button class="link" (click)="limpiarFiltros()">Limpiar filtros</button>
                 </td>
