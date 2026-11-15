@@ -33,11 +33,23 @@
         </div>
       </header>
 
+      <!-- HU-5.3 · Información del Pago -->
+      @if (p.pago) {
+        <div class="alerta alerta-pago" style="background: #E7F6EF; border: 1px solid #CFEADF; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+          <h4 style="color: #0F8A5F; margin: 0 0 0.5rem 0;">Información del Pago</h4>
+          <p style="margin: 0; font-size: 0.9rem; color: #333;">
+            <strong>Medio de pago:</strong> {{ p.pago.medio_pago }} <br>
+            <strong>Monto pagado:</strong> {{ p.pago.monto | currency:'COP':'symbol-narrow':'1.0-0' }} <br>
+            <strong>Fecha del pago:</strong> {{ p.pago.fecha_hora | date:'dd/MM/yyyy HH:mm' }}
+          </p>
+        </div>
+      }
+
       <!-- Banner de Pedido Anulado con información de auditoría (HU-3.6) -->
       @if (p.estado_pedido === 'ANULADO') {
         <div class="alerta alerta-anulado" role="alert">
           <div class="alerta-anulado-header">
-            <strong>⚠ Este pedido fue ANULADO</strong>
+            <strong>Atención: Este pedido fue ANULADO</strong>
             @if (p.fecha_anulacion) {
               <small>{{ p.fecha_anulacion | date: 'dd/MM/yyyy HH:mm' }}</small>
             }
@@ -56,7 +68,7 @@
       <!-- HU-4.3 · SCRUM-183: pedido finalizado (el anulado tiene su propio aviso) -->
       @if (motivoBloqueo() && p.estado_pedido !== 'ANULADO') {
         <div class="alerta alerta-info" id="motivo-bloqueo" role="note" data-test="bloqueo">
-          🔒 {{ motivoBloqueo() }}
+          {{ motivoBloqueo() }}
         </div>
       }
 
@@ -80,7 +92,7 @@
             </p>
             @if (aviso.requiereReimpresion && !pedidoFinalizado()) {
               <button type="button" class="btn btn-sm btn-primario" [disabled]="isPrinting()" (click)="abrirConfirmacionReimpresion()">
-                🖨️ Imprimir comanda v{{ aviso.version }}
+                Imprimir comanda v{{ aviso.version }}
               </button>
             }
           </div>
@@ -139,42 +151,42 @@
             <div class="grupo-acciones-principales">
               @if (p.estado_pedido === 'PENDIENTE') {
                 <button type="button" (click)="cambiarEstado('EN_PREPARACION')" [disabled]="isLoading()" class="btn btn-primario">
-                  {{ isLoading() ? 'Procesando…' : '👨‍🍳 Confirmar y Enviar a Cocina' }}
+                  {{ isLoading() ? 'Procesando…' : 'Confirmar y Enviar a Cocina' }}
                 </button>
               }
 
               @if (p.estado_pedido === 'EN_PREPARACION') {
                 <button type="button" (click)="cambiarEstado('LISTO')" [disabled]="isLoading()" class="btn btn-primario">
-                  {{ isLoading() ? 'Procesando…' : '✔ Marcar como Listo' }}
+                  {{ isLoading() ? 'Procesando…' : 'Marcar como Listo' }}
                 </button>
               }
 
               @if (p.estado_pedido === 'LISTO') {
                 <button type="button" (click)="cambiarEstado('ENTREGADO')" [disabled]="isLoading()" class="btn btn-primario">
-                  {{ isLoading() ? 'Procesando…' : '📦 Marcar como Entregado' }}
+                  {{ isLoading() ? 'Procesando…' : 'Marcar como Entregado' }}
                 </button>
               }
 
               <!-- HU-3.3 Acción de Modificar -->
               @if (puedeModificar()) {
                 <button type="button" class="btn btn-secundario" (click)="iniciarEdicion()">
-                  ✏️ {{ p.estado_pedido === 'EN_PREPARACION' ? 'Modificar / adicionar productos' : 'Modificar pedido' }}
+                  {{ p.estado_pedido === 'EN_PREPARACION' ? 'Modificar / adicionar productos' : 'Modificar pedido' }}
                 </button>
               } @else if (rolPuedeModificar() && pedidoFinalizado() && p.estado_pedido !== 'ANULADO') {
                 <!-- HU-4.3 · SCRUM-183: control visible pero deshabilitado, con el motivo -->
                 <button type="button" class="btn btn-secundario" disabled data-test="modificar-bloqueado"
                   aria-describedby="motivo-bloqueo" [title]="motivoBloqueo()">
-                  🔒 Modificar pedido
+                  Modificar pedido
                 </button>
               }
 
               <!-- Ver / Reimprimir comanda -->
               @if (p.estado_pedido !== 'PENDIENTE' && p.estado_pedido !== 'ANULADO') {
                 <button type="button" (click)="tituloTicket.set('COMANDA DE COCINA'); itemsAdicionalesTicket.set([]); mostrarTicket.set(true)" class="btn btn-secundario">
-                  👁️ Ver Comanda{{ versionComanda() ? ' v' + versionComanda() : '' }}
+                  Ver Comanda{{ versionComanda() ? ' v' + versionComanda() : '' }}
                 </button>
                 <button type="button" (click)="abrirConfirmacionReimpresion()" [disabled]="isPrinting()" class="btn btn-primario">
-                  {{ isPrinting() ? 'Enviando…' : '🖨️ Reimprimir Comanda' }}
+                  {{ isPrinting() ? 'Enviando…' : 'Reimprimir Comanda' }}
                 </button>
               }
             </div>
@@ -183,7 +195,7 @@
             @if (puedeAnular()) {
               <div class="grupo-acciones-destructivas">
                 <button type="button" class="btn btn-peligro" (click)="abrirModalAnulacion()">
-                  🚫 Anular Pedido
+                  Anular Pedido
                 </button>
               </div>
             }
@@ -260,7 +272,7 @@
                       @if (tieneOpciones(linea)) {
                         <button type="button" class="link-adicionales" [attr.data-test]="'editar-adicionales-' + linea.clave"
                           (click)="abrirAdicionales(linea)">
-                          ⚙ Adicionales / formato
+                          Adicionales / formato
                         </button>
                       }
                       @if (linea.configCambiada || linea.clave.startsWith('nuevo:')) {
@@ -305,7 +317,7 @@
                     <td class="centro">
                       @if (p.estado_pedido === 'PENDIENTE' || !linea.enviadoCocina) {
                         <button type="button" class="btn-eliminar" title="Eliminar producto" (click)="eliminarLinea(linea)">
-                          🗑
+                          Eliminar
                         </button>
                       } @else {
                         <span class="muted" title="Ya enviado a cocina">—</span>
@@ -368,7 +380,7 @@
               [disabled]="guardandoEdicion() || lineasEdicion().length === 0"
               (click)="guardarModificacion()"
             >
-              {{ guardandoEdicion() ? 'Guardando cambios…' : '💾 Guardar Cambios' }}
+              {{ guardandoEdicion() ? 'Guardando cambios…' : 'Guardar Cambios' }}
             </button>
           </div>
         </section>
@@ -408,7 +420,7 @@
       <div class="modal-confirm-overlay" (click)="cancelarConfirmacion()">
         <div class="modal-confirm-card" (click)="$event.stopPropagation()">
           <div class="modal-confirm-header">
-            <div class="icono-aviso">🖨️</div>
+            <div class="icono-aviso">Aviso</div>
             <h3>Imprimir comanda{{ versionComanda() ? ' v' + versionComanda() : '' }}</h3>
           </div>
           <p class="modal-confirm-body">
@@ -439,7 +451,7 @@
 
           <div class="modal-cuerpo">
             <p class="alerta-destructiva">
-              ⚠ Esta operación cambiará el estado del pedido a <strong>ANULADO</strong> y liberará la mesa asociada.
+              Esta operación cambiará el estado del pedido a <strong>ANULADO</strong> y liberará la mesa asociada.
               Esta acción no se puede deshacer.
             </p>
 

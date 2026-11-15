@@ -1,4 +1,4 @@
-/** Servicio: FinanceService - Registrar ingresos no provenientes de ventas */
+/** Servicio: FinanceService - Registrar ingresos y egresos */
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -8,9 +8,10 @@ import {
   TipoMovimientoFinanciero,
 } from './entities/movimiento-financiero.entity';
 import { CreateIngresoFinancieroDto } from './dto/create-ingreso-financiero.dto';
+import { CreateEgresoFinancieroDto } from './dto/create-egreso-financiero.dto';
 import { CATEGORIAS_INGRESO, errorMonto, fechaInexistente, hoyColombia, ZONA_HORARIA } from './ingresos';
+import { CATEGORIAS_EGRESO } from './egresos';
 
-/** Ingreso tal como lo ve el frontend */
 export interface IngresoFinanciero {
   id_movimiento: number;
   fecha_hora: Date;
@@ -22,11 +23,31 @@ export interface IngresoFinanciero {
   registrado_por: string | null;
 }
 
+export interface EgresoFinanciero {
+  id_movimiento: number;
+  fecha_hora: Date;
+  concepto: string;
+  categoria: string;
+  monto: number;
+  medio_pago: string;
+  observaciones: string | null;
+  registrado_por: string | null;
+}
+
+// Interfaz original de tu compañero (INTACTA)
 export interface ListaIngresos {
   desde: string;
   hasta: string;
   total: number;
   ingresos: IngresoFinanciero[];
+}
+
+// Nueva interfaz para egresos (basada en la misma estructura)
+export interface ListaEgresos {
+  desde: string;
+  hasta: string;
+  total: number;
+  egresos: EgresoFinanciero[];
 }
 
 @Injectable()
@@ -36,9 +57,10 @@ export class FinanceService {
     private readonly movimientosRepo: Repository<MovimientoFinanciero>,
   ) {}
 
-  /** Registra un ingreso que NO viene de ventas. */
+  // ==========================================================
+  // MÓDULO DE INGRESOS (Código original de tu compañero)
+  // ==========================================================
   async registrarIngreso(dto: CreateIngresoFinancieroDto, idUsuario: number): Promise<IngresoFinanciero> {
-    // El DTO ya valida; se repite aquí por si otro módulo llama al servicio
     const error = errorMonto(dto?.monto);
     if (error) throw new BadRequestException(error);
     if (!dto.concepto?.trim()) throw new BadRequestException('El concepto es obligatorio');
@@ -52,7 +74,7 @@ export class FinanceService {
     const guardado = await this.movimientosRepo.save(
       this.movimientosRepo.create({
         id_usuario: idUsuario,
-        id_pedido: null, // No viene de un pedido: no afecta ventas
+        id_pedido: null,
         tipo_movimiento: TipoMovimientoFinanciero.INGRESO,
         origen: OrigenMovimiento.MANUAL,
         monto: dto.monto,
@@ -60,7 +82,6 @@ export class FinanceService {
         concepto: dto.concepto.trim(),
         categoria: dto.categoria,
         observaciones: dto.observaciones?.trim() || null,
-        // Hoy -> hora actual; fecha pasada -> mediodía de ese día en Colombia
         fecha_hora: fecha === hoy ? new Date() : new Date(`${fecha}T12:00:00-05:00`),
       }),
     );
@@ -68,7 +89,6 @@ export class FinanceService {
     return this.aIngreso(guardado, null);
   }
 
-  /** GET /finance/ingresos?desde=&hasta= -> ingresos manuales del período (por defecto, el mes actual) */
   async listarIngresos(desde?: string, hasta?: string): Promise<ListaIngresos> {
     const hoy = hoyColombia();
     const d = desde ?? `${hoy.slice(0, 8)}01`;
@@ -83,7 +103,7 @@ export class FinanceService {
     const filas = await this.movimientosRepo
       .createQueryBuilder('m')
       .leftJoin('m.usuario', 'u')
-      .addSelect(['u.id_usuario', 'u.nombre_completo']) // Nunca el password_hash
+      .addSelect(['u.id_usuario', 'u.nombre_completo'])
       .where('m.origen = :origen', { origen: OrigenMovimiento.MANUAL })
       .andWhere('m.tipo_movimiento = :tipo', { tipo: TipoMovimientoFinanciero.INGRESO })
       .andWhere(`(m.fecha_hora AT TIME ZONE '${ZONA_HORARIA}')::date BETWEEN :desde AND :hasta`, { desde: d, hasta: h })
@@ -95,7 +115,70 @@ export class FinanceService {
     return { desde: d, hasta: h, total: ingresos.reduce((s, i) => s + i.monto, 0), ingresos };
   }
 
+  // ==========================================================
+  // MÓDULO DE EGRESOS (HU-7.1)
+  // ==========================================================
+  async registrarEgreso(dto: CreateEgresoFinancieroDto, idUsuario: number): Promise<EgresoFinanciero> {
+    if (!dto.monto || dto.monto <= 0) throw new BadRequestException('El monto debe ser mayor a 0');
+    if (!dto.concepto?.trim()) throw new BadRequestException('El concepto es obligatorio');
+    
+    if (dto.categoria && !(dto.categoria in CATEGORIAS_EGRESO)) {
+      throw new BadRequestException('La categoría del egreso no es válida');
+    }
+
+    const guardado = await this.movimientosRepo.save(
+      this.movimientosRepo.create({
+        id_usuario: idUsuario,
+        id_pedido: null,
+        tipo_movimiento: TipoMovimientoFinanciero.EGRESO,
+        origen: OrigenMovimiento.MANUAL,
+        monto: dto.monto,
+        medio_pago: dto.medio_pago,
+        concepto: dto.concepto.trim(),
+        categoria: dto.categoria || null,
+        observaciones: dto.observaciones?.trim() || null,
+        fecha_hora: new Date(),
+      }),
+    );
+
+    return this.aEgreso(guardado, null);
+  }
+
+  async listarEgresos(desde?: string, hasta?: string): Promise<ListaEgresos> {
+    const hoy = hoyColombia();
+    const d = desde ?? `${hoy.slice(0, 8)}01`;
+    const h = hasta ?? hoy;
+
+    const filas = await this.movimientosRepo
+      .createQueryBuilder('m')
+      .leftJoin('m.usuario', 'u')
+      .addSelect(['u.id_usuario', 'u.nombre_completo'])
+      .where('m.origen = :origen', { origen: OrigenMovimiento.MANUAL })
+      .andWhere('m.tipo_movimiento = :tipo', { tipo: TipoMovimientoFinanciero.EGRESO })
+      .andWhere(`(m.fecha_hora AT TIME ZONE '${ZONA_HORARIA}')::date BETWEEN :desde AND :hasta`, { desde: d, hasta: h })
+      .orderBy('m.fecha_hora', 'DESC')
+      .addOrderBy('m.id_movimiento', 'DESC')
+      .getMany();
+
+    const egresos = filas.map((m) => this.aEgreso(m, m.usuario?.nombre_completo ?? null));
+    return { desde: d, hasta: h, total: egresos.reduce((s, i) => s + i.monto, 0), egresos };
+  }
+
+  // --- Métodos de mapeo ---
   private aIngreso(m: MovimientoFinanciero, registradoPor: string | null): IngresoFinanciero {
+    return {
+      id_movimiento: m.id_movimiento,
+      fecha_hora: m.fecha_hora,
+      concepto: m.concepto ?? '',
+      categoria: m.categoria ?? '',
+      monto: Number(m.monto),
+      medio_pago: m.medio_pago,
+      observaciones: m.observaciones ?? null,
+      registrado_por: registradoPor,
+    };
+  }
+
+  private aEgreso(m: MovimientoFinanciero, registradoPor: string | null): EgresoFinanciero {
     return {
       id_movimiento: m.id_movimiento,
       fecha_hora: m.fecha_hora,

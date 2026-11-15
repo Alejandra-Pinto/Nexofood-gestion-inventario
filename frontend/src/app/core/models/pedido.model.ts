@@ -124,7 +124,13 @@ export interface DetallePedido {
   /** HU-3.2: adicionales elegidos para la línea */
   adicionales?: AdicionalDetalle[];
 }
-
+// HU-5.3 · Nueva interfaz para el pago
+export interface PagoInfo {
+  id_movimiento: number;
+  monto: number;
+  medio_pago: string;
+  fecha_hora: string;
+}
 /** Tabla pedido */
 export interface Pedido {
   id_pedido: number;
@@ -139,6 +145,7 @@ export interface Pedido {
   id_usuario_anulacion?: number | null;
   usuario_anulacion?: { nombre_completo?: string; credencial?: string };
   fecha_anulacion?: string | null;
+  pago?: PagoInfo | null;
 }
 
 /** Una línea al registrar o cotizar un pedido (HU-3.2: adicionales, promo y nota) */
@@ -216,6 +223,7 @@ export function normalizarPedido(p: Pedido): Pedido {
   return {
     ...p,
     total_calculado: Number(p.total_calculado),
+    pago: p.pago ? { ...p.pago, monto: Number(p.pago.monto) } : null, // <-- Agregado
     detalles: (p.detalles ?? []).map((d) => ({
       ...d,
       cantidad: Number(d.cantidad),

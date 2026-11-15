@@ -1,0 +1,209 @@
+.contenedor-financiero {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.encabezado-pagina {
+  margin-bottom: 2rem;
+
+  h1 {
+    font-size: 1.8rem;
+    color: var(--primario);
+    margin-bottom: 0.5rem;
+  }
+  p {
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+}
+
+.layout-dos-columnas {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr; /* Ajustamos proporción para que el derecho sea más ancho */
+  gap: 1.5rem;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: var(--superficie, #fff);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border: 1px solid var(--borde, #eaeaea);
+  display: flex;
+  flex-direction: column;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  h2 { color: var(--primario); margin: 0; font-size: 1.2rem; }
+  
+  .badge-egreso {
+    background: var(--error-suave, #FBEAEA);
+    color: var(--error, #C0392B);
+    padding: 0.2rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+}
+
+.fila {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  @media (max-width: 600px) { grid-template-columns: 1fr; }
+}
+
+.campo {
+  margin-bottom: 1.2rem;
+  
+  label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--texto, #333);
+    margin-bottom: 0.4rem;
+  }
+  .obligatorio { color: var(--error, #C0392B); }
+  
+  input, select, textarea {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--borde, #ccc);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+    
+    &:focus { outline: none; border-color: var(--primario); }
+    &.invalido { border-color: var(--error, #C0392B); background: var(--error-suave, #fff8f7); }
+  }
+}
+
+.input-moneda {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--borde, #ccc);
+  border-radius: 8px;
+  padding-left: 0.8rem;
+  background: var(--superficie, #fff);
+  transition: border-color 0.2s;
+  
+  &:focus-within { border-color: var(--primario); }
+  &.invalido { border-color: var(--error, #C0392B); background: var(--error-suave, #fff8f7); }
+
+  span { color: var(--muted, #888); font-size: 0.9rem; }
+  input { 
+    border: none; 
+    padding-left: 0.5rem;
+    background: transparent;
+    &:focus { border: none; box-shadow: none; }
+  }
+}
+
+.error-texto {
+  color: var(--error, #C0392B);
+  font-size: 0.75rem;
+  margin-top: 0.3rem;
+  display: block;
+}
+
+.acciones {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  
+  .btn-primario {
+    background: var(--primario);
+    color: white;
+    padding: 0.7rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    &:hover { opacity: 0.9; }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+  }
+}
+
+/* =========================================
+   ESTILOS DEL PANEL DERECHO (CORREGIDOS)
+   ========================================= */
+.info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--borde);
+  
+  h3 { margin: 0; color: var(--primario); font-size: 1.1rem; }
+  .monto { font-size: 1.4rem; font-weight: bold; color: var(--ok, #0F8A5F); }
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem 0;
+  p { font-weight: 600; margin-bottom: 0.2rem; color: var(--texto); font-size: 0.95rem; }
+  span { font-size: 0.85rem; }
+}
+
+/* La lista de egresos */
+.lista-egresos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 5px; /* Espacio para la barra de scroll */
+}
+
+/* Cada ítem de la lista */
+.egreso-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem;
+  background: var(--fondo, #f8f9fa); /* Un fondo gris muy suave para separar los ítems */
+  border-radius: 8px;
+  border: 1px solid var(--borde, #eee);
+  
+  /* Información del lado izquierdo */
+  .egreso-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  
+  .egreso-concepto { 
+    font-size: 0.9rem; 
+    font-weight: 600; 
+    color: var(--texto); 
+  }
+  
+  .egreso-fecha { 
+    font-size: 0.75rem; 
+    color: var(--muted); 
+  }
+  
+  /* Monto del lado derecho */
+  .egreso-monto { 
+    font-size: 1rem; 
+    font-weight: 700; 
+    color: var(--error); 
+    white-space: nowrap; /* Evita que el signo - y el número se separen */
+  }
+}

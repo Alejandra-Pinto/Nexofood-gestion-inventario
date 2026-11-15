@@ -1,7 +1,7 @@
-/** Controlador: FinanceController - Endpoints (solo Administrador) */
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
-import { FinanceService, IngresoFinanciero, ListaIngresos } from './finance.service';
+import { FinanceService, EgresoFinanciero, IngresoFinanciero, ListaEgresos, ListaIngresos } from './finance.service';
 import { CreateIngresoFinancieroDto } from './dto/create-ingreso-financiero.dto';
+import { CreateEgresoFinancieroDto } from './dto/create-egreso-financiero.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -15,17 +15,23 @@ import type { UsuarioAutenticado } from '../auth/strategies/jwt.strategy';
 export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
 
-  /** Registrar ingreso no proveniente de ventas */
   @Post('ingresos')
-  registrarIngreso(
-    @Body() dto: CreateIngresoFinancieroDto,
-    @CurrentUser() usuario: UsuarioAutenticado,
-  ): Promise<IngresoFinanciero> {
+  registrarIngreso(@Body() dto: CreateIngresoFinancieroDto, @CurrentUser() usuario: UsuarioAutenticado): Promise<IngresoFinanciero> {
     return this.financeService.registrarIngreso(dto, usuario.id_usuario);
   }
 
   @Get('ingresos')
   listarIngresos(@Query('desde') desde?: string, @Query('hasta') hasta?: string): Promise<ListaIngresos> {
     return this.financeService.listarIngresos(desde, hasta);
+  }
+
+  @Post('egresos')
+  registrarEgreso(@Body() dto: CreateEgresoFinancieroDto, @CurrentUser() usuario: UsuarioAutenticado): Promise<EgresoFinanciero> {
+    return this.financeService.registrarEgreso(dto, usuario.id_usuario);
+  }
+
+  @Get('egresos')
+  listarEgresos(@Query('desde') desde?: string, @Query('hasta') hasta?: string): Promise<ListaEgresos> {
+    return this.financeService.listarEgresos(desde, hasta);
   }
 }

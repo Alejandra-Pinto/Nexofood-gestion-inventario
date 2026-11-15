@@ -109,6 +109,7 @@ describe('OrdersService · HU-3.2 adicionales, promociones, combos y notas', () 
       cb(managerMock as unknown as EntityManager),
     ),
     manager: managerMock,
+    getRepository: () => ({ findOne: () => Promise.resolve(null) }),
   };
 
   const pedidosRepoMock = {

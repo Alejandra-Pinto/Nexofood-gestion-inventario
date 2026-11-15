@@ -89,6 +89,7 @@ describe('OrdersService · HU-4.3 versionado de comandas', () => {
   const dataSourceMock = {
     transaction: jest.fn((cb: (m: EntityManager) => unknown) => cb(managerMock as unknown as EntityManager)),
     manager: managerMock,
+    getRepository: () => ({ findOne: () => Promise.resolve(null) }),
   };
 
   const comandaGuardada = () => guardados.find((g) => g.__entidad === Comanda);

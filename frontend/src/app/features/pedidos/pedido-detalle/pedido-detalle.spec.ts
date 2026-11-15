@@ -62,7 +62,6 @@ describe('PedidoDetalleComponent', () => {
 
   const texto = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
 
-  /** Entra a edición y responde el catálogo de productos y las opciones (stock de insumos) */
   const entrarAEdicion = (opciones: OpcionesPedido = { adicionales: [], promociones: [] }) => {
     component.iniciarEdicion();
     httpMock.expectOne((r) => r.url === `${api}/products`).flush([item(1, 'Choripán Pampero', 16000), item(9, 'Cerveza', 5000)]);
@@ -71,7 +70,6 @@ describe('PedidoDetalleComponent', () => {
   };
   const $ = (sel: string) => (fixture.nativeElement as HTMLElement).querySelector(sel);
 
-  /** Carga el pedido #24 y responde las dos peticiones (pedido + versiones de comanda) */
   const cargar = async (p: Pedido = pedido(), r: ResumenComandas | null = resumen()) => {
     component.cargarPedido(24);
     httpMock.expectOne(`${api}/orders/24`).flush(p);
@@ -88,17 +86,14 @@ describe('PedidoDetalleComponent', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        // Suple ActivatedRoute/Router/RouterLink que usa el componente
         provideRouter([]),
       ],
     }).compileComponents();
 
     httpMock = TestBed.inject(HttpTestingController);
-    // Rol que modifica pedidos (HU-3.3)
     TestBed.inject(AuthService).usuarioActual.set({ nombre: 'Juan S.', rol: 'Mesero', permisos: ['ventas'] });
     fixture = TestBed.createComponent(PedidoDetalleComponent);
     component = fixture.componentInstance;
-    // Sin :id en la ruta, ngOnInit no hace peticiones; cada prueba llama a cargar()
     fixture.detectChanges();
   });
 
@@ -454,4 +449,40 @@ describe('PedidoDetalleComponent', () => {
       httpMock.expectOne(`${api}/kitchen/pedidos/24/comandas`).flush(resumen());
     });
   });
+  
+  // ===========================================================================
+  // HU-5.3 · Mostrar Información de Pago y Anulación (SCRUM-208)
+  // ===========================================================================
+  describe('HU-5.3 · Información de Pago', () => {
+    
+    it('no debe mostrar la tarjeta de pago si el pedido no tiene pago asociado', async () => {
+      const pedidoSinPago = pedido();
+      pedidoSinPago.pago = null;
+      
+      await cargar(pedidoSinPago);
+      
+      const tarjetaPago = $('.alerta-pago');
+      expect(tarjetaPago).toBeNull();
+    });
+
+    it('debe mostrar la tarjeta de pago con los datos correctos si el pedido fue pagado', async () => {
+      const pedidoPagado = pedido('PAGADO');
+      pedidoPagado.pago = {
+        id_movimiento: 1,
+        monto: 37000,
+        medio_pago: 'TARJETA',
+        fecha_hora: '2026-10-27T18:00:00Z'
+      };
+      
+      await cargar(pedidoPagado);
+      
+      const tarjetaPago = $('.alerta-pago');
+      expect(tarjetaPago).toBeTruthy();
+      expect(tarjetaPago!.textContent).toContain('Información del Pago');
+      expect(tarjetaPago!.textContent).toContain('TARJETA');
+      expect(tarjetaPago!.textContent).toMatch(/37[.,]000/);
+      expect(tarjetaPago!.textContent).toContain('27/10/2026');
+    });
+  });
 });
+
