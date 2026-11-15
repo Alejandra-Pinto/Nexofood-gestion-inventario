@@ -9,7 +9,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ReporteInventarioResultado } from '../models/reporte.model';
-import { ReporteProductosMasVendidos, ReporteVentas, ResumenPeriodo } from '../models/reportes.model';
+import { ReporteFinanciero, ReporteProductosMasVendidos, ReporteVentas, ResumenPeriodo } from '../models/reportes.model';
 
 @Injectable({ providedIn: 'root' })
 export class ReportesService {
@@ -37,5 +37,11 @@ export class ReportesService {
   productosMasVendidos(desde: string, hasta: string): Observable<ReporteProductosMasVendidos> {
     const params = new HttpParams().set('desde', desde).set('hasta', hasta);
     return this.http.get<ReporteProductosMasVendidos>(`${this.api}/productos-mas-vendidos`, { params });
+  }
+
+  /** GET /queries-reports/financiero?desde=&hasta= (HU-6.4) */
+  financiero(desde: string, hasta: string): Observable<ReporteFinanciero> {
+    const params = new HttpParams().set('desde', desde).set('hasta', hasta);
+    return this.http.get<ReporteFinanciero>(`${this.api}/financiero`, { params });
   }
 }

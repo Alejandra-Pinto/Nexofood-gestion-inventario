@@ -7,24 +7,32 @@ import { ReportesService } from '../../../core/services/reportes.service';
 import { ToastService } from '../../../core/services/toast.service';
 import {
   fechaColombia,
+  formatoCop,
+  MSJ_SIN_MOVIMIENTOS_FINANCIEROS,
   MSJ_SIN_OPERACIONES,
   MSJ_SIN_PRODUCTOS_VENDIDOS,
   MSJ_SIN_VENTAS,
   PeriodoRapido,
   rangoDe,
+  ReporteFinanciero,
   ReporteProductosMasVendidos,
   ReporteVentas,
   ResumenPeriodo,
   TEXTO_MEDIO,
 } from '../../../core/models/reportes.model';
 import {
+  descargarReporteFinancieroCsv,
+  descargarReporteFinancieroPdf,
   descargarReporteProductosPdf,
   descargarReporteResumenPdf,
   descargarReporteVentasPdf,
 } from '../../../core/utils/reporte-pdf.util';
 
 /** Pestañas del reporte (como en el prototipo de Reportes) */
-type Pestana = 'resumen' | 'ventas' | 'productos';
+type Pestana = 'resumen' | 'ventas' | 'productos' | 'financiero';
+
+/** Filas por página de la tabla de movimientos financieros (solo presentación) */
+const MOVIMIENTOS_POR_PAGINA = 10;
 
 @Component({
   selector: 'app-reportes',
@@ -77,7 +85,29 @@ export class Reportes {
   // Productos más vendidos (HU-6.3)
   protected reporteProductos = signal<ReporteProductosMasVendidos | null>(null);
 
+  // Financiero (HU-6.4): todos los totales vienen del backend; aquí solo se presentan
+  protected readonly msjSinMovimientosFinancieros = MSJ_SIN_MOVIMIENTOS_FINANCIEROS;
+  protected readonly cop = formatoCop;
+  protected reporteFinanciero = signal<ReporteFinanciero | null>(null);
+  protected paginaMovimientos = signal(1);
+  protected totalPaginasMovimientos = computed(() =>
+    Math.max(1, Math.ceil((this.reporteFinanciero()?.movimientos.length ?? 0) / MOVIMIENTOS_POR_PAGINA)),
+  );
+  protected movimientosPagina = computed(() => {
+    const inicio = (this.paginaMovimientos() - 1) * MOVIMIENTOS_POR_PAGINA;
+    return (this.reporteFinanciero()?.movimientos ?? []).slice(inicio, inicio + MOVIMIENTOS_POR_PAGINA);
+  });
+  protected paginas = computed(() => Array.from({ length: this.totalPaginasMovimientos() }, (_, i) => i + 1));
+  /** Para las barras del desglose por medio de pago */
+  protected maxMedioFinanciero = computed(() =>
+    Math.max(1, ...(this.reporteFinanciero()?.ingresos.por_medio_pago ?? []).map((m) => m.total)),
+  );
+
   protected sinDatosReporte = computed(() => {
+    if (this.pestana() === 'financiero') {
+      const f = this.reporteFinanciero();
+      return !f || f.sin_movimientos;
+    }
     if (this.pestana() === 'ventas') {
       const v = this.reporteVentas();
       return !v || v.sin_ventas || (v.ventas || []).length === 0;
@@ -96,6 +126,8 @@ export class Reportes {
       this.pestana.set('ventas');
     } else if (tabParam === 'productos') {
       this.pestana.set('productos');
+    } else if (tabParam === 'financiero') {
+      this.pestana.set('financiero');
     }
     this.consultar();
   }
@@ -130,6 +162,22 @@ export class Reportes {
         error: (e: HttpErrorResponse) => {
           this.cargando.set(false);
           this.reporteVentas.set(null);
+          this.errorCarga.set(this.mensajeError(e));
+        },
+      });
+      return;
+    }
+
+    if (this.pestana() === 'financiero') {
+      this.service.financiero(this.desde(), this.hasta()).subscribe({
+        next: (r) => {
+          this.reporteFinanciero.set(r);
+          this.paginaMovimientos.set(1);
+          this.cargando.set(false);
+        },
+        error: (e: HttpErrorResponse) => {
+          this.cargando.set(false);
+          this.reporteFinanciero.set(null);
           this.errorCarga.set(this.mensajeError(e));
         },
       });
@@ -200,6 +248,21 @@ export class Reportes {
       return;
     }
 
+    if (this.pestana() === 'financiero') {
+      const f = this.reporteFinanciero();
+      if (!f) return;
+      try {
+        if (descargarReporteFinancieroPdf(f, this.rangoTexto())) {
+          this.toast.exito('Reporte financiero descargado en PDF correctamente.');
+        } else {
+          this.toast.error('No se pudo generar el archivo PDF del reporte financiero.');
+        }
+      } catch {
+        this.toast.error('Ocurrió un error al preparar el PDF del reporte financiero.');
+      }
+      return;
+    }
+
     if (this.pestana() === 'productos') {
       const p = this.reporteProductos();
       if (!p) return;
@@ -228,6 +291,28 @@ export class Reportes {
     } catch {
       this.toast.error('Ocurrió un error al preparar el PDF del resumen.');
     }
+  }
+
+  /** HU-6.4 · "Descargar Excel" del reporte financiero (CSV UTF-8 que abre Excel) */
+  descargarExcel(): void {
+    const f = this.reporteFinanciero();
+    if (!f || f.sin_movimientos) {
+      this.toast.error('No hay datos en el período seleccionado para exportar a Excel.');
+      return;
+    }
+    try {
+      if (descargarReporteFinancieroCsv(f)) {
+        this.toast.exito('Reporte financiero descargado para Excel correctamente.');
+      } else {
+        this.toast.error('No se pudo generar el archivo para Excel.');
+      }
+    } catch {
+      this.toast.error('Ocurrió un error al preparar el archivo para Excel.');
+    }
+  }
+
+  protected irAPaginaMovimientos(p: number): void {
+    if (p >= 1 && p <= this.totalPaginasMovimientos()) this.paginaMovimientos.set(p);
   }
 
   protected mensajeError(e: HttpErrorResponse): string {
