@@ -15,13 +15,25 @@ export interface ItemInventario {
   tipo_item: TipoItem;
   cantidad_stock: number;
   stock_minimo: number;
-  costo_fabricacion: number;
+  /**
+   * HU-2.2: confidencial. El backend SOLO lo envía al Administrador; para
+   * Cajero, Mesero o cualquier otro rol la propiedad no existe en el JSON.
+   */
+  costo_fabricacion?: number;
   precio_venta: number;
   estado_activo: boolean;
 }
 
 /** Datos que se envían al registrar (el id y el estado los pone el backend) */
-export type CrearItem = Omit<ItemInventario, 'id_item' | 'estado_activo'>;
+/** (solo el Administrador registra ítems, así que aquí el costo sí es obligatorio) */
+export type CrearItem = Omit<ItemInventario, 'id_item' | 'estado_activo' | 'costo_fabricacion'> & {
+  costo_fabricacion: number;
+};
+
+/** HU-2.2: true solo si el costo llegó del backend como número válido */
+export function tieneCosto(i: Pick<ItemInventario, 'costo_fabricacion'>): i is { costo_fabricacion: number } {
+  return typeof i.costo_fabricacion === 'number' && Number.isFinite(i.costo_fabricacion);
+}
 
 /** true si el stock actual llegó al mínimo -> etiqueta "Bajo" */
 export type NivelStock = 'ok' | 'bajo' | 'agotado';

@@ -28,6 +28,7 @@ import { InventarioService } from '../../../core/services/inventario.service';
 import { ToastService } from '../../../core/services/toast.service';
 import {
   ItemInventario,
+  tieneCosto,
   tieneStockBajo,
 } from '../../../core/models/item-inventario.model';
 import {
@@ -115,18 +116,33 @@ export class IngresoForm {
     return item ? tieneStockBajo(item) : false;
   });
 
-  /** Costo con el que se calcula el total: el digitado o, en producción, el del ítem */
-  private costoEfectivo = computed(() => {
+  /**
+   * Costo con el que se calcula el total: el digitado o, en producción, el del ítem.
+   * HU-2.2: el costo de fabricación solo llega al Administrador. Para los demás roles
+   * devuelve null (costo desconocido) en lugar de inventar un 0.
+   */
+  private costoEfectivo = computed<number | null>(() => {
     const costo = this.costoSel();
     if (costo && costo > 0) return costo;
-    return this.esCompra() ? 0 : (this.itemSeleccionado()?.costo_fabricacion ?? 0);
+    if (this.esCompra()) return 0;
+    const item = this.itemSeleccionado();
+    if (!item) return 0;
+    return tieneCosto(item) ? item.costo_fabricacion : null;
   });
 
-  /** Total del ingreso = cantidad x costo unitario (solo referencia visual) */
-  protected total = computed(() => {
+  /**
+   * Total del ingreso = cantidad x costo unitario (solo referencia visual).
+   * null -> no se puede calcular sin revelar el costo: el bloque "Total" no se muestra.
+   */
+  protected total = computed<number | null>(() => {
+    const costo = this.costoEfectivo();
+    if (costo === null) return null;
     const cantidad = this.cantidadSel() ?? 0;
-    return cantidad > 0 ? cantidad * this.costoEfectivo() : 0;
+    return cantidad > 0 ? cantidad * costo : 0;
   });
+
+  /** Para la plantilla: costo de fabricación del ítem seleccionado, solo si llegó */
+  protected readonly tieneCosto = tieneCosto;
 
   constructor() {
     this.cargarDatos();

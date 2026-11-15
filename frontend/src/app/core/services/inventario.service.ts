@@ -21,15 +21,23 @@ import {
   Proveedor,
 } from '../models/movimiento-inventario.model';
 
-/** El backend (PostgreSQL) puede devolver los NUMERIC como texto: se convierten a número */
-function normalizar(i: ItemInventario): ItemInventario {
-  return {
-    ...i,
+/**
+ * El backend (PostgreSQL) puede devolver los NUMERIC como texto: se convierten a número.
+ * HU-2.2: `costo_fabricacion` solo llega al Administrador. Si no vino, la propiedad
+ * NO se crea (Number(undefined) daría NaN y el pipe de moneda mostraría basura).
+ */
+export function normalizar(i: ItemInventario): ItemInventario {
+  const { costo_fabricacion, ...resto } = i;
+  const item: ItemInventario = {
+    ...resto,
     cantidad_stock: Number(i.cantidad_stock),
     stock_minimo: Number(i.stock_minimo),
-    costo_fabricacion: Number(i.costo_fabricacion),
     precio_venta: Number(i.precio_venta),
   };
+  if (costo_fabricacion !== undefined && costo_fabricacion !== null) {
+    item.costo_fabricacion = Number(costo_fabricacion);
+  }
+  return item;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -45,6 +53,11 @@ export class InventarioService {
     return this.http
       .get<ItemInventario[]>(`${this.api}/products`, { params })
       .pipe(map((lista) => lista.map(normalizar)));
+  }
+
+  /** GET /products/:id -> detalle de un ítem (HU-2.2: el costo solo llega al Administrador) */
+  obtener(id: number) {
+    return this.http.get<ItemInventario>(`${this.api}/products/${id}`).pipe(map(normalizar));
   }
 
   /** POST /products -> registra un producto o insumo */
