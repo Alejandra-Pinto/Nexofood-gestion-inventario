@@ -41,7 +41,7 @@
       <p class="membrete-sub">Sistema de Gestión de Restaurante — CORVSOFT</p>
     </div>
     <div class="membrete-meta">
-      <strong>{{ pestana() === 'ventas' ? 'REPORTE GENERAL DE VENTAS' : 'REPORTE RESUMEN DEL PERÍODO' }}</strong>
+      <strong>{{ pestana() === 'ventas' ? 'REPORTE GENERAL DE VENTAS' : pestana() === 'productos' ? 'REPORTE DE PRODUCTOS MÁS VENDIDOS' : 'REPORTE RESUMEN DEL PERÍODO' }}</strong>
       <span class="criterio-print">Período: {{ desde() | date: 'dd/MM/yyyy' }} – {{ hasta() | date: 'dd/MM/yyyy' }}</span>
       <span>Generado el: {{ hoy | date: 'dd/MM/yyyy' }}</span>
       <span>Usuario: Administrador</span>
@@ -53,6 +53,7 @@
 <nav class="tabs no-print" aria-label="Tipo de reporte">
   <button type="button" class="tab" [class.activa]="pestana() === 'resumen'" (click)="cambiarPestana('resumen')">Resumen del período</button>
   <button type="button" class="tab" [class.activa]="pestana() === 'ventas'" (click)="cambiarPestana('ventas')">Ventas</button>
+  <button type="button" class="tab" [class.activa]="pestana() === 'productos'" (click)="cambiarPestana('productos')">Productos más vendidos</button>
   <a class="tab" routerLink="/reportes/inventario">Inventario</a>
 </nav>
 
@@ -170,6 +171,67 @@
             </div>
           </section>
         </div>
+      }
+    }
+  } @else if (pestana() === 'productos') {
+    <!-- Reporte de productos más vendidos (HU-6.3) -->
+    @if (reporteProductos(); as rp) {
+      @if (rp.sin_ventas) {
+        <section class="card vacio" role="status">
+          <span class="vacio-icono" aria-hidden="true">∅</span>
+          <strong>{{ msjSinProductosVendidos }}</strong>
+          <p>Solo se cuentan los pedidos pagados. Pruebe con otro rango de fechas.</p>
+        </section>
+      } @else {
+        <!-- Cifras clave de productos -->
+        <section class="cifras">
+          <article class="card cifra destacada">
+            <span class="cifra-valor">{{ rp.total_unidades }}</span>
+            <strong>Unidades vendidas</strong>
+            <small>Total en el período</small>
+          </article>
+          <article class="card cifra">
+            <span class="cifra-valor">{{ rp.total_recaudado | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+            <strong>Total recaudado</strong>
+            <small>Ventas generadas por productos</small>
+          </article>
+          <article class="card cifra">
+            <span class="cifra-valor">{{ rp.productos[0]?.nombre || '—' }}</span>
+            <strong>Producto líder</strong>
+            <small>{{ rp.productos[0]?.unidades_vendidas || 0 }} unidades vendidas</small>
+          </article>
+        </section>
+
+        <!-- Tabla ranking de productos -->
+        <section class="card tabla-card">
+          <h2>Ranking por unidades vendidas</h2>
+          <div class="tabla-scroll">
+            <table class="tabla">
+              <thead>
+                <tr>
+                  <th style="width: 80px;">Posición</th>
+                  <th>Producto</th>
+                  <th class="num">Unidades vendidas</th>
+                  <th class="num">Total recaudado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (prod of rp.productos; track prod.id_item) {
+                  <tr>
+                    <td>
+                      <span class="posicion-badge" [class.oro]="prod.posicion === 1" [class.plata]="prod.posicion === 2" [class.bronce]="prod.posicion === 3">
+                        #{{ prod.posicion }}
+                      </span>
+                    </td>
+                    <td><strong>{{ prod.nombre }}</strong></td>
+                    <td class="num">{{ prod.unidades_vendidas }}</td>
+                    <td class="num">{{ prod.total_recaudado | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
       }
     }
   } @else if (resumen(); as r) {

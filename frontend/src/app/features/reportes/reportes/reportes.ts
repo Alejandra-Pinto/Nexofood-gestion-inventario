@@ -8,20 +8,23 @@ import { ToastService } from '../../../core/services/toast.service';
 import {
   fechaColombia,
   MSJ_SIN_OPERACIONES,
+  MSJ_SIN_PRODUCTOS_VENDIDOS,
   MSJ_SIN_VENTAS,
   PeriodoRapido,
   rangoDe,
+  ReporteProductosMasVendidos,
   ReporteVentas,
   ResumenPeriodo,
   TEXTO_MEDIO,
 } from '../../../core/models/reportes.model';
 import {
+  descargarReporteProductosPdf,
   descargarReporteResumenPdf,
   descargarReporteVentasPdf,
 } from '../../../core/utils/reporte-pdf.util';
 
 /** Pestañas del reporte (como en el prototipo de Reportes) */
-type Pestana = 'resumen' | 'ventas';
+type Pestana = 'resumen' | 'ventas' | 'productos';
 
 @Component({
   selector: 'app-reportes',
@@ -36,6 +39,7 @@ export class Reportes {
 
   protected readonly msjSinOperaciones = MSJ_SIN_OPERACIONES;
   protected readonly msjSinVentas = MSJ_SIN_VENTAS;
+  protected readonly msjSinProductosVendidos = MSJ_SIN_PRODUCTOS_VENDIDOS;
   protected readonly textoMedio = TEXTO_MEDIO;
   protected pestana = signal<Pestana>('resumen');
   protected readonly hoy = fechaColombia();
@@ -70,10 +74,17 @@ export class Reportes {
   /** Para las barras de "Ventas por medio de pago" */
   protected maxPorMedio = computed(() => Math.max(1, ...(this.reporteVentas()?.por_medio_pago ?? []).map((m) => m.total)));
 
+  // Productos más vendidos (HU-6.3)
+  protected reporteProductos = signal<ReporteProductosMasVendidos | null>(null);
+
   protected sinDatosReporte = computed(() => {
     if (this.pestana() === 'ventas') {
       const v = this.reporteVentas();
       return !v || v.sin_ventas || (v.ventas || []).length === 0;
+    }
+    if (this.pestana() === 'productos') {
+      const p = this.reporteProductos();
+      return !p || p.sin_ventas || (p.productos || []).length === 0;
     }
     const r = this.resumen();
     return !r || r.sin_operaciones;
@@ -83,6 +94,8 @@ export class Reportes {
     const tabParam = this.route.snapshot.queryParamMap.get('tab');
     if (tabParam === 'ventas') {
       this.pestana.set('ventas');
+    } else if (tabParam === 'productos') {
+      this.pestana.set('productos');
     }
     this.consultar();
   }
@@ -117,6 +130,21 @@ export class Reportes {
         error: (e: HttpErrorResponse) => {
           this.cargando.set(false);
           this.reporteVentas.set(null);
+          this.errorCarga.set(this.mensajeError(e));
+        },
+      });
+      return;
+    }
+
+    if (this.pestana() === 'productos') {
+      this.service.productosMasVendidos(this.desde(), this.hasta()).subscribe({
+        next: (r) => {
+          this.reporteProductos.set(r);
+          this.cargando.set(false);
+        },
+        error: (e: HttpErrorResponse) => {
+          this.cargando.set(false);
+          this.reporteProductos.set(null);
           this.errorCarga.set(this.mensajeError(e));
         },
       });
@@ -168,6 +196,22 @@ export class Reportes {
         }
       } catch {
         this.toast.error('Ocurrió un error al preparar el PDF de ventas.');
+      }
+      return;
+    }
+
+    if (this.pestana() === 'productos') {
+      const p = this.reporteProductos();
+      if (!p) return;
+      try {
+        const ok = descargarReporteProductosPdf(p, this.rangoTexto());
+        if (ok) {
+          this.toast.exito('Reporte de productos más vendidos descargado en PDF correctamente.');
+        } else {
+          this.toast.error('No se pudo generar el archivo PDF de productos más vendidos.');
+        }
+      } catch {
+        this.toast.error('Ocurrió un error al preparar el PDF de productos más vendidos.');
       }
       return;
     }
