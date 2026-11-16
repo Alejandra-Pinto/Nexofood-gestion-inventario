@@ -1,4 +1,5 @@
 /** Pantalla: IngresoFinanciero - Registrar ingresos no provenientes de ventas */
+import { FinancieroTabs } from '../../../shared/components/financiero-tabs/financiero-tabs';
 import { CurrencyPipe, DatePipe, TitleCasePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
@@ -15,7 +16,7 @@ import {
 
 @Component({
   selector: 'app-ingreso-financiero',
-  imports: [CurrencyPipe, DatePipe, TitleCasePipe],
+  imports: [CurrencyPipe, DatePipe, TitleCasePipe, FinancieroTabs],
   templateUrl: './ingreso-financiero.html',
   styleUrl: './ingreso-financiero.scss',
 })

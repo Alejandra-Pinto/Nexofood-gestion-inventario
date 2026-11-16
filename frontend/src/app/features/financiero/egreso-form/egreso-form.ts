@@ -5,11 +5,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ToastService } from '../../../core/services/toast.service';
 import { FinanzasService, EgresoFinanciero } from '../../../core/services/finanzas.service';
-
+import { FinancieroTabs } from '../../../shared/components/financiero-tabs/financiero-tabs';
+import { MEDIOS_PAGO } from '../../../core/models/pedido.model';
 @Component({
   selector: 'app-egreso-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FinancieroTabs],
   templateUrl: './egreso-form.html',
   styleUrl: './egreso-form.scss'
 })
@@ -35,7 +36,8 @@ export class EgresoFormComponent implements OnInit {
     { valor: 'otros', texto: 'Otros gastos' },
   ];
 
-  public mediosPago = ['EFECTIVO', 'TRANSFERENCIA', 'NEQUI', 'DAVIPLATA', 'TARJETA'];
+  public mediosPago = ['EFECTIVO', 'TRANSFERENCIA', 'NEQUI', 'DAVIPLATA', 'TARJETA']
+  public medios = MEDIOS_PAGO;
 
   // 4. Definición del formulario reactivo fuertemente tipado
   public form = this.fb.nonNullable.group({
@@ -104,5 +106,26 @@ export class EgresoFormComponent implements OnInit {
           this.toastService.error(err.error?.message || 'Error al registrar el egreso');
         }
       });
+  }
+    seleccionarMedio(valor: string) {
+    this.form.controls.medio_pago.setValue(valor);
+  }
+
+  limpiar() {
+    this.form.reset({
+      concepto: '',
+      monto: 0,
+      medio_pago: 'EFECTIVO',
+      categoria: 'otros',
+      observaciones: ''
+    });
+  }
+
+  textoCategoria(valor: string): string {
+    return this.categorias.find((c) => c.valor === valor)?.texto ?? valor;
+  }
+
+  textoMedio(valor: string): string {
+    return this.medios.find((m) => m.valor === valor)?.texto ?? valor;
   }
 }
