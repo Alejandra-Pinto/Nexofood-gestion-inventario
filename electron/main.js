@@ -312,7 +312,7 @@ function escaparHtml(texto) {
 function generarTicketHTML(comanda) {
   const p = comanda.pedido || {};
   const detalles = p.detalles || [];
-  const mesero = p.mesero?.nombre || 'N/A';
+  const mesero = p.mesero?.nombre_completo || p.mesero?.nombre || 'N/A';
   const mesa = p.numero_mesa ? `MESA ${p.numero_mesa}` : 'PARA LLEVAR';
   const hora = p.fecha_hora
     ? new Date(p.fecha_hora).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })

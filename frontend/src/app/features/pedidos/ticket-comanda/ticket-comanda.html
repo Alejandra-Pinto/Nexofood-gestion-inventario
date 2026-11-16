@@ -6,7 +6,7 @@
       <hr>
       <div class="fila"><span>PEDIDO</span> <span>#{{ pedido.id_pedido }}</span></div>
       <div class="fila"><span>MESA</span> <span>{{ pedido.numero_mesa || 'N/A' }}</span></div>
-      <div class="fila"><span>MESERO</span> <span>{{ pedido.mesero?.nombre || 'N/A' }}</span></div>
+      <div class="fila"><span>MESERO</span> <span>{{ pedido.mesero?.nombre_completo || pedido.mesero?.nombre || 'N/A' }}</span></div>
       <div class="fila"><span>HORA</span> <span>{{ pedido.fecha_hora | date:'shortTime' }}</span></div>
       <hr>
 
