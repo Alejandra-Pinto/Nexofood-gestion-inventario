@@ -664,7 +664,11 @@ export class OrdersService {
     }
 
     const { movimiento, cambio } = await this.dataSource.transaction(async (manager) => {
-      const pedido = await manager.findOne(Pedido, { where: { id_pedido: idPedido }, lock: { mode: 'pessimistic_write' } });
+      const pedido = await manager.findOne(Pedido, {
+        where: { id_pedido: idPedido },
+        relations: { detalles: true },
+        lock: { mode: 'pessimistic_write' },
+      });
       if (!pedido) throw new NotFoundException(`El pedido #${idPedido} no existe`);
       if (pedido.estado_pedido === EstadoPedido.ANULADO) throw new BadRequestException(`El pedido #${idPedido} está anulado y no se puede cobrar`);
 
@@ -688,6 +692,27 @@ export class OrdersService {
           medio_pago: dto.medio_pago,
         }),
       );
+
+      // HU-3.5 (CP-3.5-06): Descontar inventario al registrar el pago del pedido
+      const cantidadesPorItem = new Map<number, number>();
+      for (const d of pedido.detalles ?? []) {
+        const cant = Number(d.cantidad);
+        if (d.id_item && cant > 0) {
+          cantidadesPorItem.set(d.id_item, (cantidadesPorItem.get(d.id_item) ?? 0) + cant);
+        }
+      }
+
+      for (const [idItem, cantidadADescontar] of cantidadesPorItem) {
+        const item = await manager.findOne(ItemInventario, {
+          where: { id_item: idItem },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (item) {
+          const stockActual = Number(item.cantidad_stock);
+          const nuevoStock = Math.max(0, stockActual - cantidadADescontar);
+          await manager.update(ItemInventario, { id_item: idItem }, { cantidad_stock: nuevoStock });
+        }
+      }
 
       await manager.update(Pedido, { id_pedido: idPedido }, { estado_pedido: EstadoPedido.PAGADO });
       return { movimiento, cambio };
