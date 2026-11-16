@@ -18,6 +18,20 @@
       </svg>
       Imprimir
     </button>
+    @if (pestana() === 'financiero') {
+      <button
+        type="button"
+        class="btn btn-secundario"
+        [disabled]="cargando() || sinDatosReporte()"
+        (click)="descargarExcel()"
+        title="Descargar archivo para Excel (CSV)"
+      >
+        <svg class="icono-btn" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Descargar Excel
+      </button>
+    }
     <button
       type="button"
       class="btn btn-primario"
@@ -41,7 +55,7 @@
       <p class="membrete-sub">Sistema de Gestión de Restaurante — CORVSOFT</p>
     </div>
     <div class="membrete-meta">
-      <strong>{{ pestana() === 'ventas' ? 'REPORTE GENERAL DE VENTAS' : pestana() === 'productos' ? 'REPORTE DE PRODUCTOS MÁS VENDIDOS' : 'REPORTE RESUMEN DEL PERÍODO' }}</strong>
+      <strong>{{ pestana() === 'ventas' ? 'REPORTE GENERAL DE VENTAS' : pestana() === 'productos' ? 'REPORTE DE PRODUCTOS MÁS VENDIDOS' : pestana() === 'financiero' ? 'REPORTE FINANCIERO' : 'REPORTE RESUMEN DEL PERÍODO' }}</strong>
       <span class="criterio-print">Período: {{ desde() | date: 'dd/MM/yyyy' }} – {{ hasta() | date: 'dd/MM/yyyy' }}</span>
       <span>Generado el: {{ hoy | date: 'dd/MM/yyyy' }}</span>
       <span>Usuario: Administrador</span>
@@ -55,6 +69,7 @@
   <button type="button" class="tab" [class.activa]="pestana() === 'ventas'" (click)="cambiarPestana('ventas')">Ventas</button>
   <button type="button" class="tab" [class.activa]="pestana() === 'productos'" (click)="cambiarPestana('productos')">Productos más vendidos</button>
   <a class="tab" routerLink="/reportes/inventario">Inventario</a>
+  <button type="button" class="tab" [class.activa]="pestana() === 'financiero'" (click)="cambiarPestana('financiero')">Financiero</button>
 </nav>
 
 <div class="pagina">
@@ -169,6 +184,118 @@
                 </tbody>
               </table>
             </div>
+          </section>
+        </div>
+      }
+    }
+  } @else if (pestana() === 'financiero') {
+    <!-- Reporte financiero de ingresos y egresos (HU-6.4) -->
+    @if (reporteFinanciero(); as rf) {
+      @if (rf.sin_movimientos) {
+        <section class="card vacio" role="status" data-testid="fin-vacio">
+          <span class="vacio-icono" aria-hidden="true">∅</span>
+          <strong>{{ msjSinMovimientosFinancieros }}</strong>
+          <p>Pruebe con otro rango de fechas.</p>
+        </section>
+      } @else {
+        <!-- Balance: Ingresos, Egresos, Saldo neto + Consumo interno -->
+        <section class="cifras fin-cifras">
+          <article class="card cifra fin-card" data-testid="fin-ingresos">
+            <span class="fin-icono ingreso" aria-hidden="true">↑</span>
+            <small class="fin-etiqueta">INGRESOS</small>
+            <span class="cifra-valor verde">{{ cop(rf.ingresos.total) }}</span>
+            <small>Ventas {{ cop(rf.ingresos.ventas) }} · Otros {{ cop(rf.ingresos.manuales) }}</small>
+          </article>
+          <article class="card cifra fin-card" data-testid="fin-egresos">
+            <span class="fin-icono egreso" aria-hidden="true">↓</span>
+            <small class="fin-etiqueta">EGRESOS</small>
+            <span class="cifra-valor rojo">{{ cop(rf.egresos.total) }}</span>
+            <small>Compras a proveedores y servicios</small>
+          </article>
+          <article class="card cifra fin-card saldo" data-testid="fin-saldo">
+            <span class="fin-icono" aria-hidden="true">▣</span>
+            <small class="fin-etiqueta">SALDO NETO</small>
+            <span class="cifra-valor" [class.rojo]="rf.saldo_neto < 0">{{ cop(rf.saldo_neto) }}</span>
+            <small>Ingresos − Egresos del período</small>
+          </article>
+          <article class="card cifra fin-card consumo" data-testid="fin-consumo">
+            <span class="fin-icono" aria-hidden="true">◌</span>
+            <small class="fin-etiqueta">CONSUMO INTERNO</small>
+            <span class="cifra-valor">{{ cop(rf.consumo_interno.total_valorizado) }}</span>
+            <small>{{ rf.consumo_interno.unidades }} {{ rf.consumo_interno.unidades === 1 ? 'unidad' : 'unidades' }} a costo actual · <strong>No afecta el saldo</strong></small>
+            @if (rf.consumo_interno.items_sin_costo > 0) {
+              <small class="aviso">{{ rf.consumo_interno.items_sin_costo }} {{ rf.consumo_interno.items_sin_costo === 1 ? 'ítem sin costo registrado' : 'ítems sin costo registrado' }} ($0)</small>
+            }
+          </article>
+        </section>
+
+        <div class="ventas-grid">
+          <!-- Desglose de ingresos por medio de pago (criterio 2) -->
+          <section class="card medios-card" data-testid="fin-medios">
+            <h2>Ingresos por medio de pago</h2>
+            <div class="fin-subtotales">
+              <div><small>Efectivo</small><strong data-testid="fin-efectivo">{{ cop(rf.ingresos.efectivo) }}</strong></div>
+              <div><small>No efectivo</small><strong data-testid="fin-no-efectivo">{{ cop(rf.ingresos.no_efectivo) }}</strong></div>
+            </div>
+            <ul class="medios-lista">
+              @for (m of rf.ingresos.por_medio_pago; track m.medio_pago) {
+                <li>
+                  <div class="medio-fila">
+                    <span>{{ textoMedio[m.medio_pago] ?? m.medio_pago }} <small class="muted">({{ m.cantidad }})</small></span>
+                    <strong>{{ cop(m.total) }}</strong>
+                  </div>
+                  <div class="barra-medio"><span [style.width.%]="(m.total / maxMedioFinanciero()) * 100"></span></div>
+                </li>
+              }
+            </ul>
+            <p class="nota fin-nota">"No efectivo" agrupa transferencia, Nequi, Daviplata y tarjeta.</p>
+            @if (rf.compras_inventario.cantidad > 0) {
+              <p class="nota fin-nota" data-testid="fin-compras">
+                Compras de inventario registradas: {{ cop(rf.compras_inventario.total) }}
+                (no incluidas en egresos; egresos de compra a proveedores: {{ cop(rf.compras_inventario.egresos_compra_proveedores) }}).
+              </p>
+            }
+          </section>
+
+          <!-- Movimientos consolidados (Prototipo 16) -->
+          <section class="card tabla-card">
+            <h2>Movimientos</h2>
+            <div class="tabla-scroll">
+              <table class="tabla" data-testid="fin-movimientos">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Concepto</th>
+                    <th>Tipo</th>
+                    <th>Medio de pago</th>
+                    <th class="num">Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (m of movimientosPagina(); track m.id_movimiento) {
+                    <tr>
+                      <td>{{ m.fecha_hora | date: 'dd/MM/yyyy' : '-0500' }}</td>
+                      <td><strong>{{ m.concepto }}</strong></td>
+                      <td><span class="chip-tipo" [class.ingreso]="m.tipo === 'INGRESO'" [class.egreso]="m.tipo === 'EGRESO'">{{ m.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso' }}</span></td>
+                      <td>{{ textoMedio[m.medio_pago] ?? m.medio_pago }}</td>
+                      <td class="num"><strong>{{ cop(m.monto) }}</strong></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            @if (totalPaginasMovimientos() > 1) {
+              <nav class="paginador no-print" aria-label="Páginas de movimientos">
+                <button type="button" (click)="irAPaginaMovimientos(paginaMovimientos() - 1)" [disabled]="paginaMovimientos() === 1" aria-label="Anterior">‹</button>
+                @for (p of paginas(); track p) {
+                  <button type="button" [class.activa]="p === paginaMovimientos()" (click)="irAPaginaMovimientos(p)">{{ p }}</button>
+                }
+                <button type="button" (click)="irAPaginaMovimientos(paginaMovimientos() + 1)" [disabled]="paginaMovimientos() === totalPaginasMovimientos()" aria-label="Siguiente">›</button>
+              </nav>
+            }
+            @if (rf.movimientos_truncados) {
+              <p class="nota">Se muestran los {{ rf.movimientos.length }} movimientos más recientes de {{ rf.total_movimientos }}. Los totales incluyen todos.</p>
+            }
           </section>
         </div>
       }

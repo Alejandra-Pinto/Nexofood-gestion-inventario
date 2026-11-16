@@ -347,7 +347,14 @@ export function descargarHistorialPedidosPdf(
 }
 
 
-import { ReporteProductosMasVendidos, ReporteVentas, ResumenPeriodo, TEXTO_MEDIO } from '../models/reportes.model';
+import {
+  formatoCop,
+  ReporteFinanciero,
+  ReporteProductosMasVendidos,
+  ReporteVentas,
+  ResumenPeriodo,
+  TEXTO_MEDIO,
+} from '../models/reportes.model';
 
 /**
  * Descarga el resumen de operaciones por período en formato PDF estándar.
@@ -673,4 +680,138 @@ export function descargarReporteProductosPdf(
   const nombreFinal = nombreArchivo || `reporte-productos-${reporte.desde}-al-${reporte.hasta}.pdf`;
   dispararDescargaBlob(blob, nombreFinal);
   return true;
+}
+
+/**
+ * HU-6.4 · Descarga el reporte financiero (balance, medios de pago y movimientos) en PDF.
+ * Usa los totales que calculó el backend; no recalcula nada.
+ */
+export function descargarReporteFinancieroPdf(
+  reporte: ReporteFinanciero,
+  rangoTexto = '',
+  nombreArchivo?: string,
+): boolean {
+  if (!reporte || reporte.sin_movimientos) return false;
+
+  const pageStreams: string[] = [];
+  let currentStream: string[] = [];
+  let y = 740;
+  const write = (cmd: string) => currentStream.push(cmd);
+  const texto = (fuente: 'F1' | 'F2', tam: number, x: number, yy: number, t: string) =>
+    write(`BT /${fuente} ${tam} Tf ${x} ${yy} Td (${sanitizarTextoPdf(t)}) Tj ET`);
+
+  function encabezado() {
+    write('0.42 0.12 0.13 rg');
+    write('BT /F2 14 Tf 40 750 Td (CHORI COMPANY - SISTEMA DE GESTION) Tj ET');
+    write('0 0 0 rg');
+    write('BT /F2 10 Tf 40 735 Td (REPORTE FINANCIERO DE INGRESOS Y EGRESOS) Tj ET');
+    write('0.4 0.4 0.4 rg');
+    const periodoTxt = rangoTexto || `${reporte.desde} a ${reporte.hasta}`;
+    texto('F1', 8, 40, 722, `Generado el: ${new Date().toLocaleString('es-CO')} | Periodo: ${periodoTxt}`);
+    write('0 0 0 rg');
+  }
+
+  function cabeceraTabla() {
+    write('0.9 0.9 0.9 rg');
+    write(`40 ${y - 14} 532 16 re f`);
+    write('0.2 0.2 0.2 rg');
+    texto('F2', 7.5, 44, y - 10, 'FECHA');
+    texto('F2', 7.5, 110, y - 10, 'CONCEPTO');
+    texto('F2', 7.5, 330, y - 10, 'TIPO');
+    texto('F2', 7.5, 390, y - 10, 'MEDIO DE PAGO');
+    texto('F2', 7.5, 495, y - 10, 'MONTO');
+    write('0 0 0 rg');
+    y -= 26;
+  }
+
+  encabezado();
+
+  // Balance
+  write('0.95 0.95 0.95 rg');
+  write('40 640 532 70 re f');
+  write('0 0 0 rg');
+  texto('F2', 9, 48, 692, `Ingresos: ${formatoCop(reporte.ingresos.total)}   |   Egresos: ${formatoCop(reporte.egresos.total)}   |   Saldo neto: ${formatoCop(reporte.saldo_neto)}`);
+  texto('F1', 8, 48, 677, `Ventas: ${formatoCop(reporte.ingresos.ventas)}  |  Otros ingresos: ${formatoCop(reporte.ingresos.manuales)}  |  Efectivo: ${formatoCop(reporte.ingresos.efectivo)}  |  No efectivo: ${formatoCop(reporte.ingresos.no_efectivo)}`);
+  const medios = reporte.ingresos.por_medio_pago.map((m) => `${TEXTO_MEDIO[m.medio_pago] || m.medio_pago}: ${formatoCop(m.total)}`).join('  |  ');
+  texto('F1', 7.5, 48, 663, `Por medio: ${medios}`);
+  texto('F1', 7.5, 48, 649, `Consumo interno (no afecta el saldo): ${formatoCop(reporte.consumo_interno.total_valorizado)} - ${reporte.consumo_interno.unidades} unidades a costo actual`);
+  y = 620;
+  cabeceraTabla();
+
+  reporte.movimientos.forEach((m, i) => {
+    if (y < 55) {
+      pageStreams.push(currentStream.join('\n'));
+      currentStream = [];
+      encabezado();
+      y = 705;
+      cabeceraTabla();
+    }
+    if (i % 2 === 1) {
+      write('0.98 0.98 0.98 rg');
+      write(`40 ${y - 3} 532 14 re f`);
+      write('0 0 0 rg');
+    }
+    texto('F1', 7.5, 44, y, new Date(m.fecha_hora).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' }));
+    texto('F1', 7.5, 110, y, m.concepto.substring(0, 42));
+    texto('F1', 7.5, 330, y, m.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso');
+    texto('F1', 7.5, 390, y, TEXTO_MEDIO[m.medio_pago] || m.medio_pago);
+    texto('F2', 7.5, 495, y, `${m.tipo === 'EGRESO' ? '-' : ''}${formatoCop(m.monto)}`);
+    y -= 14;
+  });
+
+  if (reporte.movimientos_truncados) {
+    if (y < 55) {
+      pageStreams.push(currentStream.join('\n'));
+      currentStream = [];
+      encabezado();
+      y = 705;
+    }
+    texto('F1', 7, 44, y - 4, `Se muestran ${reporte.movimientos.length} de ${reporte.total_movimientos} movimientos. Los totales incluyen todos.`);
+  }
+
+  pageStreams.push(currentStream.join('\n'));
+  dispararDescargaBlob(ensamblarPdf(pageStreams), nombreArchivo || `reporte-financiero-${reporte.desde}-al-${reporte.hasta}.pdf`);
+  return true;
+}
+
+/** Escapa un campo CSV (separador ';') */
+function campoCsv(valor: string | number): string {
+  const s = String(valor);
+  return /[";\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/**
+ * HU-6.4 · "Descargar Excel": CSV UTF-8 con BOM y separador ';' (lo abre bien
+ * Excel en español sin librerías). Devuelve el texto generado, o null si no hay datos.
+ */
+export function descargarReporteFinancieroCsv(reporte: ReporteFinanciero, nombreArchivo?: string): string | null {
+  if (!reporte || reporte.sin_movimientos) return null;
+  const filas: (string | number)[][] = [
+    ['Reporte financiero', `${reporte.desde} a ${reporte.hasta}`],
+    [],
+    ['Ingresos', reporte.ingresos.total],
+    ['  Ventas', reporte.ingresos.ventas],
+    ['  Otros ingresos', reporte.ingresos.manuales],
+    ...reporte.ingresos.por_medio_pago.map((m) => [`  ${TEXTO_MEDIO[m.medio_pago] || m.medio_pago}`, m.total]),
+    ['  Efectivo', reporte.ingresos.efectivo],
+    ['  No efectivo', reporte.ingresos.no_efectivo],
+    ['Egresos', reporte.egresos.total],
+    ...reporte.egresos.por_categoria.map((c) => [`  ${c.etiqueta}`, c.total]),
+    ['Saldo neto', reporte.saldo_neto],
+    ['Consumo interno (no afecta el saldo)', reporte.consumo_interno.total_valorizado],
+    ['Compras de inventario (informativo, no incluido en egresos)', reporte.compras_inventario.total],
+    [],
+    ['Fecha', 'Concepto', 'Tipo', 'Medio de pago', 'Monto'],
+    ...reporte.movimientos.map((m) => [
+      new Date(m.fecha_hora).toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
+      m.concepto,
+      m.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso',
+      TEXTO_MEDIO[m.medio_pago] || m.medio_pago,
+      m.tipo === 'EGRESO' ? -m.monto : m.monto,
+    ]),
+  ];
+  const csv = filas.map((f) => f.map(campoCsv).join(';')).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  dispararDescargaBlob(blob, nombreArchivo || `reporte-financiero-${reporte.desde}-al-${reporte.hasta}.csv`);
+  return csv;
 }
