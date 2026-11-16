@@ -179,4 +179,85 @@ describe('OrdersService - HU-3.1 Concurrencia de pedidos por mesa', () => {
       await expect(service.crear(dtoMesa6, 1)).rejects.toThrow('La mesa 6 ya tiene un pedido activo');
     });
   });
+
+  describe('Máquina de estados · HU-3.4 Seguimiento del estado del pedido', () => {
+    const mockPedidoConEstado = (estado: EstadoPedido) => ({
+      id_pedido: 10,
+      numero_mesa: 2,
+      estado_pedido: estado,
+      total_calculado: 25000,
+      detalles: [],
+    });
+
+    it('CP-3.4-05 / DEF-003: no permite saltarse el cobro cambiando estado a PAGADO directamente', async () => {
+      await expect(
+        service.cambiarEstado(10, { estado_pedido: EstadoPedido.PAGADO }),
+      ).rejects.toThrow(
+        /El estado PAGADO no se puede asignar directamente mediante este endpoint/,
+      );
+    });
+
+    it('CP-3.4-06 / DEF-004: no permite saltarse la anulación cambiando estado a ANULADO directamente', async () => {
+      await expect(
+        service.cambiarEstado(10, { estado_pedido: EstadoPedido.ANULADO }),
+      ).rejects.toThrow(
+        /El estado ANULADO no se puede asignar directamente mediante este endpoint/,
+      );
+    });
+
+    it('CP-3.4-02: permite avanzar de PENDIENTE a EN_PREPARACION', async () => {
+      const pedido = mockPedidoConEstado(EstadoPedido.PENDIENTE);
+      const mockManager = {
+        findOne: jest.fn().mockResolvedValue(pedido),
+        save: jest.fn().mockImplementation((p) => Promise.resolve(p)),
+      } as unknown as EntityManager;
+      dataSourceMock.transaction.mockImplementation(async (cb) => cb(mockManager));
+      pedidosRepoMock.findOne.mockResolvedValue({ ...pedido, estado_pedido: EstadoPedido.EN_PREPARACION });
+
+      const actualizado = await service.cambiarEstado(10, { estado_pedido: EstadoPedido.EN_PREPARACION });
+      expect(pedido.estado_pedido).toBe(EstadoPedido.EN_PREPARACION);
+      expect(actualizado.estado_pedido).toBe(EstadoPedido.EN_PREPARACION);
+    });
+
+    it('CP-3.4-03: permite avanzar de EN_PREPARACION a LISTO', async () => {
+      const pedido = mockPedidoConEstado(EstadoPedido.EN_PREPARACION);
+      const mockManager = {
+        findOne: jest.fn().mockResolvedValue(pedido),
+        save: jest.fn().mockImplementation((p) => Promise.resolve(p)),
+      } as unknown as EntityManager;
+      dataSourceMock.transaction.mockImplementation(async (cb) => cb(mockManager));
+      pedidosRepoMock.findOne.mockResolvedValue({ ...pedido, estado_pedido: EstadoPedido.LISTO });
+
+      const actualizado = await service.cambiarEstado(10, { estado_pedido: EstadoPedido.LISTO });
+      expect(pedido.estado_pedido).toBe(EstadoPedido.LISTO);
+      expect(actualizado.estado_pedido).toBe(EstadoPedido.LISTO);
+    });
+
+    it('CP-3.4-04: permite avanzar de LISTO a ENTREGADO', async () => {
+      const pedido = mockPedidoConEstado(EstadoPedido.LISTO);
+      const mockManager = {
+        findOne: jest.fn().mockResolvedValue(pedido),
+        save: jest.fn().mockImplementation((p) => Promise.resolve(p)),
+      } as unknown as EntityManager;
+      dataSourceMock.transaction.mockImplementation(async (cb) => cb(mockManager));
+      pedidosRepoMock.findOne.mockResolvedValue({ ...pedido, estado_pedido: EstadoPedido.ENTREGADO });
+
+      const actualizado = await service.cambiarEstado(10, { estado_pedido: EstadoPedido.ENTREGADO });
+      expect(pedido.estado_pedido).toBe(EstadoPedido.ENTREGADO);
+      expect(actualizado.estado_pedido).toBe(EstadoPedido.ENTREGADO);
+    });
+
+    it('rechaza transiciones inválidas (ej. PENDIENTE a LISTO directamente o ENTREGADO a PENDIENTE)', async () => {
+      const pedido = mockPedidoConEstado(EstadoPedido.PENDIENTE);
+      const mockManager = {
+        findOne: jest.fn().mockResolvedValue(pedido),
+        save: jest.fn().mockImplementation((p) => Promise.resolve(p)),
+      } as unknown as EntityManager;
+      dataSourceMock.transaction.mockImplementation(async (cb) => cb(mockManager));
+
+      await expect(
+        service.cambiarEstado(10, { estado_pedido: EstadoPedido.LISTO }),
+      ).rejects.toThrow(/Transición inválida/);
+    });
+  });
 });
