@@ -88,4 +88,20 @@ describe('TicketComandaComponent', () => {
     expect(ticket.querySelector('.cambios-version')).toBeNull();
     expect(ticket.querySelector('.pie-version')?.textContent).toMatch(/· v1$/);
   });
+
+  it('HU-4.1 (CP-4.1-05 / DEF-008): muestra el nombre del mesero (nombre_completo) en el ticket', () => {
+    const pedidoConNombreCompleto: Pedido = {
+      ...pedido,
+      mesero: { nombre_completo: 'Mesero QA' },
+    };
+    fixture.componentRef.setInput('pedido', pedidoConNombreCompleto);
+    fixture.componentRef.setInput('visible', true);
+    fixture.detectChanges();
+
+    const ticket = fixture.nativeElement as HTMLElement;
+    const filas = Array.from(ticket.querySelectorAll('.fila'));
+    const filaMesero = filas.find((f) => f.textContent?.includes('MESERO'));
+    expect(filaMesero?.textContent).toContain('Mesero QA');
+    expect(filaMesero?.textContent).not.toContain('N/A');
+  });
 });
