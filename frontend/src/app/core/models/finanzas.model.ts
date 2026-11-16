@@ -45,6 +45,36 @@ export interface ListaIngresos {
   ingresos: IngresoFinanciero[];
 }
 
+// ---------- HU-7.3 Historial de ingresos y egresos ----------
+export type TipoMovimiento = 'INGRESO' | 'EGRESO';
+
+/** Un movimiento del historial: cobro de pedido, ingreso manual o egreso */
+export interface MovimientoHistorial {
+  id_movimiento: number;
+  fecha_hora: string;
+  tipo_movimiento: TipoMovimiento;
+  origen: 'VENTA' | 'MANUAL';
+  concepto: string;
+  monto: number;
+  medio_pago: MedioPago;
+  id_pedido: number | null;
+  registrado_por: string | null;
+}
+
+export interface TotalesFinancieros {
+  ingresos: number;
+  egresos: number;
+  /** Ingresos - Egresos */
+  saldo: number;
+}
+
+/** Respuesta de GET /finance/movimientos */
+export interface HistorialFinanciero {
+  resumen: TotalesFinancieros;
+  por_medio: (TotalesFinancieros & { medio_pago: MedioPago })[];
+  movimientos: MovimientoHistorial[];
+}
+
 /** Mensaje de error del monto escrito en el formulario, o null si es válido. */
 export function errorMonto(texto: string): string | null {
   const t = texto.trim();

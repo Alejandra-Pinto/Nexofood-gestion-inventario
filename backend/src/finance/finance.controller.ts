@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
-import { FinanceService, EgresoFinanciero, IngresoFinanciero, ListaEgresos, ListaIngresos } from './finance.service';
+import { FinanceService, EgresoFinanciero, HistorialFinanciero, IngresoFinanciero, ListaEgresos, ListaIngresos } from './finance.service';
 import { CreateIngresoFinancieroDto } from './dto/create-ingreso-financiero.dto';
 import { CreateEgresoFinancieroDto } from './dto/create-egreso-financiero.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -23,6 +23,13 @@ export class FinanceController {
   @Get('ingresos')
   listarIngresos(@Query('desde') desde?: string, @Query('hasta') hasta?: string): Promise<ListaIngresos> {
     return this.financeService.listarIngresos(desde, hasta);
+  }
+
+  /** HU-7.3 Historial de ingresos y egresos con el saldo neto actual (Administrador y Cajero) */
+  @Get('movimientos')
+  @Roles(RolUsuario.ADMINISTRADOR, RolUsuario.CAJERO)
+  historial(): Promise<HistorialFinanciero> {
+    return this.financeService.historial();
   }
 
   @Post('egresos')
