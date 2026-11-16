@@ -1,47 +1,40 @@
-<div class="contenedor-financiero">
-  <header class="encabezado-pagina">
-    <h1>Registrar egreso</h1>
-    <p>Registra los gastos operativos del negocio para mantener actualizado el flujo de caja.</p>
-  </header>
+<app-financiero-tabs />
 
-  <div class="layout-dos-columnas">
-    <!-- Formulario -->
-    <div class="card formulario-card">
-      <div class="card-header">
-        <h2>Nuevo egreso</h2>
-        <span class="badge-egreso">Egreso</span>
+<header class="encabezado">
+  <div>
+    <h1>Registrar egreso</h1>
+    <p class="subtitulo">Registra los gastos operativos del negocio para mantener actualizado el flujo de caja.</p>
+  </div>
+</header>
+
+<div class="pagina">
+  <section class="card formulario">
+    <div class="titulo-form">
+      <h2>Nuevo egreso</h2>
+      <span class="chip-egreso">Egreso</span>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+      <div class="campo">
+        <label for="concepto">Concepto <span class="obligatorio">*</span></label>
+        <input id="concepto" type="text" maxlength="120" formControlName="concepto"
+          placeholder="Ej: Pago de servicios públicos" [class.invalido]="campoInvalido('concepto')" />
+        @if (campoInvalido('concepto')) {
+          <small class="error-txt">⚠ El concepto es obligatorio (máx. 120 caracteres).</small>
+        }
       </div>
 
-      <form [formGroup]="form" (ngSubmit)="guardar()" class="formulario" novalidate>
-        
+      <div class="fila">
         <div class="campo">
-          <label for="concepto">Concepto <span class="obligatorio">*</span></label>
-          <input id="concepto" type="text" formControlName="concepto" placeholder="Ej: Pago de servicios públicos" [class.invalido]="campoInvalido('concepto')">
-          @if (campoInvalido('concepto')) {
-            <small class="error-texto">El concepto es obligatorio (máx. 120 caracteres).</small>
+          <label for="monto">Monto <span class="obligatorio">*</span></label>
+          <div class="moneda">
+            <span>$</span>
+            <input id="monto" type="number" min="1" step="1" placeholder="0"
+              formControlName="monto" [class.invalido]="campoInvalido('monto')" />
+          </div>
+          @if (campoInvalido('monto')) {
+            <small class="error-txt">⚠ El monto debe ser mayor a 0.</small>
           }
-        </div>
-
-        <div class="fila">
-          <div class="campo">
-            <label for="monto">Monto <span class="obligatorio">*</span></label>
-            <div class="input-moneda" [class.invalido]="campoInvalido('monto')">
-              <span>$</span>
-              <input id="monto" type="number" formControlName="monto" placeholder="0">
-            </div>
-            @if (campoInvalido('monto')) {
-              <small class="error-texto">El monto debe ser mayor a 0.</small>
-            }
-          </div>
-
-          <div class="campo">
-            <label for="medio_pago">Medio de pago <span class="obligatorio">*</span></label>
-            <select id="medio_pago" formControlName="medio_pago">
-              @for (medio of mediosPago; track medio) {
-                <option [value]="medio">{{ medio }}</option>
-              }
-            </select>
-          </div>
         </div>
 
         <div class="campo">
@@ -52,53 +45,66 @@
             }
           </select>
         </div>
-
-        <div class="campo">
-          <label for="observaciones">Observaciones (opcional)</label>
-          <textarea id="observaciones" formControlName="observaciones" rows="2" placeholder="Ej: Recibo #123" [class.invalido]="campoInvalido('observaciones')"></textarea>
-          @if (campoInvalido('observaciones')) {
-            <small class="error-texto">Máximo 255 caracteres.</small>
-          }
-        </div>
-
-        <div class="acciones">
-          <button type="submit" class="btn-primario" [disabled]="isSaving()">
-            {{ isSaving() ? 'Guardando...' : 'Registrar egreso' }}
-          </button>
-        </div>
-      </form>
-    </div>
-
-    <!-- Panel Derecho (Reactivo a los Signals) -->
-    <div class="card info-card">
-      <div class="info-header">
-        <h3>Egresos del mes</h3>
-        <!-- Usamos el pipe de Angular para formatear a pesos -->
-        <span class="monto">{{ totalEgresosMes() | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
       </div>
-      
-      @if (listaEgresos().length === 0) {
-        <div class="empty-state">
-          <p>Aún no hay egresos este mes</p>
-          <span>Los gastos que registre aparecerán aquí.</span>
-        </div>
-      } @else {
-        <div class="lista-egresos">
-                    @for (egreso of listaEgresos(); track egreso.id_movimiento) {
-            <div class="egreso-item">
-              <div class="egreso-info">
-                <span class="egreso-concepto">{{ egreso.concepto }}</span>
-                <!-- Agregamos la categoría o la observación si existe -->
-                @if (egreso.observaciones) {
-                  <span class="egreso-observacion">{{ egreso.observaciones }}</span>
-                }
-                <span class="egreso-fecha">{{ egreso.fecha_hora | date:'dd/MM/yyyy' }}</span>
-              </div>
-              <span class="egreso-monto">- {{ egreso.monto | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
-            </div>
-          }
-        </div>
-      }
+
+      <span class="etiqueta">Medio de pago <span class="obligatorio">*</span></span>
+      <div class="medios" role="radiogroup" aria-label="Medio de pago">
+        @for (m of medios; track m.valor) {
+          <button type="button" class="medio" role="radio"
+            [attr.aria-checked]="form.controls.medio_pago.value === m.valor"
+            [class.seleccionado]="form.controls.medio_pago.value === m.valor"
+            (click)="seleccionarMedio(m.valor)">
+            {{ m.texto }}
+          </button>
+        }
+      </div>
+
+      <div class="campo campo-obs">
+        <label for="observaciones">Soporte / observaciones (opcional)</label>
+        <textarea id="observaciones" rows="3" maxlength="255" formControlName="observaciones"
+          placeholder="Ej: Recibo #123" [class.invalido]="campoInvalido('observaciones')"></textarea>
+        @if (campoInvalido('observaciones')) {
+          <small class="error-txt">⚠ Máximo 255 caracteres.</small>
+        }
+      </div>
+
+      <div class="acciones">
+        <button type="button" class="btn btn-secundario" [disabled]="isSaving()" (click)="limpiar()">Cancelar</button>
+        <button type="submit" class="btn btn-primario" [disabled]="isSaving()">
+          {{ isSaving() ? 'Guardando...' : 'Registrar egreso' }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card lista">
+    <div class="lista-encabezado">
+      <h2>Egresos del mes</h2>
+      <strong class="total">{{ totalEgresosMes() | currency:'COP':'symbol-narrow':'1.0-0' }}</strong>
     </div>
-  </div>
+
+    @if (listaEgresos().length === 0) {
+      <div class="vacio">
+        <strong>Aún no hay egresos este mes</strong>
+        <p>Los gastos que registre aparecerán aquí.</p>
+      </div>
+    } @else {
+      <ul class="egresos">
+        @for (egreso of listaEgresos(); track egreso.id_movimiento) {
+          <li>
+            <div class="egreso-info">
+              <strong>{{ egreso.concepto }}</strong>
+              @if (egreso.observaciones) {
+                <small class="muted">{{ egreso.observaciones }}</small>
+              }
+              <small class="muted">
+                {{ egreso.fecha_hora | date:'dd/MM/yyyy' }} · {{ textoCategoria(egreso.categoria) }} · {{ textoMedio(egreso.medio_pago) }}
+              </small>
+            </div>
+            <span class="monto">-{{ egreso.monto | currency:'COP':'symbol-narrow':'1.0-0' }}</span>
+          </li>
+        }
+      </ul>
+    }
+  </section>
 </div>
