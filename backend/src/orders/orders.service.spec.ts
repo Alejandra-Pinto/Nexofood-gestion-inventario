@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, EntityManager, QueryFailedError } from 'typeorm';
@@ -8,6 +8,7 @@ import { ItemInventario, TipoItem } from '../products/entities/item-inventario.e
 import { CreatePedidoDto } from './dto/create-pedido.dto';
 import { Comanda } from '../kitchen/entities/comanda.entity';
 import { DetallePedido } from './entities/detalle-pedido.entity';
+import { MedioPago, MovimientoFinanciero, TipoMovimientoFinanciero } from '../finance/entities/movimiento-financiero.entity';
 
 describe('OrdersService - HU-3.1 Concurrencia de pedidos por mesa', () => {
   let service: OrdersService;
@@ -258,6 +259,137 @@ describe('OrdersService - HU-3.1 Concurrencia de pedidos por mesa', () => {
       await expect(
         service.cambiarEstado(10, { estado_pedido: EstadoPedido.LISTO }),
       ).rejects.toThrow(/Transición inválida/);
+    });
+  });
+
+  describe('Registro de pago y descuento de inventario · HU-3.5 (CP-3.5-06)', () => {
+    it('CP-3.5-06: al pagar un pedido descuenta el stock de inventario del producto vendido', async () => {
+      const itemChoripan = {
+        id_item: 5,
+        nombre: 'Choripán Criollo',
+        cantidad_stock: 60,
+      };
+
+      const pedidoConDetalles = {
+        id_pedido: 20,
+        estado_pedido: EstadoPedido.ENTREGADO,
+        total_calculado: 32000,
+        detalles: [
+          { id_item: 5, cantidad: 2 },
+        ],
+      };
+
+      const itemsActualizados = new Map<number, number>();
+
+      const mockManager = {
+        findOne: jest.fn().mockImplementation((entity, opts) => {
+          if (entity === Pedido) return Promise.resolve(pedidoConDetalles);
+          if (entity === MovimientoFinanciero) return Promise.resolve(null);
+          if (entity === ItemInventario) {
+            const id = opts?.where?.id_item;
+            if (id === 5) return Promise.resolve({ ...itemChoripan });
+          }
+          return Promise.resolve(null);
+        }),
+        create: jest.fn((entity, data) => ({ ...data, __entity: entity })),
+        save: jest.fn().mockImplementation((obj) => Promise.resolve({ id_movimiento: 1, ...obj })),
+        update: jest.fn().mockImplementation((entity, criteria, values) => {
+          if (entity === ItemInventario) {
+            itemsActualizados.set(criteria.id_item, values.cantidad_stock);
+          }
+          if (entity === Pedido) {
+            pedidoConDetalles.estado_pedido = values.estado_pedido;
+          }
+          return Promise.resolve({ affected: 1 });
+        }),
+      } as unknown as EntityManager;
+
+      dataSourceMock.transaction.mockImplementation(async (cb) => cb(mockManager));
+      pedidosRepoMock.findOne.mockResolvedValue({
+        ...pedidoConDetalles,
+        estado_pedido: EstadoPedido.PAGADO,
+      });
+
+      const resultado = await service.registrarPago(
+        20,
+        { medio_pago: MedioPago.NEQUI },
+        1,
+      );
+
+      expect(resultado).toBeDefined();
+      expect(resultado.movimiento.monto).toBe(32000);
+      expect(resultado.movimiento.medio_pago).toBe(MedioPago.NEQUI);
+      // El stock pasa de 60 a 58 tras vender 2 unidades
+      expect(itemsActualizados.get(5)).toBe(58);
+      expect(mockManager.update).toHaveBeenCalledWith(
+        ItemInventario,
+        { id_item: 5 },
+        { cantidad_stock: 58 },
+      );
+    });
+
+    it('calcula cambio en pagos con efectivo y rechaza montos inferiores', async () => {
+      const pedido = {
+        id_pedido: 21,
+        estado_pedido: EstadoPedido.ENTREGADO,
+        total_calculado: 25000,
+        detalles: [],
+      };
+
+      const mockManager = {
+        findOne: jest.fn().mockImplementation((entity) => {
+          if (entity === Pedido) return Promise.resolve(pedido);
+          return Promise.resolve(null);
+        }),
+        create: jest.fn((entity, data) => ({ ...data, __entity: entity })),
+        save: jest.fn().mockImplementation((obj) => Promise.resolve({ id_movimiento: 2, ...obj })),
+        update: jest.fn().mockResolvedValue({ affected: 1 }),
+      } as unknown as EntityManager;
+
+      dataSourceMock.transaction.mockImplementation(async (cb) => cb(mockManager));
+      pedidosRepoMock.findOne.mockResolvedValue({
+        ...pedido,
+        estado_pedido: EstadoPedido.PAGADO,
+      });
+
+      // Pago con $30.000 para pedido de $25.000 -> cambio $5.000
+      const res = await service.registrarPago(
+        21,
+        { medio_pago: MedioPago.EFECTIVO, monto_recibido: 30000 },
+        1,
+      );
+      expect(res.cambio).toBe(5000);
+
+      // Pago con monto insuficiente ($20.000 para $25.000)
+      await expect(
+        service.registrarPago(
+          21,
+          { medio_pago: MedioPago.EFECTIVO, monto_recibido: 20000 },
+          1,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rechaza el cobro si el pedido ya fue pagado', async () => {
+      const pedidoPagado = {
+        id_pedido: 22,
+        estado_pedido: EstadoPedido.PAGADO,
+        total_calculado: 15000,
+        detalles: [],
+      };
+
+      const mockManager = {
+        findOne: jest.fn().mockImplementation((entity) => {
+          if (entity === Pedido) return Promise.resolve(pedidoPagado);
+          return Promise.resolve(null);
+        }),
+      } as unknown as EntityManager;
+
+      dataSourceMock.transaction.mockImplementation(async (cb) => cb(mockManager));
+
+      await expect(
+        service.registrarPago(22, { medio_pago: MedioPago.NEQUI }, 1),
+      ).rejects.toThrow(ConflictException);
     });
   });
 });

@@ -2,6 +2,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { IngresoFinanciero } from './ingreso-financiero';
 import { ListaIngresos } from '../../../core/models/finanzas.model';
 import { environment } from '../../../../environments/environment';
@@ -29,7 +30,7 @@ describe('IngresoFinanciero', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [IngresoFinanciero],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
   });

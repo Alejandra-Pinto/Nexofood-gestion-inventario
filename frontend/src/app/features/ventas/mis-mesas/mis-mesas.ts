@@ -34,9 +34,15 @@ export class MisMesas {
 
   protected nombreUsuario = computed(() => this.auth.usuarioActual()?.nombre ?? 'Mesero');
   /** El cajero y el administrador también pueden tomar pedidos para llevar */
-  protected puedeParaLlevar = computed(() => this.auth.usuarioActual()?.rol !== 'Mesero');
-  /** Solo Cajero y Administrador cobran: el mesero no ve el acceso (O-03) */
-  protected puedeCobrar = computed(() => this.auth.usuarioActual()?.rol !== 'Mesero');
+  protected puedeParaLlevar = computed(() => {
+    const rol = this.auth.usuarioActual()?.rol?.toLowerCase();
+    return rol === 'cajero' || rol === 'administrador';
+  });
+  /** Solo Cajero y Administrador cobran: el mesero no ve el acceso (O-03, DEF-010) */
+  protected puedeCobrar = computed(() => {
+    const rol = this.auth.usuarioActual()?.rol?.toLowerCase();
+    return rol === 'cajero' || rol === 'administrador';
+  });
 
   constructor() {
     this.cargar();
