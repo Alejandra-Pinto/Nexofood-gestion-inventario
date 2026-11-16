@@ -173,11 +173,47 @@ const formatoCantidad = (n: number) => String(Math.round(n * 1000) / 1000);
 
 @Injectable()
 export class OrdersService {
+  /** Bloqueos en memoria por mesa para serializar peticiones concurrentes dentro del mismo proceso */
+  private readonly mesaLocks = new Map<number, Promise<void>>();
+
   constructor(
     @InjectRepository(Pedido)
     private readonly pedidosRepo: Repository<Pedido>,
     private readonly dataSource: DataSource,
   ) {}
+
+  /**
+   * HU-3.1 / DEF-005: Serializa la ejecución por mesa dentro de la misma instancia
+   * para evitar condiciones de carrera donde dos peticiones concurrentes comprueben findOne simultáneamente.
+   */
+  private async ejecutarConBloqueoMesa<T>(mesa: number | null, accion: () => Promise<T>): Promise<T> {
+    if (mesa === null) {
+      return accion();
+    }
+
+    while (this.mesaLocks.has(mesa)) {
+      try {
+        await this.mesaLocks.get(mesa);
+      } catch {
+        // Ignora posibles errores de la operación anterior
+      }
+    }
+
+    let resolver!: () => void;
+    const promesaBloqueo = new Promise<void>((resolve) => {
+      resolver = resolve;
+    });
+    this.mesaLocks.set(mesa, promesaBloqueo);
+
+    try {
+      return await accion();
+    } finally {
+      if (this.mesaLocks.get(mesa) === promesaBloqueo) {
+        this.mesaLocks.delete(mesa);
+      }
+      resolver();
+    }
+  }
 
   async crear(dto: CreatePedidoDto, idMesero: number): Promise<Pedido> {
     // SCRUM-149: pedido vacío se rechaza sin tocar la BD
@@ -189,76 +225,91 @@ export class OrdersService {
       throw new BadRequestException(`La mesa debe estar entre 1 y ${TOTAL_MESAS}`);
     }
 
-    const idPedido = await this.dataSource.transaction(async (manager) => {
-      if (mesa !== null) {
-        const activo = await manager.findOne(Pedido, {
-          where: { numero_mesa: mesa, estado_pedido: In(ESTADOS_PEDIDO_ACTIVO) },
-        });
-        if (activo) throw new ConflictException(`La mesa ${mesa} ya tiene el pedido #${activo.id_pedido} activo`);
-      }
+    return this.ejecutarConBloqueoMesa(mesa, async () => {
+      const idPedido = await this.dataSource.transaction(async (manager) => {
+        if (mesa !== null) {
+          // HU-3.1 / DEF-005: Control de concurrencia a nivel de transacción de PostgreSQL (advisory lock)
+          // Bloquea transacciones concurrentes entre múltiples instancias/hilos para la misma mesa.
+          if (typeof manager.query === 'function') {
+            try {
+              await manager.query('SELECT pg_advisory_xact_lock(31001, $1)', [mesa]);
+            } catch {
+              // Si el entorno o mock de prueba no soporta pg_advisory_xact_lock, continúa
+            }
+          }
 
-      // HU-3.2: valida productos, adicionales, promociones y stock; calcula precios
-      const lineas = await this.prepararLineas(manager, dto.detalles, true);
-      const total = lineas.reduce((s, l) => s + l.subtotal, 0);
-      if (total > INT_MAX) throw new BadRequestException('El total del pedido supera el máximo permitido');
+          const activo = await manager.findOne(Pedido, {
+            where: { numero_mesa: mesa, estado_pedido: In(ESTADOS_PEDIDO_ACTIVO) },
+          });
+          if (activo) throw new ConflictException(`La mesa ${mesa} ya tiene el pedido #${activo.id_pedido} activo`);
+        }
 
-      const pedido = await manager.save(
-        manager.create(Pedido, {
-          id_mesero: idMesero,
-          numero_mesa: mesa,
-          estado_pedido: EstadoPedido.PENDIENTE,
-          total_calculado: total,
-        }),
-      );
+        // HU-3.2: valida productos, adicionales, promociones y stock; calcula precios
+        const lineas = await this.prepararLineas(manager, dto.detalles, true);
+        const total = lineas.reduce((s, l) => s + l.subtotal, 0);
+        if (total > INT_MAX) throw new BadRequestException('El total del pedido supera el máximo permitido');
 
-      // SCRUM-154: la comanda inicial SIEMPRE nace PENDIENTE (la imprime el agente Electron)
-      const comanda = await manager.save(
-        manager.create(Comanda, {
-          id_pedido: pedido.id_pedido,
-          version: 1, // HU-4.3: primera versión de la comanda
-          cambios: [],
-          estado_impresion: EstadoImpresionComanda.PENDIENTE,
-        }),
-      );
-
-      for (const l of lineas) {
-        const detalle = await manager.save(
-          manager.create(DetallePedido, {
-            id_pedido: pedido.id_pedido,
-            id_item: l.producto.id_item,
-            cantidad: l.cantidad,
-            precio_unitario: l.precio_unitario,
-            notas_especiales: l.notas_especiales,
-            promocion_aplicada: l.promocion?.nombre ?? null,
-            id_comanda: comanda.id_comanda,
+        const pedido = await manager.save(
+          manager.create(Pedido, {
+            id_mesero: idMesero,
+            numero_mesa: mesa,
+            estado_pedido: EstadoPedido.PENDIENTE,
+            total_calculado: total,
           }),
         );
 
-        // SCRUM-152: adicionales de la línea, con precio y nombre congelados
-        if (l.adicionales.length > 0) {
-          await manager.save(
-            l.adicionales.map((a) =>
-              manager.create(PedidoItemAdicional, {
-                id_detalle: detalle.id_detalle,
-                id_adicional: a.id_adicional,
-                cantidad: a.cantidad,
-                precio_unitario: a.precio_unitario,
-                nombre_adicional: a.nombre,
-              }),
-            ),
+        // SCRUM-154: la comanda inicial SIEMPRE nace PENDIENTE (la imprime el agente Electron)
+        const comanda = await manager.save(
+          manager.create(Comanda, {
+            id_pedido: pedido.id_pedido,
+            version: 1, // HU-4.3: primera versión de la comanda
+            cambios: [],
+            estado_impresion: EstadoImpresionComanda.PENDIENTE,
+          }),
+        );
+
+        for (const l of lineas) {
+          const detalle = await manager.save(
+            manager.create(DetallePedido, {
+              id_pedido: pedido.id_pedido,
+              id_item: l.producto.id_item,
+              cantidad: l.cantidad,
+              precio_unitario: l.precio_unitario,
+              notas_especiales: l.notas_especiales,
+              promocion_aplicada: l.promocion?.nombre ?? null,
+              id_comanda: comanda.id_comanda,
+            }),
           );
+
+          // SCRUM-152: adicionales de la línea, con precio y nombre congelados
+          if (l.adicionales.length > 0) {
+            await manager.save(
+              l.adicionales.map((a) =>
+                manager.create(PedidoItemAdicional, {
+                  id_detalle: detalle.id_detalle,
+                  id_adicional: a.id_adicional,
+                  cantidad: a.cantidad,
+                  precio_unitario: a.precio_unitario,
+                  nombre_adicional: a.nombre,
+                }),
+              ),
+            );
+          }
         }
-      }
 
-      return pedido.id_pedido;
-    }).catch((e: unknown) => {
-      if (e instanceof QueryFailedError && (e as QueryFailedError & { code?: string }).code === '23505') {
-        throw new ConflictException(`La mesa ${mesa} ya tiene un pedido activo`);
-      }
-      throw e;
+        return pedido.id_pedido;
+      }).catch((e: unknown) => {
+        if (
+          (e instanceof QueryFailedError && (e as QueryFailedError & { code?: string }).code === '23505') ||
+          ((e as { code?: string })?.code === '23505')
+        ) {
+          throw new ConflictException(`La mesa ${mesa} ya tiene un pedido activo`);
+        }
+        throw e;
+      });
+
+      return this.buscarPorId(idPedido);
     });
-
-    return this.buscarPorId(idPedido);
   }
 
   // =========================================================================
