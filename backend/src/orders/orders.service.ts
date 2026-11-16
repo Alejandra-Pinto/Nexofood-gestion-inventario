@@ -1498,8 +1498,22 @@ export class OrdersService {
     return this.buscarPorId(idPedido);
   }
 
-  // --- MÁQUINA DE ESTADOS ---
+  // --- MÁQUINA DE ESTADOS (HU-3.4) ---
   async cambiarEstado(id_pedido: number, dto: UpdateEstadoDto): Promise<Pedido> {
+    // HU-3.4 / DEF-003: El estado PAGADO solo puede alcanzarse mediante el flujo de cobro
+    if (dto.estado_pedido === EstadoPedido.PAGADO) {
+      throw new BadRequestException(
+        'El estado PAGADO no se puede asignar directamente mediante este endpoint. Debe registrarse a través del flujo de cobro y registro de pago (POST /orders/:id/pago).',
+      );
+    }
+
+    // HU-3.4 / DEF-004: El estado ANULADO solo puede alcanzarse mediante el flujo de anulación con motivo
+    if (dto.estado_pedido === EstadoPedido.ANULADO) {
+      throw new BadRequestException(
+        'El estado ANULADO no se puede asignar directamente mediante este endpoint. La anulación debe gestionarse a través del flujo de anulación (POST /orders/:id/anular) con motivo justificado.',
+      );
+    }
+
     await this.dataSource.transaction(async (manager) => {
       const pedido = await manager.findOne(Pedido, {
         where: { id_pedido },
@@ -1520,20 +1534,32 @@ export class OrdersService {
   private validarTransicion(estadoActual: EstadoPedido, nuevoEstado: EstadoPedido) {
     if (estadoActual === nuevoEstado) return;
 
+    if (nuevoEstado === EstadoPedido.PAGADO) {
+      throw new BadRequestException(
+        'El estado PAGADO no se puede asignar directamente mediante este endpoint. Debe registrarse a través del flujo de cobro y registro de pago (POST /orders/:id/pago).',
+      );
+    }
+
+    if (nuevoEstado === EstadoPedido.ANULADO) {
+      throw new BadRequestException(
+        'El estado ANULADO no se puede asignar directamente mediante este endpoint. La anulación debe gestionarse a través del flujo de anulación (POST /orders/:id/anular) con motivo justificado.',
+      );
+    }
+
     const transicionesValidas: Record<EstadoPedido, EstadoPedido[]> = {
-      [EstadoPedido.PENDIENTE]: [EstadoPedido.EN_PREPARACION, EstadoPedido.PAGADO, EstadoPedido.ANULADO],
-      [EstadoPedido.EN_PREPARACION]: [EstadoPedido.LISTO, EstadoPedido.ANULADO],
-      [EstadoPedido.LISTO]: [EstadoPedido.ENTREGADO, EstadoPedido.ANULADO],
-      [EstadoPedido.ENTREGADO]: [EstadoPedido.PAGADO],
+      [EstadoPedido.PENDIENTE]: [EstadoPedido.EN_PREPARACION],
+      [EstadoPedido.EN_PREPARACION]: [EstadoPedido.LISTO],
+      [EstadoPedido.LISTO]: [EstadoPedido.ENTREGADO],
+      [EstadoPedido.ENTREGADO]: [], 
       [EstadoPedido.PAGADO]: [], 
       [EstadoPedido.ANULADO]: [], 
     };
 
-    const permitidos = transicionesValidas[estadoActual];
+    const permitidos = transicionesValidas[estadoActual] ?? [];
 
     if (!permitidos.includes(nuevoEstado)) {
       throw new BadRequestException(
-        `Transición inválida: No se puede pasar de ${estadoActual} a ${nuevoEstado}.`
+        `Transición inválida: No se puede pasar de ${estadoActual} a ${nuevoEstado}.`,
       );
     }
   }
