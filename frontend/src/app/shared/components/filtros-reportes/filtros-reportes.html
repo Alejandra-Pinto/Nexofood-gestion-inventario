@@ -1,0 +1,127 @@
+<!-- Filtros en reportes: componente reutilizable (HU-6.5 · SCRUM-228 / SCRUM-229 / SCRUM-230) -->
+<section class="card barra no-print" aria-label="Filtros del reporte">
+  <div class="barra-fila">
+    @if (mostrarModosFecha()) {
+      <div class="campo campo-modo">
+        <span class="etiqueta">Período</span>
+        <div class="pestanas" role="group" aria-label="Tipo de período">
+          <button
+            type="button"
+            class="pestana"
+            [class.activa]="modoFecha() === 'diario'"
+            (click)="cambiarModoFecha('diario')"
+          >
+            Diario
+          </button>
+          <button
+            type="button"
+            class="pestana"
+            [class.activa]="modoFecha() === 'mensual'"
+            (click)="cambiarModoFecha('mensual')"
+          >
+            Mensual
+          </button>
+          <button
+            type="button"
+            class="pestana"
+            [class.activa]="modoFecha() === 'personalizado'"
+            (click)="cambiarModoFecha('personalizado')"
+          >
+            Personalizado
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- Campos de fecha dinámicos según el modo seleccionado -->
+    @if (modoFecha() === 'diario') {
+      <div class="campo campo-fecha">
+        <label for="filtro-dia">Día</label>
+        <input
+          id="filtro-dia"
+          type="date"
+          [max]="hoy"
+          [class.invalido]="!!errorFiltro()"
+          [value]="dia()"
+          (input)="actualizarDia($any($event.target).value)"
+        />
+      </div>
+    } @else if (modoFecha() === 'mensual') {
+      <div class="campo campo-mes">
+        <label for="filtro-mes">Mes</label>
+        <input
+          id="filtro-mes"
+          type="month"
+          [max]="mesActual"
+          [class.invalido]="!!errorFiltro()"
+          [value]="mes()"
+          (input)="actualizarMes($any($event.target).value)"
+        />
+      </div>
+    } @else {
+      <div class="campo campo-fecha">
+        <label for="filtro-desde">Fecha inicial</label>
+        <input
+          id="filtro-desde"
+          type="date"
+          [max]="hoy"
+          [class.invalido]="!!errorFiltro()"
+          [value]="desde()"
+          (input)="actualizarDesde($any($event.target).value)"
+        />
+      </div>
+
+      <div class="campo campo-fecha">
+        <label for="filtro-hasta">Fecha final</label>
+        <input
+          id="filtro-hasta"
+          type="date"
+          [max]="hoy"
+          [class.invalido]="!!errorFiltro()"
+          [value]="hasta()"
+          (input)="actualizarHasta($any($event.target).value)"
+        />
+      </div>
+    }
+
+    <!-- Selector opcional de producto/ítem -->
+    @if (mostrarItem()) {
+      <div class="campo campo-item">
+        <label for="filtro-item">Ítem</label>
+        <select
+          id="filtro-item"
+          [value]="idItem()"
+          (focus)="cargarProductos()"
+          (mousedown)="cargarProductos()"
+          (change)="actualizarItem($any($event.target).value)"
+        >
+          <option value="">Todos los productos</option>
+          @for (p of productos(); track p.id_item) {
+            <option [value]="p.id_item" [selected]="idItem() === p.id_item">
+              {{ p.nombre }}
+            </option>
+          }
+        </select>
+      </div>
+    }
+
+    <div class="acciones">
+      <button
+        type="button"
+        class="btn btn-primario"
+        [disabled]="cargando()"
+        (click)="aplicar()"
+      >
+        {{ cargando() ? 'Aplicando…' : botonTexto() }}
+      </button>
+    </div>
+
+    <span class="rango-texto">
+      Período: <strong>{{ desde() | date: 'dd/MM/yyyy' }}</strong> al <strong>{{ hasta() | date: 'dd/MM/yyyy' }}</strong>
+    </span>
+  </div>
+
+  @if (errorFiltro()) {
+    <p class="error-txt" role="alert">⚠ {{ errorFiltro() }}</p>
+  }
+</section>
