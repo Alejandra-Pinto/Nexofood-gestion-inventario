@@ -72,6 +72,13 @@ export class Reportes {
   });
 
   protected rangoTexto = computed(() => `${this.desde()} al ${this.hasta()}`);
+  protected criterioTexto = computed(() => {
+    let t = `${this.desde()} al ${this.hasta()}`;
+    if (this.idItem()) {
+      t += ` · Ítem #${this.idItem()}`;
+    }
+    return t;
+  });
 
   // Resumen
   protected resumen = signal<ResumenPeriodo | null>(null);
@@ -191,7 +198,7 @@ export class Reportes {
     this.errorCarga.set(null);
 
     if (this.pestana() === 'ventas') {
-      this.service.ventas(this.desde(), this.hasta()).subscribe({
+      this.service.ventas(this.desde(), this.hasta(), this.idItem()).subscribe({
         next: (r) => {
           this.reporteVentas.set(r);
           this.cargando.set(false);
@@ -222,7 +229,7 @@ export class Reportes {
     }
 
     if (this.pestana() === 'productos') {
-      this.service.productosMasVendidos(this.desde(), this.hasta()).subscribe({
+      this.service.productosMasVendidos(this.desde(), this.hasta(), this.idItem()).subscribe({
         next: (r) => {
           this.reporteProductos.set(r);
           this.cargando.set(false);
@@ -273,7 +280,7 @@ export class Reportes {
       const v = this.reporteVentas();
       if (!v) return;
       try {
-        const ok = descargarReporteVentasPdf(v, this.rangoTexto());
+        const ok = descargarReporteVentasPdf(v, this.criterioTexto());
         if (ok) {
           this.toast.exito('Reporte de ventas descargado en PDF correctamente.');
         } else {
@@ -304,7 +311,7 @@ export class Reportes {
       const p = this.reporteProductos();
       if (!p) return;
       try {
-        const ok = descargarReporteProductosPdf(p, this.rangoTexto());
+        const ok = descargarReporteProductosPdf(p, this.criterioTexto());
         if (ok) {
           this.toast.exito('Reporte de productos más vendidos descargado en PDF correctamente.');
         } else {

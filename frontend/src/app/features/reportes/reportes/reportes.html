@@ -56,7 +56,7 @@
     </div>
     <div class="membrete-meta">
       <strong>{{ pestana() === 'ventas' ? 'REPORTE GENERAL DE VENTAS' : pestana() === 'productos' ? 'REPORTE DE PRODUCTOS MÁS VENDIDOS' : pestana() === 'financiero' ? 'REPORTE FINANCIERO' : 'REPORTE RESUMEN DEL PERÍODO' }}</strong>
-      <span class="criterio-print">Período: {{ desde() | date: 'dd/MM/yyyy' }} – {{ hasta() | date: 'dd/MM/yyyy' }}</span>
+      <span class="criterio-print">Criterio: {{ criterioTexto() }}</span>
       <span>Generado el: {{ hoy | date: 'dd/MM/yyyy' }}</span>
       <span>Usuario: Administrador</span>
     </div>

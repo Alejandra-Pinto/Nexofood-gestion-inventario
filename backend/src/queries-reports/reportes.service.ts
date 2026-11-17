@@ -66,12 +66,12 @@ export class ReportesService {
     return calcularResumen(desde, hasta, pedidos, ingresos);
   }
 
-  /** GET /queries-reports/ventas?desde=&hasta= */
-  async ventas(desdeTxt?: string, hastaTxt?: string): Promise<ReporteVentas> {
+  /** GET /queries-reports/ventas?desde=&hasta=&id_item= */
+  async ventas(desdeTxt?: string, hastaTxt?: string, idItem?: number): Promise<ReporteVentas> {
     const { desde, hasta } = validarPeriodo(desdeTxt, hastaTxt);
     const fechaVenta = 'COALESCE(mf.fecha_hora, p.fecha_hora)';
 
-    const filas = await this.pedidosRepo
+    const qb = this.pedidosRepo
       .createQueryBuilder('p')
       .leftJoin('p.mesero', 'u')
       .leftJoin(MovimientoFinanciero, 'mf', 'mf.id_pedido = p.id_pedido AND mf.tipo_movimiento = :ingreso', {
@@ -84,7 +84,13 @@ export class ReportesService {
       .addSelect('mf.medio_pago', 'medio_pago')
       .addSelect('p.total_calculado', 'total')
       .where('UPPER(p.estado_pedido) = :pagado', { pagado: 'PAGADO' })
-      .andWhere(`${dia(fechaVenta)} BETWEEN :desde AND :hasta`, { desde, hasta })
+      .andWhere(`${dia(fechaVenta)} BETWEEN :desde AND :hasta`, { desde, hasta });
+
+    if (idItem) {
+      qb.innerJoin('p.detalles', 'd', 'd.id_item = :idItem', { idItem });
+    }
+
+    const filas = await qb
       .orderBy(fechaVenta, 'DESC')
       .addOrderBy('p.id_pedido', 'DESC')
       .getRawMany<FilaVenta>();
@@ -92,12 +98,12 @@ export class ReportesService {
     return construirReporteVentas(desde, hasta, filas);
   }
 
-  /** GET /queries-reports/productos-mas-vendidos?desde=&hasta= (HU-6.3) */
-  async productosMasVendidos(desdeTxt?: string, hastaTxt?: string): Promise<ReporteProductosMasVendidos> {
+  /** GET /queries-reports/productos-mas-vendidos?desde=&hasta=&id_item= (HU-6.3 · HU-6.5) */
+  async productosMasVendidos(desdeTxt?: string, hastaTxt?: string, idItem?: number): Promise<ReporteProductosMasVendidos> {
     const { desde, hasta } = validarPeriodo(desdeTxt, hastaTxt);
     const fechaVenta = 'COALESCE(mf.fecha_hora, p.fecha_hora)';
 
-    const filas = await this.pedidosRepo
+    const qb = this.pedidosRepo
       .createQueryBuilder('p')
       .innerJoin('p.detalles', 'd')
       .innerJoin('d.item', 'item')
@@ -109,7 +115,13 @@ export class ReportesService {
       .addSelect('SUM(d.cantidad)', 'unidades_vendidas')
       .addSelect('SUM(d.cantidad * d.precio_unitario)', 'total_recaudado')
       .where('UPPER(p.estado_pedido) = :pagado', { pagado: 'PAGADO' })
-      .andWhere(`${dia(fechaVenta)} BETWEEN :desde AND :hasta`, { desde, hasta })
+      .andWhere(`${dia(fechaVenta)} BETWEEN :desde AND :hasta`, { desde, hasta });
+
+    if (idItem) {
+      qb.andWhere('d.id_item = :idItem', { idItem });
+    }
+
+    const filas = await qb
       .groupBy('d.id_item')
       .addGroupBy('item.nombre')
       .orderBy('SUM(d.cantidad)', 'DESC')
