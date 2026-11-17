@@ -1,5 +1,5 @@
 /** Pantalla: Reportes - Resumen del período y reporte de ventas */
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
@@ -36,7 +36,7 @@ const MOVIMIENTOS_POR_PAGINA = 10;
 
 @Component({
   selector: 'app-reportes',
-  imports: [CurrencyPipe, DatePipe, RouterLink],
+  imports: [CurrencyPipe, DatePipe, DecimalPipe, RouterLink],
   templateUrl: './reportes.html',
   styleUrl: './reportes.scss',
 })
@@ -76,11 +76,37 @@ export class Reportes {
   protected errorCarga = signal<string | null>(null);
   /** Días del período con movimiento (los días en cero no se listan) */
   protected diasConMovimiento = computed(() => (this.resumen()?.por_dia ?? []).filter((d) => d.pedidos > 0));
+  /** Día con mayor recaudación de ventas en el resumen del período */
+  protected diaMayorVenta = computed(() => {
+    const dias = (this.resumen()?.por_dia ?? []).filter((d) => d.total_vendido > 0);
+    if (dias.length === 0) return null;
+    return dias.reduce((max, d) => (d.total_vendido > max.total_vendido ? d : max), dias[0]);
+  });
+  /** Tasa de efectividad operativa (% pedidos pagados respecto al total) */
+  protected tasaEfectividad = computed(() => {
+    const r = this.resumen();
+    if (!r || r.pedidos.total === 0) return 0;
+    return Math.round((r.ventas.cantidad / r.pedidos.total) * 100);
+  });
+  /** Promedio de pedidos por día con actividad */
+  protected promedioPedidosDia = computed(() => {
+    const r = this.resumen();
+    const dias = this.diasConMovimiento();
+    if (!r || dias.length === 0) return '0';
+    return (r.pedidos.total / dias.length).toFixed(1);
+  });
 
   // Ventas
   protected reporteVentas = signal<ReporteVentas | null>(null);
   /** Para las barras de "Ventas por medio de pago" */
   protected maxPorMedio = computed(() => Math.max(1, ...(this.reporteVentas()?.por_medio_pago ?? []).map((m) => m.total)));
+  /** Mayor venta registrada en el período de ventas */
+  protected mayorVenta = computed(() => {
+    const v = this.reporteVentas()?.ventas ?? [];
+    if (v.length === 0) return null;
+    return v.reduce((max, actual) => (actual.total > max.total ? actual : max), v[0]);
+  });
+  protected mayorVentaValor = computed(() => this.mayorVenta()?.total ?? 0);
 
   // Productos más vendidos (HU-6.3)
   protected reporteProductos = signal<ReporteProductosMasVendidos | null>(null);

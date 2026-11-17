@@ -132,9 +132,9 @@
             <small>{{ rv.resumen.ventas === 1 ? 'pedido pagado' : 'pedidos pagados' }}</small>
           </article>
           <article class="card cifra">
-            <span class="cifra-valor">{{ rv.resumen.ticket_promedio | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
-            <strong>Ticket promedio</strong>
-            <small>Valor medio por venta</small>
+            <span class="cifra-valor">{{ mayorVentaValor() | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+            <strong>Mayor venta</strong>
+            <small>{{ mayorVenta() ? ('Pedido #' + mayorVenta()?.id_pedido + (mayorVenta()?.numero_mesa ? ' · Mesa ' + mayorVenta()?.numero_mesa : ' · Para llevar')) : 'Venta más alta del período' }}</small>
           </article>
         </section>
 
@@ -388,9 +388,68 @@
           <small>{{ r.anulados.total | currency: 'COP' : 'symbol-narrow' : '1.0-0' }} sin cobrar</small>
         </article>
         <article class="card cifra">
-          <span class="cifra-valor">{{ r.ventas.ticket_promedio | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
-          <strong>Ticket promedio</strong>
-          <small>Valor medio por venta</small>
+          <span class="cifra-valor">{{ (diaMayorVenta()?.total_vendido ?? 0) | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</span>
+          <strong>Mayor venta en un día</strong>
+          <small>{{ diaMayorVenta() ? (diaMayorVenta()?.fecha + 'T12:00:00' | date: 'dd/MM/yyyy') + ' · ' + diaMayorVenta()?.ventas + ' ventas' : 'Sin ventas registradas' }}</small>
+        </article>
+      </section>
+
+      <!-- Resumen operativo y efectividad del período -->
+      <section class="resumen-operativo-grid no-print">
+        <article class="card tarjeta-operativa">
+          <div class="tarjeta-op-header">
+            <h3>Estado operativo de pedidos</h3>
+            <span class="badge" [class.badge-ok]="tasaEfectividad() >= 80" [class.badge-bajo]="tasaEfectividad() < 80">
+              {{ tasaEfectividad() }}% efectividad
+            </span>
+          </div>
+          <p class="subtitulo-operativo">Desglose de atención y flujo de servicio en el restaurante</p>
+          <div class="barra-progreso-wrap">
+            <div class="barra-progreso" [title]="tasaEfectividad() + '% de pedidos completados'">
+              <span class="progreso-pagado" [style.width.%]="r.pedidos.total > 0 ? (r.ventas.cantidad / r.pedidos.total) * 100 : 0"></span>
+              <span class="progreso-curso" [style.width.%]="r.pedidos.total > 0 ? (r.pedidos.en_curso / r.pedidos.total) * 100 : 0"></span>
+              <span class="progreso-anulado" [style.width.%]="r.pedidos.total > 0 ? (r.anulados.cantidad / r.pedidos.total) * 100 : 0"></span>
+            </div>
+          </div>
+          <div class="leyenda-operativa">
+            <div class="item-leyenda">
+              <span class="indicador-color pagado"></span>
+              <strong>{{ r.ventas.cantidad }} ({{ r.pedidos.total > 0 ? ((r.ventas.cantidad / r.pedidos.total) * 100 | number: '1.0-0') : 0 }}%)</strong>
+              <small>Pagados con éxito</small>
+            </div>
+            <div class="item-leyenda">
+              <span class="indicador-color curso"></span>
+              <strong>{{ r.pedidos.en_curso }} ({{ r.pedidos.total > 0 ? ((r.pedidos.en_curso / r.pedidos.total) * 100 | number: '1.0-0') : 0 }}%)</strong>
+              <small>En atención / cocina</small>
+            </div>
+            <div class="item-leyenda">
+              <span class="indicador-color anulado"></span>
+              <strong class="rojo">{{ r.anulados.cantidad }} ({{ r.pedidos.total > 0 ? ((r.anulados.cantidad / r.pedidos.total) * 100 | number: '1.0-0') : 0 }}%)</strong>
+              <small>Anulados</small>
+            </div>
+          </div>
+        </article>
+
+        <article class="card tarjeta-operativa">
+          <div class="tarjeta-op-header">
+            <h3>Indicadores del período</h3>
+            <span class="badge">{{ diasConMovimiento().length }} días activos</span>
+          </div>
+          <p class="subtitulo-operativo">Métricas globales de ritmo y balance operativo</p>
+          <div class="indicadores-operativos-lista">
+            <div class="indicador-fila">
+              <span>Promedio de pedidos por día activo:</span>
+              <strong>{{ promedioPedidosDia() }} pedidos / día</strong>
+            </div>
+            <div class="indicador-fila">
+              <span>Total facturado en ventas:</span>
+              <strong class="verde">{{ r.ventas.total | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+            </div>
+            <div class="indicador-fila">
+              <span>Dinero no recaudado (anulaciones):</span>
+              <strong class="rojo">{{ r.anulados.total | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+            </div>
+          </div>
         </article>
       </section>
 
