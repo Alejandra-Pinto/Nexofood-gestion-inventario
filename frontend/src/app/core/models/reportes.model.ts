@@ -75,6 +75,13 @@ export const TEXTO_MEDIO: Record<string, string> = {
 /** Período rápido del selector (como "Este mes" en el prototipo de Reportes) */
 export type PeriodoRapido = 'hoy' | 'semana' | 'mes' | 'personalizado';
 
+/** Datos emitidos por el componente de filtros de reportes (HU-6.5) */
+export interface FiltrosReporteData {
+  desde: string;
+  hasta: string;
+  id_item?: number;
+}
+
 export const MSJ_SIN_OPERACIONES = 'No se registraron operaciones en el período seleccionado.';
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,61 @@
+<!-- Filtros en reportes: componente reutilizable (HU-6.5 · SCRUM-228) -->
+<section class="card barra no-print" aria-label="Filtros del reporte">
+  <div class="barra-fila">
+    <div class="campo campo-fecha">
+      <label for="filtro-desde">Fecha inicial</label>
+      <input
+        id="filtro-desde"
+        type="date"
+        [max]="hoy"
+        [class.invalido]="!!errorFiltro()"
+        [value]="desde()"
+        (input)="actualizarDesde($any($event.target).value)"
+      />
+    </div>
+
+    <div class="campo campo-fecha">
+      <label for="filtro-hasta">Fecha final</label>
+      <input
+        id="filtro-hasta"
+        type="date"
+        [max]="hoy"
+        [class.invalido]="!!errorFiltro()"
+        [value]="hasta()"
+        (input)="actualizarHasta($any($event.target).value)"
+      />
+    </div>
+
+    @if (mostrarItem()) {
+      <div class="campo campo-item">
+        <label for="filtro-item">Ítem</label>
+        <select
+          id="filtro-item"
+          [value]="idItem()"
+          (change)="actualizarItem($any($event.target).value)"
+        >
+          <option value="">Todos los productos</option>
+          @for (p of productos(); track p.id_item) {
+            <option [value]="p.id_item" [selected]="idItem() === p.id_item">
+              {{ p.nombre }}
+            </option>
+          }
+        </select>
+      </div>
+    }
+
+    <div class="acciones">
+      <button
+        type="button"
+        class="btn btn-primario"
+        [disabled]="cargando()"
+        (click)="aplicar()"
+      >
+        {{ cargando() ? 'Aplicando…' : botonTexto() }}
+      </button>
+    </div>
+  </div>
+
+  @if (errorFiltro()) {
+    <p class="error-txt" role="alert">⚠ {{ errorFiltro() }}</p>
+  }
+</section>

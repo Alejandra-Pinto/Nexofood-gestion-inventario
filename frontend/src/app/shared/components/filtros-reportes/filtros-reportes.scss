@@ -1,0 +1,40 @@
+/* Barra de filtros reutilizable para reportes (HU-6.5) */
+.barra {
+  padding: 18px 24px;
+}
+
+.barra-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.barra .campo {
+  margin-bottom: 0;
+  min-width: 160px;
+}
+
+.campo-fecha {
+  flex: 0 1 180px;
+}
+
+.campo-item {
+  flex: 1 1 240px;
+}
+
+.acciones {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.error-txt {
+  margin: 12px 0 0;
+  color: var(--error, #c0392b);
+  font-size: 0.85rem;
+}
+
+input.invalido {
+  border-color: var(--error, #c0392b);
+}
