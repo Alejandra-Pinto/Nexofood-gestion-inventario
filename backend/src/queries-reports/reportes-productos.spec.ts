@@ -179,4 +179,9 @@ describe('ReportesController · productosMasVendidos', () => {
     expect(res.productos[0].nombre).toBe('Choripán');
     expect(res.total_unidades).toBe(10);
   });
+
+  it('HU-6.5: si se pasa id_item, delega el filtro por ítem al servicio', async () => {
+    await controller.productosMasVendidos({ desde: '2026-11-01', hasta: '2026-11-06', id_item: 5 });
+    expect(serviceMock.productosMasVendidos).toHaveBeenCalledWith('2026-11-01', '2026-11-06', 5);
+  });
 });

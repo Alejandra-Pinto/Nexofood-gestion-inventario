@@ -245,4 +245,18 @@ describe('Reportes · resumen por período', () => {
     expect(toastMock.exito).toHaveBeenCalledWith('Reporte de productos más vendidos descargado en PDF correctamente.');
     printSpy.mockRestore();
   });
+
+  it('HU-6.5: onAplicarFiltro actualiza fechas e ítem y consulta los reportes', async () => {
+    const { cmp } = await crear(resumen());
+    cmp.cambiarPestana('productos');
+    http.expectOne((x) => x.url === urlProductos).flush(reporteProductos());
+
+    cmp.onAplicarFiltro({ desde: '2026-11-05', hasta: '2026-11-10', id_item: 10 });
+
+    const req = http.expectOne((x) => x.url === urlProductos);
+    expect(req.request.params.get('desde')).toBe('2026-11-05');
+    expect(req.request.params.get('hasta')).toBe('2026-11-10');
+    expect(req.request.params.get('id_item')).toBe('10');
+    req.flush(reporteProductos());
+  });
 });
