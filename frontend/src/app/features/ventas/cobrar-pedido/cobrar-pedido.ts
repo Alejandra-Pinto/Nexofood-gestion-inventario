@@ -36,8 +36,11 @@ export class CobrarPedido {
   protected readonly medios = MEDIOS_PAGO;
   protected readonly etiquetaEstado = ETIQUETA_ESTADO;
 
-  /** El Mesero no puede cobrar (el backend también lo bloquea) */
-  protected puedeCobrar = computed(() => this.auth.usuarioActual()?.rol !== 'Mesero');
+  /** El Mesero no puede cobrar (el backend también lo bloquea) (DEF-010) */
+  protected puedeCobrar = computed(() => {
+    const rol = this.auth.usuarioActual()?.rol?.toLowerCase();
+    return rol === 'cajero' || rol === 'administrador';
+  });
 
   /** Pedidos que aún no se han pagado ni anulado */
   protected pedidos = signal<Pedido[]>([]);

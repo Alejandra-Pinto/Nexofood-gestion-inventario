@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { CrearIngreso, IngresoFinanciero, ListaIngresos } from '../models/finanzas.model';
+import { CrearIngreso, HistorialFinanciero, IngresoFinanciero, ListaIngresos } from '../models/finanzas.model';
 
 export interface CrearEgreso {
   concepto: string;
@@ -50,6 +50,11 @@ export class FinanzasService {
         ingresos: r.ingresos.map((i) => ({ ...i, monto: Number(i.monto) })),
       })),
     );
+  }
+
+  /** HU-7.3 GET /finance/movimientos: todos los movimientos y el saldo neto actual */
+  historial() {
+    return this.http.get<HistorialFinanciero>(`${this.api}/movimientos`);
   }
 
   registrarEgreso(dto: CrearEgreso) {

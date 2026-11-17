@@ -402,7 +402,8 @@ export function descargarReporteResumenPdf(
       write('40 660 532 50 re s');
       write('0 0 0 rg');
 
-      const fila1 = `Ventas Acumuladas: $${resumen.ventas.total.toLocaleString('es-CO')} (${resumen.ventas.cantidad} pedidos)  |  Ticket Promedio: $${resumen.ventas.ticket_promedio.toLocaleString('es-CO')}`;
+      const mejorDiaPdf = (resumen.por_dia || []).reduce((max, d) => (d.total_vendido > max ? d.total_vendido : max), 0);
+      const fila1 = `Ventas Acumuladas: $${resumen.ventas.total.toLocaleString('es-CO')} (${resumen.ventas.cantidad} pedidos)  |  Mayor Venta en un Día: $${mejorDiaPdf.toLocaleString('es-CO')}`;
       const fila2 = `Pedidos Registrados: ${resumen.pedidos.total} (${resumen.pedidos.en_curso} en curso)  |  Pedidos Anulados: ${resumen.anulados.cantidad} ($${resumen.anulados.total.toLocaleString('es-CO')})`;
       const fila3 = resumen.otros_ingresos.cantidad > 0
         ? `Otros Ingresos: $${resumen.otros_ingresos.total.toLocaleString('es-CO')} (${resumen.otros_ingresos.cantidad} movimientos manuales)`
@@ -512,7 +513,8 @@ export function descargarReporteVentasPdf(
       write('40 660 532 50 re s');
       write('0 0 0 rg');
 
-      const resTxt = `Total Vendido: $${reporte.resumen.total_vendido.toLocaleString('es-CO')}  |  Ventas Pagadas: ${reporte.resumen.ventas}  |  Ticket Promedio: $${reporte.resumen.ticket_promedio.toLocaleString('es-CO')}`;
+      const mayorVentaMonto = (reporte.ventas || []).reduce((max, v) => (v.total > max ? v.total : max), 0);
+      const resTxt = `Total Vendido: $${reporte.resumen.total_vendido.toLocaleString('es-CO')}  |  Ventas Pagadas: ${reporte.resumen.ventas}  |  Mayor Venta: $${mayorVentaMonto.toLocaleString('es-CO')}`;
       write(`BT /F2 8.5 Tf 48 692 Td (${sanitizarTextoPdf(resTxt)}) Tj ET`);
 
       const mediosTxt = (reporte.por_medio_pago || [])

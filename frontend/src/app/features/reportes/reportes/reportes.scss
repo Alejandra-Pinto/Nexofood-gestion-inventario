@@ -172,7 +172,31 @@ td a { color: var(--primario); font-weight: 600; text-decoration: none; }
 
 /* ---------- Tabla ---------- */
 .tabla-card { padding: 20px 24px; min-width: 0; }
-.tabla-scroll { overflow-x: auto; }
+.tabla-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: auto;
+
+  /* Barra de desplazamiento suave y moderna */
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--fondo, #f8fafc);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+
+    &:hover {
+      background: #94a3b8;
+    }
+  }
+}
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 th {
   text-align: left;
@@ -182,6 +206,10 @@ th {
   text-transform: uppercase;
   color: var(--muted);
   border-bottom: 1px solid var(--borde);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--superficie, #ffffff);
 }
 td { padding: 12px; border-bottom: 1px solid var(--borde); }
 tr:last-child td { border-bottom: none; }
@@ -302,6 +330,132 @@ tr:last-child td { border-bottom: none; }
   .pagina {
     padding: 0 !important;
     gap: 12pt !important;
+  }
+
+  .tabla-scroll {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
+
+/* ---------- Resumen operativo ampliado ---------- */
+.resumen-operativo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.tarjeta-operativa {
+  padding: 20px 24px;
+}
+
+.tarjeta-op-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+
+  h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+}
+
+.subtitulo-operativo {
+  margin: 0 0 16px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.barra-progreso-wrap {
+  margin: 14px 0 16px;
+}
+
+.barra-progreso {
+  display: flex;
+  height: 10px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--fondo);
+  gap: 2px;
+}
+
+.progreso-pagado {
+  background: var(--ok);
+  min-width: 2px;
+}
+
+.progreso-curso {
+  background: #f59e0b;
+  min-width: 2px;
+}
+
+.progreso-anulado {
+  background: var(--error);
+  min-width: 2px;
+}
+
+.leyenda-operativa {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--borde);
+}
+
+.item-leyenda {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  strong {
+    font-size: 0.95rem;
+  }
+
+  small {
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+}
+
+.indicador-color {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-bottom: 2px;
+
+  &.pagado { background: var(--ok); }
+  &.curso { background: #f59e0b; }
+  &.anulado { background: var(--error); }
+}
+
+.indicadores-operativos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.indicador-fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--fondo);
+  font-size: 0.85rem;
+
+  span {
+    color: var(--texto);
+  }
+
+  strong {
+    font-size: 0.95rem;
   }
 }
 

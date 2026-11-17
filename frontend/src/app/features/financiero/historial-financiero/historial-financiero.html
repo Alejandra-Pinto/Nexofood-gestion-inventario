@@ -1,0 +1,113 @@
+<header class="encabezado">
+  <div>
+    <h1>Control financiero</h1>
+    <p class="subtitulo">Historial de ingresos y egresos del establecimiento y saldo actual para el cuadre.</p>
+  </div>
+  @if (esAdmin()) {
+    <div class="acciones">
+      <a class="btn btn-secundario" routerLink="/financiero/ingresos" data-test="ir-ingreso">+ Registrar ingreso</a>
+      <a class="btn btn-primario" routerLink="/financiero/egresos" data-test="ir-egreso">− Registrar egreso</a>
+    </div>
+  }
+</header>
+
+<div class="pagina">
+  @if (error()) {
+    <div class="alerta alerta-error" role="alert">
+      ⚠ {{ error() }}
+      <button type="button" class="btn btn-secundario btn-sm" (click)="cargar()">Reintentar</button>
+    </div>
+  } @else if (cargando() && !historial()) {
+    <p class="muted centro">Cargando movimientos…</p>
+  } @else if (historial(); as h) {
+    <!-- ===== SCRUM-251 Saldo neto actual ===== -->
+    <section class="totales" aria-label="Resumen financiero">
+      <div class="card total total-ingresos">
+        <span class="total-etiqueta">Ingresos</span>
+        <strong data-test="total-ingresos">{{ h.resumen.ingresos | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+      </div>
+      <div class="card total total-egresos">
+        <span class="total-etiqueta">Egresos</span>
+        <strong data-test="total-egresos">{{ h.resumen.egresos | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+      </div>
+      <div class="card total total-saldo" [class.negativo]="h.resumen.saldo < 0">
+        <span class="total-etiqueta">Saldo neto actual</span>
+        <strong data-test="saldo">{{ h.resumen.saldo | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+        <small>Ingresos − Egresos</small>
+      </div>
+    </section>
+
+    @if (h.por_medio.length > 0) {
+      <section class="card por-medio" aria-label="Saldo por medio de pago">
+        <span class="total-etiqueta">Saldo por medio de pago</span>
+        <div class="chips">
+          @for (p of h.por_medio; track p.medio_pago) {
+            <span class="chip" [class.negativo]="p.saldo < 0" data-test="saldo-medio">
+              {{ medio(p.medio_pago) }}: <strong>{{ p.saldo | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}</strong>
+            </span>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- ===== SCRUM-250 Listado de movimientos ===== -->
+    <section class="card tabla-card">
+      <div class="tabla-encabezado">
+        <h2>Movimientos</h2>
+        <div class="pestanas" role="group" aria-label="Tipo de movimiento">
+          <button type="button" class="pestana" [class.activa]="vista() === 'TODOS'" (click)="vista.set('TODOS')">Todos ({{ cuenta().TODOS }})</button>
+          <button type="button" class="pestana" [class.activa]="vista() === 'INGRESO'" (click)="vista.set('INGRESO')">Ingresos ({{ cuenta().INGRESO }})</button>
+          <button type="button" class="pestana" [class.activa]="vista() === 'EGRESO'" (click)="vista.set('EGRESO')">Egresos ({{ cuenta().EGRESO }})</button>
+        </div>
+      </div>
+
+      @if (movimientos().length === 0) {
+        <div class="vacio" data-test="sin-movimientos">
+          <strong>{{ cuenta().TODOS === 0 ? msjSinMovimientos : 'No hay movimientos de este tipo.' }}</strong>
+        </div>
+      } @else {
+        <div class="tabla-wrap">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>Concepto</th>
+                <th>Tipo</th>
+                <th>Medio de pago</th>
+                <th>Registrado por</th>
+                <th class="num">Monto</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (m of movimientos(); track m.id_movimiento) {
+                <tr>
+                  <td>{{ m.fecha_hora | date: 'dd/MM/yyyy' }}</td>
+                  <td>{{ m.fecha_hora | date: 'h:mm a' }}</td>
+                  <td class="concepto">
+                    @if (m.id_pedido) {
+                      <a class="link" [routerLink]="['/pedidos', m.id_pedido]">{{ m.concepto }}</a>
+                    } @else {
+                      {{ m.concepto }}
+                    }
+                  </td>
+                  <td>
+                    <span class="badge" [class]="'badge badge-' + m.tipo_movimiento.toLowerCase()">
+                      {{ m.tipo_movimiento === 'INGRESO' ? 'Ingreso' : 'Egreso' }}
+                    </span>
+                    @if (m.origen === 'VENTA') { <span class="etiqueta-venta">Venta</span> }
+                  </td>
+                  <td>{{ medio(m.medio_pago) }}</td>
+                  <td>{{ m.registrado_por ?? '—' }}</td>
+                  <td class="num monto" [class.monto-egreso]="m.tipo_movimiento === 'EGRESO'">
+                    {{ m.tipo_movimiento === 'EGRESO' ? '−' : '+' }}{{ m.monto | currency: 'COP' : 'symbol-narrow' : '1.0-0' }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
+</div>

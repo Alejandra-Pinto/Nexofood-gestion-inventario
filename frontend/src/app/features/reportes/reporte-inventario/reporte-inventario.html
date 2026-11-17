@@ -36,7 +36,9 @@
 <nav class="tabs no-print" aria-label="Tipo de reporte">
   <a class="tab" [routerLink]="['/reportes']" [queryParams]="{ tab: 'resumen' }">Resumen del período</a>
   <a class="tab" [routerLink]="['/reportes']" [queryParams]="{ tab: 'ventas' }">Ventas</a>
+  <a class="tab" [routerLink]="['/reportes']" [queryParams]="{ tab: 'productos' }">Productos más vendidos</a>
   <span class="tab activa">Inventario</span>
+  <a class="tab" [routerLink]="['/reportes']" [queryParams]="{ tab: 'financiero' }">Financiero</a>
 </nav>
 
 <!-- Cabecera membretada exclusiva para formato de impresión (HU-6.6) -->

@@ -176,4 +176,71 @@ describe('FinanceService', () => {
       expect(r.egresos[0].registrado_por).toBe('Admin');
     });
   });
+
+  // ==========================================
+  // HU-7.3 · SCRUM-252 Pruebas del historial financiero
+  // ==========================================
+  describe('Historial de ingresos y egresos (HU-7.3)', () => {
+    const mov = (datos: Partial<MovimientoFinanciero>) => ({
+      fecha_hora: new Date('2026-11-12T15:00:00Z'),
+      id_pedido: null,
+      origen: OrigenMovimiento.MANUAL,
+      concepto: null,
+      usuario: { nombre_completo: 'Cajero QA' },
+      ...datos,
+    });
+
+    beforeEach(() => {
+      filas = [
+        mov({ id_movimiento: 4, tipo_movimiento: TipoMovimientoFinanciero.EGRESO, monto: 30000, medio_pago: MedioPago.EFECTIVO, concepto: 'Compra de pan' }),
+        mov({ id_movimiento: 3, tipo_movimiento: TipoMovimientoFinanciero.INGRESO, monto: 100000, medio_pago: MedioPago.EFECTIVO, concepto: 'Base de caja' }),
+        mov({ id_movimiento: 2, tipo_movimiento: TipoMovimientoFinanciero.INGRESO, monto: '18000' as unknown as number, medio_pago: MedioPago.NEQUI,
+          id_pedido: 12, origen: OrigenMovimiento.VENTA, pedido: { numero_mesa: 3 } as never }),
+        mov({ id_movimiento: 1, tipo_movimiento: TipoMovimientoFinanciero.INGRESO, monto: 4000, medio_pago: MedioPago.TRANSFERENCIA,
+          id_pedido: 9, origen: OrigenMovimiento.VENTA, pedido: { numero_mesa: null } as never }),
+      ];
+    });
+
+    it('#1 lista cada movimiento con concepto, monto y medio de pago', async () => {
+      const r = await service.historial();
+      expect(r.movimientos.map((m) => [m.concepto, m.monto, m.medio_pago])).toEqual([
+        ['Compra de pan', 30000, 'EFECTIVO'],
+        ['Base de caja', 100000, 'EFECTIVO'],
+        ['Venta · Pedido #12 · Mesa 3', 18000, 'NEQUI'],
+        ['Venta · Pedido #9 · Para llevar', 4000, 'TRANSFERENCIA'],
+      ]);
+      expect(r.movimientos[0]).toMatchObject({ tipo_movimiento: 'EGRESO', registrado_por: 'Cajero QA' });
+    });
+
+    it('#2 calcula el saldo neto actual (Ingresos - Egresos)', async () => {
+      const r = await service.historial();
+      expect(r.resumen).toEqual({ ingresos: 122000, egresos: 30000, saldo: 92000 });
+    });
+
+    it('#2 calcula el saldo por medio de pago para el cuadre de caja', async () => {
+      const r = await service.historial();
+      expect(r.por_medio).toEqual(expect.arrayContaining([
+        { medio_pago: 'EFECTIVO', ingresos: 100000, egresos: 30000, saldo: 70000 },
+        { medio_pago: 'NEQUI', ingresos: 18000, egresos: 0, saldo: 18000 },
+      ]));
+    });
+
+    it('el saldo puede quedar negativo si hay más egresos que ingresos', async () => {
+      filas = [mov({ id_movimiento: 1, tipo_movimiento: TipoMovimientoFinanciero.EGRESO, monto: 5000, medio_pago: MedioPago.EFECTIVO, concepto: 'Gas' })];
+      expect((await service.historial()).resumen).toEqual({ ingresos: 0, egresos: 5000, saldo: -5000 });
+    });
+
+    it('sin movimientos devuelve la lista vacía y el saldo en cero', async () => {
+      filas = [];
+      const r = await service.historial();
+      expect(r).toEqual({ resumen: { ingresos: 0, egresos: 0, saldo: 0 }, por_medio: [], movimientos: [] });
+    });
+
+    it('nunca selecciona la contraseña del usuario y ordena del más reciente al más antiguo', async () => {
+      await service.historial();
+      const columnas = qb.addSelect.mock.calls.flat(2) as string[];
+      expect(columnas.some((c) => c.includes('password'))).toBe(false);
+      expect(qb.orderBy).toHaveBeenCalledWith('m.fecha_hora', 'DESC');
+    });
+  });
 });

@@ -1,0 +1,120 @@
+/* HU-7.3 · SCRUM-249 Vista del historial financiero (mismo estilo que Historial de pedidos) */
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 22px 32px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+  h1 { font-size: 1.5rem; margin: 0; }
+}
+.subtitulo { margin: 4px 0 0; font-size: 0.85rem; color: var(--muted); }
+.pagina { display: flex; flex-direction: column; gap: 20px; padding: 24px 32px; }
+.centro { text-align: center; }
+.acciones { display: flex; gap: 10px; }
+.btn-sm { padding: 6px 12px; font-size: 0.8rem; margin-left: 12px; }
+
+/* ---------- SCRUM-251 Totales y saldo ---------- */
+.totales {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.total {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 22px;
+  border-left: 4px solid var(--borde);
+  strong { font-size: 1.5rem; }
+  small { font-size: 0.75rem; color: var(--muted); }
+}
+.total-etiqueta {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.total-ingresos { border-left-color: var(--ok); strong { color: var(--ok); } }
+.total-egresos { border-left-color: var(--error); strong { color: var(--error); } }
+.total-saldo {
+  border-left-color: var(--primario);
+  background: var(--primario-suave);
+  strong { color: var(--primario); font-size: 1.75rem; }
+  &.negativo { border-left-color: var(--error); strong { color: var(--error); } }
+}
+
+.por-medio { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 22px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--fondo);
+  font-size: 0.8rem;
+  &.negativo strong { color: var(--error); }
+}
+
+/* ---------- SCRUM-250 Listado ---------- */
+.tabla-card { padding: 20px 24px; min-width: 0; }
+.tabla-encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  h2 { font-size: 1.05rem; margin: 0; }
+}
+.pestanas { display: flex; gap: 8px; flex-wrap: wrap; }
+.pestana {
+  padding: 8px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  &.activa { background: var(--primario); border-color: var(--primario); color: #fff; }
+}
+
+.tabla-wrap { overflow-x: auto; }
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  th {
+    padding: 10px 12px; text-align: left; font-size: 0.72rem; letter-spacing: 0.5px;
+    text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--borde);
+  }
+  td { padding: 12px; border-bottom: 1px solid var(--borde); white-space: nowrap; }
+  .num { text-align: right; }
+  .concepto { white-space: normal; min-width: 200px; }
+}
+.link { color: var(--primario); font-weight: 600; }
+.monto { font-weight: 600; color: var(--ok); }
+.monto-egreso { color: var(--error); }
+
+.badge-ingreso { background: var(--ok-suave); color: var(--ok); }
+.badge-egreso { background: var(--error-suave); color: var(--error); }
+.etiqueta-venta {
+  margin-left: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.vacio {
+  padding: 40px 16px;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .encabezado, .pagina { padding: 16px; }
+  .totales { grid-template-columns: 1fr; }
+  .acciones { width: 100%; .btn { flex: 1; text-align: center; } }
+}
