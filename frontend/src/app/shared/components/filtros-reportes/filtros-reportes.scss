@@ -12,10 +12,18 @@
 
 .barra .campo {
   margin-bottom: 0;
-  min-width: 160px;
+  min-width: 150px;
+}
+
+.campo-modo {
+  min-width: 220px;
 }
 
 .campo-fecha {
+  flex: 0 1 170px;
+}
+
+.campo-mes {
   flex: 0 1 180px;
 }
 
@@ -23,10 +31,55 @@
   flex: 1 1 240px;
 }
 
+.etiqueta {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted, #666);
+  margin-bottom: 6px;
+}
+
+.pestanas {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pestana {
+  padding: 9px 14px;
+  border: 1px solid var(--borde, #e0e0e0);
+  border-radius: 10px;
+  background: var(--superficie, #fff);
+  color: var(--texto, #333);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+
+  &:hover {
+    border-color: var(--primario, #8B0000);
+  }
+
+  &.activa {
+    background: var(--primario, #8B0000);
+    border-color: var(--primario, #8B0000);
+    color: #fff;
+  }
+}
+
 .acciones {
   display: flex;
   gap: 10px;
   margin-left: auto;
+}
+
+.rango-texto {
+  display: block;
+  width: 100%;
+  font-size: 0.85rem;
+  color: var(--muted, #666);
+  margin-top: 4px;
 }
 
 .error-txt {

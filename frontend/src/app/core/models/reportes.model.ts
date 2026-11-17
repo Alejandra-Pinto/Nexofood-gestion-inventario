@@ -75,6 +75,9 @@ export const TEXTO_MEDIO: Record<string, string> = {
 /** Período rápido del selector (como "Este mes" en el prototipo de Reportes) */
 export type PeriodoRapido = 'hoy' | 'semana' | 'mes' | 'personalizado';
 
+/** Modo de selección de fechas en el componente de filtros (HU-6.5 · SCRUM-229) */
+export type ModoFechaReporte = 'diario' | 'mensual' | 'personalizado';
+
 /** Datos emitidos por el componente de filtros de reportes (HU-6.5) */
 export interface FiltrosReporteData {
   desde: string;
@@ -165,4 +168,22 @@ export function rangoDe(periodo: Exclude<PeriodoRapido, 'personalizado'>, hoy = 
   const diaSemana = (fecha.getUTCDay() + 6) % 7; // Lunes = 0
   fecha.setUTCDate(fecha.getUTCDate() - diaSemana);
   return { desde: fecha.toISOString().slice(0, 10), hasta: hoy };
+}
+
+/** Calcula rango de fechas para un mes en formato AAAA-MM (del día 01 al fin de mes o a hoy) */
+export function rangoMes(mes: string, hoy = fechaColombia()): { desde: string; hasta: string } {
+  if (!mes || !/^\d{4}-\d{2}$/.test(mes)) {
+    return rangoDe('mes', hoy);
+  }
+  const [aStr, mStr] = mes.split('-');
+  const anio = Number(aStr);
+  const m = Number(mStr);
+  const ultimoDia = new Date(Date.UTC(anio, m, 0)).getUTCDate();
+  const diaFin = String(ultimoDia).padStart(2, '0');
+  const finMes = `${mes}-${diaFin}`;
+  const hasta = finMes > hoy ? hoy : finMes;
+  return {
+    desde: `${mes}-01`,
+    hasta,
+  };
 }

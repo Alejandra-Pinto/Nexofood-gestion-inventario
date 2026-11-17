@@ -73,38 +73,15 @@
 </nav>
 
 <div class="pagina">
-  <!-- Selector de período -->
-  <section class="card barra no-print" aria-label="Período del reporte">
-    <div class="barra-fila">
-      <div class="campo">
-        <span class="etiqueta">Rango</span>
-        <div class="pestanas" role="group" aria-label="Período">
-          @for (p of periodos; track p.valor) {
-            <button type="button" class="pestana" [class.activa]="periodo() === p.valor" (click)="elegirPeriodo(p.valor)">
-              {{ p.texto }}
-            </button>
-          }
-        </div>
-      </div>
-      @if (periodo() === 'personalizado') {
-        <div class="campo">
-          <label for="r-desde">Fecha inicial</label>
-          <input id="r-desde" type="date" [max]="hoy" [class.invalido]="!!errorPeriodo()"
-            [value]="desde()" (input)="desde.set($any($event.target).value)" />
-        </div>
-        <div class="campo">
-          <label for="r-hasta">Fecha final</label>
-          <input id="r-hasta" type="date" [max]="hoy" [class.invalido]="!!errorPeriodo()"
-            [value]="hasta()" (input)="hasta.set($any($event.target).value)" />
-        </div>
-        <button type="button" class="btn btn-primario" [disabled]="cargando()" (click)="consultar()">Consultar</button>
-      }
-      <span class="rango-texto muted">{{ desde() | date: 'dd/MM/yyyy' }} – {{ hasta() | date: 'dd/MM/yyyy' }}</span>
-    </div>
-    @if (periodo() === 'personalizado' && errorPeriodo()) {
-      <p class="error-txt" role="alert">⚠ {{ errorPeriodo() }}</p>
-    }
-  </section>
+  <!-- Filtros en reportes: componente reutilizable (HU-6.5 · SCRUM-228 / SCRUM-229) -->
+  <app-filtros-reportes
+    [desde]="desde()"
+    [hasta]="hasta()"
+    [idItem]="idItem()"
+    [mostrarItem]="pestana() === 'ventas' || pestana() === 'productos'"
+    [cargando]="cargando()"
+    (aplicarFiltro)="onAplicarFiltro($event)"
+  />
 
   @if (cargando()) {
     <p class="muted centro">Generando reporte…</p>
