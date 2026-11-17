@@ -56,6 +56,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { ConfidencialidadInterceptor } from './common/confidencialidad/confidencialidad.interceptor';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ProductsModule } from './products/products.module';
@@ -102,7 +104,9 @@ import { QueriesReportsModule } from './queries-reports/queries-reports.module';
     FinanceModule,
     QueriesReportsModule,
   ],
+  controllers: [AppController],
   providers: [
+    AppService,
     // HU-2.2 · SCRUM-193: el costo de fabricación solo sale en respuestas al Administrador
     { provide: APP_INTERCEPTOR, useClass: ConfidencialidadInterceptor },
   ],
