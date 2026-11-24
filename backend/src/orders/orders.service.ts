@@ -664,9 +664,9 @@ export class OrdersService {
     }
 
     const { movimiento, cambio } = await this.dataSource.transaction(async (manager) => {
+      // El bloqueo va sin relaciones: PostgreSQL no permite FOR UPDATE sobre un LEFT JOIN
       const pedido = await manager.findOne(Pedido, {
         where: { id_pedido: idPedido },
-        relations: { detalles: true },
         lock: { mode: 'pessimistic_write' },
       });
       if (!pedido) throw new NotFoundException(`El pedido #${idPedido} no existe`);
@@ -695,7 +695,11 @@ export class OrdersService {
 
       // HU-3.5 (CP-3.5-06): Descontar inventario al registrar el pago del pedido
       const cantidadesPorItem = new Map<number, number>();
-      for (const d of pedido.detalles ?? []) {
+      const pedidoConDetalles = await manager.findOne(Pedido, {
+        where: { id_pedido: idPedido },
+        relations: { detalles: true },
+      });
+      for (const d of pedidoConDetalles?.detalles ?? []) {
         const cant = Number(d.cantidad);
         if (d.id_item && cant > 0) {
           cantidadesPorItem.set(d.id_item, (cantidadesPorItem.get(d.id_item) ?? 0) + cant);
