@@ -7,6 +7,7 @@ import { ReportesService } from '../../../core/services/reportes.service';
 import { ToastService } from '../../../core/services/toast.service';
 import {
   fechaColombia,
+  FiltrosReporteData,
   formatoCop,
   MSJ_SIN_MOVIMIENTOS_FINANCIEROS,
   MSJ_SIN_OPERACIONES,
@@ -20,6 +21,7 @@ import {
   ResumenPeriodo,
   TEXTO_MEDIO,
 } from '../../../core/models/reportes.model';
+import { FiltrosReportes } from '../../../shared/components/filtros-reportes/filtros-reportes';
 import {
   descargarReporteFinancieroCsv,
   descargarReporteFinancieroPdf,
@@ -36,7 +38,7 @@ const MOVIMIENTOS_POR_PAGINA = 10;
 
 @Component({
   selector: 'app-reportes',
-  imports: [CurrencyPipe, DatePipe, DecimalPipe, RouterLink],
+  imports: [CurrencyPipe, DatePipe, DecimalPipe, RouterLink, FiltrosReportes],
   templateUrl: './reportes.html',
   styleUrl: './reportes.scss',
 })
@@ -58,10 +60,11 @@ export class Reportes {
     { valor: 'personalizado', texto: 'Personalizado' },
   ];
 
-  // Período
+  // Período e Ítem (HU-6.5)
   protected periodo = signal<PeriodoRapido>('mes');
   protected desde = signal(rangoDe('mes').desde);
   protected hasta = signal(rangoDe('mes').hasta);
+  protected idItem = signal<number | ''>('');
   protected errorPeriodo = computed(() => {
     if (!this.desde() || !this.hasta()) return 'Indique la fecha inicial y la fecha final.';
     if (this.desde() > this.hasta()) return 'La fecha inicial no puede ser posterior a la fecha final.';
@@ -69,6 +72,13 @@ export class Reportes {
   });
 
   protected rangoTexto = computed(() => `${this.desde()} al ${this.hasta()}`);
+  protected criterioTexto = computed(() => {
+    let t = `${this.desde()} al ${this.hasta()}`;
+    if (this.idItem()) {
+      t += ` · Ítem #${this.idItem()}`;
+    }
+    return t;
+  });
 
   // Resumen
   protected resumen = signal<ResumenPeriodo | null>(null);
@@ -173,6 +183,14 @@ export class Reportes {
     this.consultar();
   }
 
+  /** HU-6.5 · Evento emitido al hacer clic en APLICAR FILTRO */
+  protected onAplicarFiltro(f: FiltrosReporteData): void {
+    this.desde.set(f.desde);
+    this.hasta.set(f.hasta);
+    this.idItem.set(f.id_item ?? '');
+    this.consultar();
+  }
+
   /** Consulta el reporte del período elegido */
   protected consultar(): void {
     if (this.errorPeriodo()) return;
@@ -180,7 +198,7 @@ export class Reportes {
     this.errorCarga.set(null);
 
     if (this.pestana() === 'ventas') {
-      this.service.ventas(this.desde(), this.hasta()).subscribe({
+      this.service.ventas(this.desde(), this.hasta(), this.idItem()).subscribe({
         next: (r) => {
           this.reporteVentas.set(r);
           this.cargando.set(false);
@@ -211,7 +229,7 @@ export class Reportes {
     }
 
     if (this.pestana() === 'productos') {
-      this.service.productosMasVendidos(this.desde(), this.hasta()).subscribe({
+      this.service.productosMasVendidos(this.desde(), this.hasta(), this.idItem()).subscribe({
         next: (r) => {
           this.reporteProductos.set(r);
           this.cargando.set(false);
@@ -262,7 +280,7 @@ export class Reportes {
       const v = this.reporteVentas();
       if (!v) return;
       try {
-        const ok = descargarReporteVentasPdf(v, this.rangoTexto());
+        const ok = descargarReporteVentasPdf(v, this.criterioTexto());
         if (ok) {
           this.toast.exito('Reporte de ventas descargado en PDF correctamente.');
         } else {
@@ -293,7 +311,7 @@ export class Reportes {
       const p = this.reporteProductos();
       if (!p) return;
       try {
-        const ok = descargarReporteProductosPdf(p, this.rangoTexto());
+        const ok = descargarReporteProductosPdf(p, this.criterioTexto());
         if (ok) {
           this.toast.exito('Reporte de productos más vendidos descargado en PDF correctamente.');
         } else {

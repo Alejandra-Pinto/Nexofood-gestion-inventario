@@ -25,13 +25,17 @@ export class ReportesController {
   /** HU-6.2 · 200 con las ventas finalizadas del período (sin_ventas = true si no hubo) · 400 período inválido */
   @Get('ventas')
   ventas(@Query() f: FiltrosPeriodoDto): Promise<ReporteVentas> {
-    return this.reportes.ventas(f.desde, f.hasta);
+    return f.id_item
+      ? this.reportes.ventas(f.desde, f.hasta, f.id_item)
+      : this.reportes.ventas(f.desde, f.hasta);
   }
 
   /** HU-6.3 · 200 con el ranking de productos más vendidos del período (sin_ventas = true si no hubo) · 400 período inválido */
   @Get('productos-mas-vendidos')
   productosMasVendidos(@Query() f: FiltrosPeriodoDto): Promise<ReporteProductosMasVendidos> {
-    return this.reportes.productosMasVendidos(f.desde, f.hasta);
+    return f.id_item
+      ? this.reportes.productosMasVendidos(f.desde, f.hasta, f.id_item)
+      : this.reportes.productosMasVendidos(f.desde, f.hasta);
   }
 
   /** HU-6.4 · 200 con ingresos, egresos, saldo neto y consumo interno (sin fechas = mes en curso) · 400 período inválido */
